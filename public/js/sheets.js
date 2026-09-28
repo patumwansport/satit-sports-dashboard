@@ -89,13 +89,27 @@ function cellNum(cell) {
  *   gviz เดาหัวตารางจาก "ชนิดข้อมูลต่างจากแถวล่าง" แท็บที่ยังเป็นข้อความล้วน
  *   (เช่นตารางเหรียญก่อนเริ่มแข่ง ช่องตัวเลขยังว่างทั้งหมด) จะเดาไม่ออก แล้วคืนหัวตารางมาเป็นแถวข้อมูลแถวแรก
  */
+/* gviz ตอบช้าไม่สม่ำเสมอ (วัดจริง 0.4–6 วินาทีต่อแท็บ) และบางครั้งค้างไม่ตอบเลย
+   ถ้าไม่ตัด หน้าเว็บจะรอไม่มีวันจบ — เกินเวลานี้ถือว่าล้มเหลว แล้ว common.js จะใช้ข้อมูลชุดล่าสุดแทน */
+const FETCH_TIMEOUT_MS = 8000;
+
 async function fetchGvizTable(source, headers) {
   const key = /^\d+$/.test(String(source)) ? 'gid' : 'sheet';
   const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' + key + '=' + encodeURIComponent(source) +
     (headers != null ? '&headers=' + headers : '');
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error('gviz ' + key + '=' + source + ' ตอบกลับ ' + res.status);
-  const raw = await res.text();
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, FETCH_TIMEOUT_MS);
+  let raw;
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    if (!res.ok) throw new Error('gviz ' + key + '=' + source + ' ตอบกลับ ' + res.status);
+    raw = await res.text();
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('gviz ' + key + '=' + source + ' ไม่ตอบภายใน ' + (FETCH_TIMEOUT_MS / 1000) + ' วินาที');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   const match = raw.match(/setResponse\(([\s\S]*)\);?\s*$/);
   if (!match) throw new Error('gviz ' + key + '=' + source + ' รูปแบบข้อมูลไม่ถูกต้อง');
   const json = JSON.parse(match[1]);
@@ -294,15 +308,29 @@ async function loadPhotos() {
   }
 }
 
-/* ---------- ประกอบเป็นก้อนเดียว schema เดียวกับ data/mock.json ---------- */
-export async function loadFromSheets() {
-  const [medalTable, sportTable, scheduleTable, planTable, photos] = await Promise.all([
+/* ---------- ประกอบเป็นก้อนเดียว schema เดียวกับ data/mock.json ----------
+   แท็บภาพไม่อยู่ใน Promise.all ของแท็บหลัก: มันเป็นแท็บที่ตอบช้าที่สุด (วัดได้ 2–6 วินาที)
+   แต่ใช้แค่แถบภาพบนหน้าหลัก — ถ้ารอด้วย ทุกหน้าต้องช้าตามมันไปหมด
+   ภาพมาทันก็ใส่ไปเลย มาไม่ทันก็ใช้ชุดเดิม (opts.prevPhotos) แล้วส่งชุดใหม่ตามไปทีหลังผ่าน opts.onLatePhotos
+
+   @param {{prevPhotos?: Array, onLatePhotos?: function(Array)}} [opts] */
+export async function loadFromSheets(opts) {
+  opts = opts || {};
+  let mainDone = false;
+  let freshPhotos = null;
+  loadPhotos().then(function (p) {   // loadPhotos ไม่ throw — พังก็คืน []
+    freshPhotos = p;
+    if (mainDone && opts.onLatePhotos) opts.onLatePhotos(p);
+  });
+
+  const [medalTable, sportTable, scheduleTable, planTable] = await Promise.all([
     fetchGvizTable(SHEET_MEDAL_TABLE, 1),
     fetchGvizTable(GID_SPORT_MEDALS),
     fetchGvizTable(GID_SCHEDULE),
-    fetchGvizTable(GID_SCHEDULE_PLAN),
-    loadPhotos()
+    fetchGvizTable(GID_SCHEDULE_PLAN)
   ]);
+  mainDone = true;
+  const photos = freshPhotos || opts.prevPhotos || [];
 
   const medals = buildMedalTable(medalTable);
   const self = medals.filter(function (m) { return m.isSelf; })[0] || null;

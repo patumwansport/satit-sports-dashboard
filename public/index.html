@@ -6,6 +6,14 @@
   <title>หน้าหลัก — กีฬาสาธิตสามัคคี</title>
   <meta name="description" content="แดชบอร์ดประกาศผลการแข่งขันกีฬาสาธิตสามัคคีแบบเรียลไทม์ สรุปอันดับและเหรียญรางวัลของโรงเรียนเรา" />
   <link rel="stylesheet" href="css/app.css" />
+  <!-- เปิดการเชื่อมต่อไป Google Sheets ไว้ก่อนระหว่างที่สคริปต์ยังโหลดอยู่ (ประหยัด DNS + TLS ของคำขอแรก)
+       crossorigin เพราะ fetch ข้ามโดเมนไม่ส่งคุกกี้ ต้องเป็นการเชื่อมต่อแบบเดียวกันถึงจะหยิบไปใช้ได้ -->
+  <link rel="preconnect" href="https://docs.google.com" crossorigin />
+  <!-- โมดูลที่ถูก import ต่อกันเป็นทอด ๆ: สั่งโหลดพร้อมกันเลย ไม่ต้องรอ import ทีละชั้น -->
+  <link rel="modulepreload" href="js/common.js" />
+  <link rel="modulepreload" href="js/sheets.js" />
+  <link rel="modulepreload" href="js/format.js" />
+  <link rel="modulepreload" href="js/config.js" />
 </head>
 <body class="min-h-screen bg-paper font-body leading-[1.6] tracking-[.01em] text-fg antialiased selection:bg-brand-100 selection:text-brand-strong">
   <a class="absolute top-0 -left-[999px] z-[100] rounded-br-[8px] bg-ink px-4 py-2.5 text-on-ink focus:left-0" href="#main">ข้ามไปยังเนื้อหาหลัก</a>
@@ -90,12 +98,12 @@
           </div>
         </section>
 
-        <!-- ===== กำหนดการวันนี้ · ประกาศผลล่าสุด: แบ่งครึ่งกันบนจอกว้าง จอแคบวางซ้อนกัน =====
+        <!-- ===== กำหนดการแข่งขัน · ประกาศผลล่าสุด: แบ่งครึ่งกันบนจอกว้าง จอแคบวางซ้อนกัน =====
              ซ้ายคือสิ่งที่ยังจะเกิด ขวาคือสิ่งที่จบไปแล้ว อ่านจากซ้ายไปขวาตามเวลา -->
         <div class="grid grid-cols-2 gap-7 max-[1000px]:grid-cols-1 max-[560px]:order-3">
         <section class="flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-panel" aria-labelledby="planTitle">
           <div class="flex items-center gap-3 border-b border-line px-5 pt-[15px] pb-[13px] max-[560px]:flex-wrap max-[560px]:gap-y-[9px] max-[560px]:px-4 max-[560px]:pt-3.5 max-[560px]:pb-3">
-            <h2 class="m-0 font-display text-[17px] font-normal text-fg" id="planTitle">กำหนดการวันนี้</h2>
+            <h2 class="m-0 font-display text-[17px] font-normal text-fg" id="planTitle">กำหนดการแข่งขัน</h2>
             <span class="text-[12.5px] text-fg-mute" id="planDay"></span>
             <span class="flex-1 max-[560px]:h-0 max-[560px]:basis-full"></span>
             <a class="inline-flex min-h-[34px] items-center rounded-full border border-line px-[13px] text-[12.5px] whitespace-nowrap text-fg-soft no-underline transition-[border-color,color] duration-150 hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="schedule.html">ดูทั้งหมด</a>

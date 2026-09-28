@@ -6,6 +6,14 @@
   <title>ชนิดกีฬา — กีฬาสาธิตสามัคคี</title>
   <meta name="description" content="ชนิดกีฬาที่ส่งแข่งขันทั้งหมดในกีฬาสาธิตสามัคคี พร้อมสถานะการแข่งขันของแต่ละกีฬา" />
   <link rel="stylesheet" href="css/app.css" />
+  <!-- เปิดการเชื่อมต่อไป Google Sheets ไว้ก่อนระหว่างที่สคริปต์ยังโหลดอยู่ (ประหยัด DNS + TLS ของคำขอแรก)
+       crossorigin เพราะ fetch ข้ามโดเมนไม่ส่งคุกกี้ ต้องเป็นการเชื่อมต่อแบบเดียวกันถึงจะหยิบไปใช้ได้ -->
+  <link rel="preconnect" href="https://docs.google.com" crossorigin />
+  <!-- โมดูลที่ถูก import ต่อกันเป็นทอด ๆ: สั่งโหลดพร้อมกันเลย ไม่ต้องรอ import ทีละชั้น -->
+  <link rel="modulepreload" href="js/common.js" />
+  <link rel="modulepreload" href="js/sheets.js" />
+  <link rel="modulepreload" href="js/format.js" />
+  <link rel="modulepreload" href="js/config.js" />
 </head>
 <body class="min-h-screen bg-paper font-body leading-[1.6] tracking-[.01em] text-fg antialiased selection:bg-brand-100 selection:text-brand-strong">
   <a class="absolute top-0 -left-[999px] z-[100] rounded-br-[8px] bg-ink px-4 py-2.5 text-on-ink focus:left-0" href="#main">ข้ามไปยังเนื้อหาหลัก</a>

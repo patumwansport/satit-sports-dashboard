@@ -54,7 +54,7 @@ npm start
 
 ## Deploy ขึ้น GitHub Pages
 
-เว็บอยู่ที่ **https://saeduflow-oss.github.io/satit-sports-dashboard/**
+เว็บอยู่ที่ **https://patumwansport.github.io/satit-sports-dashboard/**
 
 **push ขึ้น `main` แล้วจบ** — workflow `.github/workflows/pages.yml` จะ build และเผยแพร่ให้เอง
 ใช้เวลาราว 1 นาที ดูความคืบหน้าที่แท็บ **Actions** ของ repo (กด "Run workflow" ตรงนั้นเพื่อ deploy ซ้ำได้)

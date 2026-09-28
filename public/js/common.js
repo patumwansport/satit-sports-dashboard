@@ -95,32 +95,89 @@ export function el(tag, cls, html) { var n = document.createElement(tag); if (cl
    ต่อแหล่งข้อมูลไม่ได้ทั้งหมด:
      - เคยโหลดสำเร็จมาก่อนในหน้านี้ → ใช้ชุดล่าสุดต่อไป ดีกว่าสลับไปโชว์ข้อมูลตัวอย่างกลางคัน
        (ข้อมูลตัวอย่างเป็นคนละรายการ คนดูจะเห็นวัน/คู่แข่ง/เหรียญเปลี่ยนเป็นของปลอมทั้งหน้า)
-     - ยังไม่เคยสำเร็จเลย → data/mock.json ให้หน้ายังมีอะไรให้ดู และแจ้งใน console ว่าเป็นของตัวอย่าง */
-var lastGood = null;
+     - ยังไม่เคยสำเร็จเลย → data/mock.json ให้หน้ายังมีอะไรให้ดู และแจ้งใน console ว่าเป็นของตัวอย่าง
+
+   ความเร็ว: Google Sheets ตอบช้าไม่แน่นอน (0.4–6 วินาทีต่อแท็บ) และเว็บนี้เป็นหลายไฟล์ HTML
+   กดเมนูทีไรก็เริ่มดึงใหม่ทั้งหมด จึงเก็บชุดล่าสุดไว้ใน localStorage แล้วใช้แบบ stale-while-revalidate:
+   เปิดหน้า → วาดจากชุดที่เก็บไว้ทันที → ดึงของจริงเบื้องหลัง → มาถึงแล้ววาดทับ
+   ตัวนับ "อัปเดตเมื่อ … วินาทีที่แล้ว" นับจาก syncedAt ของข้อมูล คนดูจึงเห็นว่าชุดที่ขึ้นอยู่เก่าแค่ไหน */
+var CACHE_KEY = 'dash-data-v1';
+// เก่ากว่านี้ไม่เอามาวาดก่อน (ผลเมื่อวานขึ้นมาแวบหนึ่งก่อนเปลี่ยนชวนสับสนเกินไป) แต่ยังใช้เป็นของสำรองตอนดึงไม่ได้
+var CACHE_SHOW_MS = 6 * 60 * 60 * 1000;
+
+function readCache() {
+  try {
+    var data = JSON.parse(localStorage.getItem(CACHE_KEY));
+    return data && data.medalTable && data.days ? data : null;
+  } catch (e) { return null; }
+}
+function writeCache(data) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {}
+}
+function dataAgeMs(data) {
+  var t = Date.parse(data && data.syncedAt);
+  return isNaN(t) ? Infinity : Date.now() - t;
+}
+
+var lastGood = readCache();
+var listeners = [];        // callback จาก schedulePolling — รับข้อมูลใหม่ที่มาถึงนอกรอบ loadData()
+var backgroundLoad = null; // รอบที่ดึงเบื้องหลังหลังวาดจาก cache ไปแล้ว
+var firstLoad = true;
+
+function publish(data) {
+  listeners.forEach(function (fn) { fn(data); });
+}
+
+/* ภาพบรรยากาศมาถึงหลังข้อมูลหลัก (ดู loadFromSheets) — เติมเข้าชุดล่าสุดแล้ววาดใหม่ */
+function onLatePhotos(photos) {
+  if (!lastGood || JSON.stringify(photos) === JSON.stringify(lastGood.photos || [])) return;
+  lastGood = Object.assign({}, lastGood, { photos: photos });
+  writeCache(lastGood);
+  publish(lastGood);
+}
 
 function loadPrimary() {
+  var sheetOpts = { prevPhotos: lastGood && lastGood.photos, onLatePhotos: onLatePhotos };
   // ปิด Supabase อยู่ (config.js ว่าง) → ไม่แตะไฟล์ supabase-data.js เลย
   // โหลดแบบ dynamic import ไม่ใช่ import ข้างบน เพราะ import ปกติจะถูกดึงลงเครื่อง
   // ผู้ชมทุกคนตั้งแต่เปิดหน้า แม้ไม่มีวันได้ใช้ — เปลืองโดยไม่ได้อะไรกลับมา
-  if (!hasSupabase()) return loadFromSheets();
+  if (!hasSupabase()) return loadFromSheets(sheetOpts);
 
   return import('./supabase-data.js')
     .then(function (m) { return m.loadFromSupabase(); })
     .catch(function (err) {
       console.error('เชื่อมต่อ Supabase ไม่สำเร็จ, ลองดึงจาก Google Sheets แทน:', err);
-      return loadFromSheets();
+      return loadFromSheets(sheetOpts);
     });
 }
 
-export function loadData() {
-  return loadPrimary()
-    .then(function (data) { lastGood = data; return data; })
+var inFlight = null;
+var lastFetchAt = 0;
+function fetchFresh() {
+  // รอบก่อนยังไม่จบ (เช่นโพลชนกับตอนกลับมาที่แท็บ) ใช้รอบเดิม ไม่ยิงซ้อน
+  if (inFlight) return inFlight;
+  lastFetchAt = Date.now();
+  inFlight = loadPrimary()
+    .then(function (data) { lastGood = data; writeCache(data); return data; })
     .catch(function (err) {
       console.error('โหลดข้อมูลจากแหล่งภายนอกไม่สำเร็จ:', err);
       if (lastGood) return lastGood;
       console.warn('กำลังแสดงข้อมูลตัวอย่างจาก data/mock.json ไม่ใช่ผลจริง');
       return fetch('data/mock.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); });
-    });
+    })
+    .finally(function () { inFlight = null; });
+  return inFlight;
+}
+
+export function loadData() {
+  if (firstLoad) {
+    firstLoad = false;
+    if (lastGood && dataAgeMs(lastGood) < CACHE_SHOW_MS) {
+      backgroundLoad = fetchFresh();
+      return Promise.resolve(lastGood);
+    }
+  }
+  return fetchFresh();
 }
 
 /** โหลดข้อมูลไม่สำเร็จ: แทนที่เนื้อหาทั้งหน้าด้วยกล่องบอกวิธีแก้ (เหมือนกันทุกหน้า) */
@@ -136,15 +193,27 @@ export function showLoadError(err) {
 /* ---------- ดึงข้อมูลใหม่เป็นระยะ เพื่อให้ตัวเลขสดจริงตามชีต ----------
    ตอนมีเซิร์ฟเวอร์ ชีตถูกยิงอย่างมากทุก 15 วินาทีไม่ว่าจะมีคนเปิดกี่คน (แคชรวมที่เซิร์ฟเวอร์)
    ตอนนี้ทุกเบราว์เซอร์ยิงชีตเอง รอบละ 5 คำขอ (4 แท็บ + ภาพ) จึงเว้นห่างขึ้นเป็นครึ่งนาที
-   — ช้ากว่าเดิม 10 วินาทีแต่แลกกับการไม่ให้ Google มองว่าถูกยิงถี่จนตัดการเชื่อมต่อช่วงคนดูเยอะ */
+   — ช้ากว่าเดิม 10 วินาทีแต่แลกกับการไม่ให้ Google มองว่าถูกยิงถี่จนตัดการเชื่อมต่อช่วงคนดูเยอะ
+   แท็บที่ถูกซ่อนอยู่ (สลับไปแท็บอื่น/พับจอ) ไม่โพล กลับมาเมื่อไรค่อยดึงทันทีถ้าเลยรอบไปแล้ว */
 var POLL_MS = 30000;
 export function schedulePolling(onData) {
+  listeners.push(onData);
+  function refresh() {
+    fetchFresh().then(onData).catch(function (err) { console.warn('ซิงก์ข้อมูลใหม่ไม่สำเร็จ:', err); });
+  }
+  // หน้าวาดจาก cache ไปแล้ว: รอบเบื้องหลังที่ loadData() เริ่มไว้มาถึงเมื่อไรก็วาดทับ
+  if (backgroundLoad) {
+    backgroundLoad.then(onData).catch(function (err) { console.warn('ซิงก์ข้อมูลใหม่ไม่สำเร็จ:', err); });
+    backgroundLoad = null;
+  }
   setInterval(function () {
-    loadData().then(onData).catch(function (err) { console.warn('ซิงก์ข้อมูลใหม่ไม่สำเร็จ:', err); });
+    if (!document.hidden) refresh();
   }, POLL_MS);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && Date.now() - lastFetchAt >= POLL_MS) refresh();
+  });
 }
 
-/* ---------- ทางลัดเข้าถึงข้อมูล ---------- */
 export function selfMedals(data) { return data.medalTable.filter(function (m) { return m.isSelf; })[0] || { gold: 0, silver: 0, bronze: 0 }; }
 export function sportName(data, id) { var s = data.sports.filter(function (x) { return x.id === id; })[0]; return s ? s.name : ''; }
 export function allDayItems(data) {
@@ -542,7 +611,10 @@ export function initChrome(activePage) {
   return {
     /** เรียกทุกครั้งที่ข้อมูลใหม่มาถึง: อัปเดตชื่อโรงเรียน/อันดับ/แจ้งเตือนสด ในแถบบน */
     onData: function (data) {
-      secs = 0; out.textContent = secs;
+      // นับจากเวลาที่ข้อมูลชุดนี้ถูกดึงมาจริง ไม่ใช่เวลาที่วาด — ชุดจาก cache จึงไม่ถูกอ้างว่าเพิ่งอัปเดต
+      var age = Date.parse(data.syncedAt);
+      secs = isNaN(age) ? 0 : Math.max(0, Math.round((Date.now() - age) / 1000));
+      out.textContent = secs;
       // แต่ละหน้ามีองค์ประกอบในแถบบนไม่เท่ากัน จึงอัปเดตเฉพาะอันที่มีจริงในหน้านั้น
       setText('schoolChipName', data.school.name);
       setText('schoolChipRank', 'อันดับ ' + (data.school.rank || '—') + ' / ' + data.school.totalSchools);
