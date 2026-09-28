@@ -8,6 +8,8 @@
    ========================================================= */
 
 import { loadFromSheets } from './sheets.js';
+import { hasSupabase } from './config.js';
+import { MONTHS_TH, isoDate } from './format.js';
 
 /** ป้ายสถานะ (สด / ประกาศแล้ว / รอเริ่ม) — โครงเดียว เปลี่ยนแค่คู่สีตามสถานะ */
 export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 text-[11.5px]';
@@ -80,18 +82,41 @@ export function setText(id, text) { var n = document.getElementById(id); if (n) 
 export function el(tag, cls, html) { var n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; }
 
 /* ---------- โหลดข้อมูล ----------
-   ดึงจาก Google Sheets ตรง ๆ ในเบราว์เซอร์ (sheets.js) — เว็บอยู่บน GitHub Pages ซึ่งเสิร์ฟได้แค่
-   ไฟล์นิ่ง ๆ ไม่มี /api/ ให้เรียกอีกแล้ว
-   ต่อชีตไม่ได้ (ออฟไลน์ / ชีตถูกปิดแชร์ / แท็บถูกลบ):
+   เว็บอยู่บน GitHub Pages ซึ่งเสิร์ฟได้แค่ไฟล์นิ่ง ๆ ไม่มี /api/ ของเราเองให้เรียก
+   เบราว์เซอร์จึงไปเอาข้อมูลจากแหล่งภายนอกตรง ๆ ตามลำดับนี้
+
+     1) Supabase   — แหล่งหลักเมื่อกรอก config.js แล้ว (แก้ข้อมูลผ่านหน้า CMS ที่ admin.html)
+     2) Google Sheets — ของเดิม ใช้เมื่อยังไม่ได้ตั้งค่า Supabase หรือ Supabase ล่ม
+     3) data/mock.json — กันหน้าว่างเปล่าเมื่อไม่เหลือทางไหนเลย
+
+   ข้อ 2 ไม่ใช่แค่ของสำรองตอนย้ายระบบ: วันแข่งจริงถ้า Supabase มีปัญหา เว็บยังขึ้นผลจากชีตได้
+   ตราบใดที่ยังไม่ปิดแชร์ชีตทิ้ง
+
+   ต่อแหล่งข้อมูลไม่ได้ทั้งหมด:
      - เคยโหลดสำเร็จมาก่อนในหน้านี้ → ใช้ชุดล่าสุดต่อไป ดีกว่าสลับไปโชว์ข้อมูลตัวอย่างกลางคัน
        (ข้อมูลตัวอย่างเป็นคนละรายการ คนดูจะเห็นวัน/คู่แข่ง/เหรียญเปลี่ยนเป็นของปลอมทั้งหน้า)
      - ยังไม่เคยสำเร็จเลย → data/mock.json ให้หน้ายังมีอะไรให้ดู และแจ้งใน console ว่าเป็นของตัวอย่าง */
 var lastGood = null;
+
+function loadPrimary() {
+  // ปิด Supabase อยู่ (config.js ว่าง) → ไม่แตะไฟล์ supabase-data.js เลย
+  // โหลดแบบ dynamic import ไม่ใช่ import ข้างบน เพราะ import ปกติจะถูกดึงลงเครื่อง
+  // ผู้ชมทุกคนตั้งแต่เปิดหน้า แม้ไม่มีวันได้ใช้ — เปลืองโดยไม่ได้อะไรกลับมา
+  if (!hasSupabase()) return loadFromSheets();
+
+  return import('./supabase-data.js')
+    .then(function (m) { return m.loadFromSupabase(); })
+    .catch(function (err) {
+      console.error('เชื่อมต่อ Supabase ไม่สำเร็จ, ลองดึงจาก Google Sheets แทน:', err);
+      return loadFromSheets();
+    });
+}
+
 export function loadData() {
-  return loadFromSheets()
+  return loadPrimary()
     .then(function (data) { lastGood = data; return data; })
     .catch(function (err) {
-      console.error('เชื่อมต่อ Google Sheets ไม่สำเร็จ:', err);
+      console.error('โหลดข้อมูลจากแหล่งภายนอกไม่สำเร็จ:', err);
       if (lastGood) return lastGood;
       console.warn('กำลังแสดงข้อมูลตัวอย่างจาก data/mock.json ไม่ใช่ผลจริง');
       return fetch('data/mock.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); });
@@ -126,6 +151,17 @@ export function allDayItems(data) {
   var rows = [];
   data.days.forEach(function (day) { day.items.forEach(function (i) { rows.push(i); }); });
   return rows;
+}
+/**
+ * วันนี้ตามปฏิทินจริงของเครื่องผู้ดูใช่ไหม — ใช้ติดป้าย "วันนี้"
+ * เทียบวันที่เต็มพร้อมปี (iso) ข้อมูลที่ไม่มี iso (ข้อมูลตัวอย่าง) ถอยไปเทียบป้าย "21 ต.ค." แทน
+ * ต่างจาก currentDay() ที่ "เดา" วันจากผลในชีต — อันนั้นใช้เลือกว่าจะโชว์วันไหน ไม่ใช่บอกว่าวันนี้วันอะไร
+ */
+export function isToday(day) {
+  if (!day) return false;
+  var now = new Date();
+  if (day.iso) return day.iso === isoDate(now);
+  return day.date === now.getDate() + ' ' + MONTHS_TH[now.getMonth()];
 }
 /** วันที่ "กำลังเกิดขึ้น": วันที่มีแมตช์สด > วันล่าสุดที่ประกาศผลแล้ว > วันแรกของรายการ */
 export function currentDay(data) {
@@ -350,13 +386,13 @@ export function schoolMatches(data, m) {
    ยอดรวมเป็นสีเน้นและตัวโตสุด เพราะเป็นตัวเลขที่คนมองหาเป็นอันดับแรก
    เงินใช้เฉดเข้มกับไอคอนด้วย (ไม่ใช่ bg-silver) เพราะสีเงินสดเกือบขาว ไอคอน 14px จะจมหายไปกับพื้น */
 var MEDAL_COLS = [
-  { key: 'gold', mic: 'bg-gold', num: 'text-gold-ink text-[16px] max-[720px]:text-[15px]', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
-  { key: 'silver', mic: 'bg-silver-ink', num: 'text-silver-ink text-[16px] max-[720px]:text-[15px]', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
-  { key: 'bronze', mic: 'bg-bronze', num: 'text-bronze-ink text-[16px] max-[720px]:text-[15px]', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
+  { key: 'gold', mic: 'bg-gold', num: 'text-gold-ink text-[16px] max-[720px]:text-[18px]', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
+  { key: 'silver', mic: 'bg-silver-ink', num: 'text-silver-ink text-[16px] max-[720px]:text-[18px]', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
+  { key: 'bronze', mic: 'bg-bronze', num: 'text-bronze-ink text-[16px] max-[720px]:text-[18px]', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
 ];
 // "รวม" ไม่ใช่ชนิดเหรียญ จึงไม่มีไอคอนเหรียญ — เป็นผลบวก ไม่ใช่ของอีกอย่างหนึ่ง
 var TOTAL_COL = {
-  num: 'text-brand-strong text-[17.5px] max-[720px]:text-[17px]', label: 'รวม', plain: true,
+  num: 'text-brand-strong text-[17.5px] max-[720px]:text-[20px]', label: 'รวม', plain: true,
   pos: 'max-[720px]:col-start-5 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:justify-end'
 };
 
@@ -373,12 +409,15 @@ function medalTag(col, micSize) {
 }
 
 /* จอกว้างมีหัวคอลัมน์บอกชนิดเหรียญอยู่แล้ว ป้ายในช่องจึงโผล่เฉพาะจอแคบที่ไม่มีหัวตาราง
-   ป้ายกินความกว้างเพิ่มช่องละ ~40px จึงต้องย่อไอคอน/ตัวอักษร/ช่องไฟลงด้วย
-   ไม่งั้นสามช่องเหรียญจะดันคอลัมน์ "รวม" หลุดขอบการ์ดบนจอ 360–390px */
+   เดิมวางป้ายไว้ "ข้าง" ตัวเลข ซึ่งกินความกว้างช่องละ ~40px จนต้องย่อทั้งไอคอนและตัวเลขลง
+   เพื่อไม่ให้คอลัมน์ "รวม" หลุดขอบการ์ดที่ 360px — กลายเป็นว่าจอที่ต้องอ่านกลางแดด
+   ได้ตัวเลขเล็กกว่าจอคอมพิวเตอร์ ซึ่งกลับหัวกลับหางกับความจริง
+   ตอนนี้วางป้าย "เหนือ" ตัวเลขแทน ความกว้างของช่องจึงเท่ากับคำที่ยาวที่สุด ("ทองแดง")
+   ไม่ใช่ผลรวมของป้ายบวกตัวเลข เหลือที่ให้ขยายตัวเลขเป็น 18px ได้โดยไม่ดันอะไรหลุดขอบ */
 function medalCell(col, value) {
-  return '<span class="min-w-0 text-right max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[5px] max-[720px]:text-left max-[720px]:whitespace-nowrap ' + col.pos + '">' +
-    '<span class="hidden text-[10.5px] text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[3px]">' +
-      medalTag(col, 'size-[11px]') +
+  return '<span class="min-w-0 text-right max-[720px]:flex max-[720px]:flex-col max-[720px]:items-start max-[720px]:gap-px max-[720px]:text-left max-[720px]:whitespace-nowrap ' + col.pos + '">' +
+    '<span class="hidden text-[12px] text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[4px]">' +
+      medalTag(col, 'size-[12px]') +
     '</span>' +
     '<b class="font-mono leading-[1.1] font-normal tabular-nums ' + col.num + '">' + value + '</b>' +
   '</span>';
@@ -424,7 +463,7 @@ export function renderMedalTable(host, rows, opts) {
       (m.isSelf ? ' bg-brand-100' : ' hover:bg-surface-soft'),
       '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono text-[15px] max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
         (RANK_TONE[m.rank] || 'text-fg-mute') + '">' + m.rank + '</span>' +
-      '<span class="min-w-0 text-[15px] leading-[1.35] break-words max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:text-[14.5px]">' + esc(name) + '</span>' +
+      '<span class="min-w-0 text-[15px] leading-[1.35] break-words max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:text-[15.5px]">' + esc(name) + '</span>' +
       MEDAL_COLS.map(function (c) { return medalCell(c, m[c.key]); }).join('') +
       medalCell(TOTAL_COL, total));
     row.href = 'school.html?id=' + schoolId(schoolKey(m));
@@ -477,6 +516,9 @@ export function initChrome(activePage) {
     setSide(app.dataset.side !== 'open');
   });
   scrim.addEventListener('click', function () { setSide(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && app.dataset.side === 'open') setSide(false);
+  });
 
   // เมนูของหน้าปัจจุบัน: aria-current เป็นทั้งข้อมูลให้โปรแกรมอ่านหน้าจอและตัวสั่งสีของปุ่ม
   document.querySelectorAll('[data-page]').forEach(function (a) {
@@ -487,11 +529,11 @@ export function initChrome(activePage) {
   document.getElementById('liveBell').addEventListener('click', function () { location.href = 'matches.html'; });
 
   var secs = 0, out = document.getElementById('syncTime');
-  out.textContent = secs + ' วินาที';
+  out.textContent = secs;
   var syncCb = null;
   setInterval(function () {
     secs += 1;
-    out.textContent = secs + ' วินาที';
+    out.textContent = secs;
     if (syncCb) syncCb(secs);
   }, 1000);
 
@@ -500,7 +542,7 @@ export function initChrome(activePage) {
   return {
     /** เรียกทุกครั้งที่ข้อมูลใหม่มาถึง: อัปเดตชื่อโรงเรียน/อันดับ/แจ้งเตือนสด ในแถบบน */
     onData: function (data) {
-      secs = 0; out.textContent = secs + ' วินาที';
+      secs = 0; out.textContent = secs;
       // แต่ละหน้ามีองค์ประกอบในแถบบนไม่เท่ากัน จึงอัปเดตเฉพาะอันที่มีจริงในหน้านั้น
       setText('schoolChipName', data.school.name);
       setText('schoolChipRank', 'อันดับ ' + (data.school.rank || '—') + ' / ' + data.school.totalSchools);

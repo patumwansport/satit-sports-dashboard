@@ -1,18 +1,20 @@
 import {
   el, esc, paintUiIcons, loadData, schedulePolling, initChrome, sportIcon, sportName, statusChip,
-  allDayItems, currentDay, dayLabel, dayPhotos, teamSides, splitScore,
+  allDayItems, currentDay, isToday, dayLabel, dayPhotos, teamSides, splitScore,
   schoolCores, matchScore, medalDiff, schoolByText, schoolCrest,
   sportMascotImg, eventParts, EMPTY_TEXT, showLoadError
 } from './common.js';
+import { MONTHS_TH, WEEKDAYS_TH } from './format.js';
 
 var chrome = initChrome('home');
-var RESULTS_TOP = 3;      // จำนวนการ์ดผลที่ประกาศแล้วบนหน้าหลัก = 3 คอลัมน์ในแถวเดียว
+var RESULTS_TOP = 4;      // จำนวนการ์ดผลที่ประกาศแล้วบนหน้าหลัก = 4 รายการล่าสุด (กริด 2×2)
 
 /* =========================================================
    ภาพบรรยากาศ — ดึงลิงก์รูปจากแท็บ "img" ในชีต (ดู dayPhotos ใน common.js)
    ตอนนี้ชีตมีแค่ลิงก์ ภาพจึงหมุนวนได้ทุกวัน · ชีตยังไม่มีรูป = ซ่อนทั้งแถบ ไม่เว้นกล่องว่างไว้
    ========================================================= */
-var HERO_MS = 6500;           // จังหวะเปลี่ยนรูปปกติ
+var SHOW_HERO = false;        // ปิดแถบภาพบนหน้าหลัก · เปลี่ยนเป็น true ถ้าอยากให้ภาพกลับมา
+var HERO_MS = 6500;          // จังหวะเปลี่ยนรูปปกติ
 var HERO_MS_REDUCED = 9000;   // โหมดลดการเคลื่อนไหว: ไม่มีเฟดคอยบอกล่วงหน้า จึงทิ้งจังหวะนานขึ้น
 
 var hero = {
@@ -146,7 +148,7 @@ function heroSlide(data, day, p, idx, total) {
 
 function renderHero(data, day) {
   var stage = document.getElementById('heroStage');
-  var photos = dayPhotos(data, day);
+  var photos = SHOW_HERO ? dayPhotos(data, day) : [];
 
   var key = photos.map(function (p) { return p.id || p.src; }).join('|');
   if (key === hero.key) return;   // ภาพชุดเดิม — ไม่ต้องสร้างใหม่ให้สไลด์กระโดดกลับภาพแรก
@@ -260,7 +262,9 @@ function matchCard(data, item, cores, mode) {
 
   var teamBox = 'flex min-w-0 flex-col items-center gap-2 text-center';
   var crestSize = 'size-11 text-[18px]' + w.crest + r.crest;
-  var nameCls = 'text-[13px] leading-[1.35] max-[560px]:text-[12.5px] ';
+  // ไม่ย่อลงบนมือถือ: มือถือคือจอหลักของเว็บนี้ และชื่อโรงเรียนคือสิ่งที่ต้องอ่านออก
+  // ตั้งแต่แวบแรกว่าคู่ไหนเป็นของเรา
+  var nameCls = 'text-[13.5px] leading-[1.35] ';
   var scoreBox = '<div class="flex items-baseline gap-[7px] font-mono text-[29px] tabular-nums' + w.score + r.score + '">';
   var bodyBox = '<div class="grid items-center gap-2.5 py-0.5' + w.body + r.body;
 
@@ -338,13 +342,14 @@ function announcedResults(data, limit) {
 /* จำนวนคอลัมน์ผูกกับจำนวนการ์ด ไม่ใช้ auto-fit เพราะ auto-fit ปล่อยให้แถวสุดท้าย
    เหลือช่องว่างเมื่อจำนวนการ์ดหารไม่ลงตัว — ใบสุดท้ายของแถวที่ไม่เต็มจะยืดกินคอลัมน์ที่เหลือแทน
    3 รายการต้องอยู่แถวเดียวกัน จึงเปิด 3 คอลัมน์ให้เร็วกว่าชุดอื่น (แคบกว่า 1000px การ์ดจะเหลือ
-   กว้างไม่ถึง 170px ตราโรงเรียนสองข้างกับสกอร์จะเบียดกัน) */
+   กว้างไม่ถึง 170px ตราโรงเรียนสองข้างกับสกอร์จะเบียดกัน)
+   4 รายการบนจอกว้างก็วางแถวเดียว — ที่ 1400px การ์ดยังกว้าง ~250px */
 var GRID_BASE = 'grid grid-cols-1 gap-4';
 var GRID_BY_COUNT = {
   1: GRID_BASE,
   2: GRID_BASE + ' min-[700px]:grid-cols-2',
   3: GRID_BASE + ' min-[700px]:grid-cols-2 min-[1000px]:grid-cols-3',
-  4: GRID_BASE + ' min-[700px]:grid-cols-2',
+  4: GRID_BASE + ' min-[700px]:grid-cols-2 min-[1400px]:grid-cols-4',
   5: GRID_BASE + ' min-[700px]:grid-cols-2 min-[1080px]:grid-cols-3',
   6: GRID_BASE + ' min-[700px]:grid-cols-2 min-[1080px]:grid-cols-3'
 };
@@ -463,6 +468,62 @@ function renderRankBar(data) {
     '<a class="ml-auto inline-flex min-h-[34px] flex-none items-center rounded-full border border-line px-[13px] text-[12.5px] whitespace-nowrap text-fg-soft no-underline transition-[border-color,color] duration-150 hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-[560px]:flex-[1_1_100%] max-[560px]:justify-center" href="medals.html">ดูตารางเต็ม</a>';
 }
 
+/* ===================== ภาพประจำแถวในแผงรายการ =====================
+   ใช้มาสคอตของกีฬาเหมือนการ์ดแมตช์ด้านบน · มาสคอตมีสีของตัวเองอยู่แล้ว จึงไม่ปูพื้นสีรอง
+   กีฬาที่ยังไม่มีไฟล์มาสคอตถอยไปใช้ไอคอนในกล่องสีเหมือนเดิม (tone = สีกล่องของไอคอนสำรอง) */
+function rowArt(sportId, tone) {
+  var mascot = sportMascotImg(sportId, 'size-11 flex-none object-contain object-bottom');
+  return mascot ||
+    '<span class="flex size-11 flex-none items-center justify-center rounded-[11px] ' + tone + '">' +
+      sportIcon(sportId, 'size-[24px]') + '</span>';
+}
+
+/* ===================== กำหนดการวันนี้ =====================
+   ดึงรายการของวันนี้ตามปฏิทินจริงเท่านั้น (isToday เทียบวันที่เต็มพร้อมปี)
+   วันนี้ไม่มีในตารางแข่ง = บอกตรง ๆ ว่าไม่มีการแข่งขัน ไม่เอาวันอื่นมาแสดงแทนให้สับสน
+   แถวเป็นตัวอักษรล้วน ไม่มีไอคอน — เวลาอยู่หน้าสุดเพราะคือสิ่งที่คนมองหาในกำหนดการ */
+var PLAN_TOP = 8;
+
+function renderPlan(data) {
+  var host = document.getElementById('plan'); host.innerHTML = '';
+  var today = (data.days || []).filter(isToday)[0];
+  document.getElementById('planDay').textContent = dayLabel(today || todayLabel());
+  var items = ((today && today.items) || []).slice()
+    .sort(function (a, b) { return String(a.time || '99').localeCompare(String(b.time || '99')); });
+  if (!items.length) { host.appendChild(el('div', EMPTY_TEXT, 'วันนี้ไม่มีการแข่งขัน')); return; }
+
+  items.slice(0, PLAN_TOP).forEach(function (i) {
+    var head = eventParts(sportName(data, i.sportId), i.event);
+    var where = [i.round, i.pool, i.venue].filter(Boolean).join(' · ');
+    var done = i.status === 'done';
+    // จบแล้วยังอยู่ในรายการ (ให้เห็นทั้งวัน) แต่ลดน้ำหนักลง และแสดงผลแทนป้าย
+    var tail = i.status === 'live'
+      ? statusChip('live')
+      : done
+        ? '<span class="font-mono text-[14px] whitespace-nowrap text-fg-mute tabular-nums">' + esc(i.score || 'จบแล้ว') + '</span>'
+        : '';
+    host.appendChild(el('div', 'grid grid-cols-[52px_1fr_auto] items-center gap-[13px] border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-[44px_1fr_auto]' + (done ? ' text-fg-mute' : ''),
+      '<span class="font-mono text-[14px] tabular-nums ' + (i.status === 'live' ? 'text-live' : done ? 'text-fg-mute' : 'text-fg') + '">' + esc(i.time || '—') + '</span>' +
+      '<span class="min-w-0">' +
+        '<p class="mb-[3px] text-[15px]' + (done ? ' text-fg-soft' : '') + '">' + esc(head.sport) +
+          (head.kind ? ' <span class="text-[13px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
+        '<p class="m-0 text-[13px] ' + (done ? 'text-fg-mute' : 'text-fg-soft') + '">' + esc(i.teams || where || '') +
+          (i.teams && where ? ' <span class="text-fg-mute">· ' + esc(where) + '</span>' : '') + '</p>' +
+      '</span>' +
+      '<span>' + tail + '</span>'));
+  });
+  if (items.length > PLAN_TOP) {
+    host.appendChild(el('p', 'm-0 border-t border-line pt-3 text-[12.5px] text-fg-mute',
+      'และอีก ' + (items.length - PLAN_TOP) + ' รายการ'));
+  }
+}
+
+/** วันนี้ในรูปแบบเดียวกับวันในข้อมูล — ใช้เป็นหัวแผงตอนตารางแข่งไม่มีวันนี้ */
+function todayLabel() {
+  var now = new Date();
+  return { weekday: WEEKDAYS_TH[now.getDay()], date: now.getDate() + ' ' + MONTHS_TH[now.getMonth()] };
+}
+
 /* ===================== ประกาศผลล่าสุด ===================== */
 function renderTimeline(data) {
   var host = document.getElementById('timeline'); host.innerHTML = '';
@@ -473,9 +534,7 @@ function renderTimeline(data) {
     var head = eventParts(sportName(data, i.sportId), i.event);
     host.appendChild(el('div', 'grid grid-cols-[auto_1fr_auto] items-center gap-[13px] border-t border-line py-3 first:border-t-0',
       // ผลที่ประกาศแล้วใช้สีเน้นเดียวกับไอคอนบนการ์ดแมตช์ เหลือสีสถานะไว้ให้ "สด" ใบเดียว
-      '<span class="flex size-9 flex-none items-center justify-center rounded-[11px] ' +
-        (i.status === 'live' ? 'bg-live-bg text-live' : 'bg-brand-100 text-brand-strong') + '">' +
-        sportIcon(i.sportId, 'size-[22px]') + '</span>' +
+      rowArt(i.sportId, i.status === 'live' ? 'bg-live-bg text-live' : 'bg-brand-100 text-brand-strong') +
       '<span>' +
         '<p class="mb-[3px] text-[15px]">' + esc(head.sport) +
           (head.kind ? ' <span class="text-[13px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
@@ -496,6 +555,7 @@ function renderAll(data) {
   renderHero(data, day);
   renderLive(data, day);
   renderRankBar(data);
+  renderPlan(data);
   renderTimeline(data);
   chrome.onData(data);
 }

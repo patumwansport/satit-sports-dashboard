@@ -14,12 +14,23 @@
 ├── src/input.css         # ต้นทาง Tailwind (คอมไพล์เป็น public/css/app.css)
 ├── fonts/                # ฟอนต์ต้นฉบับ (build ก๊อปเข้า public/fonts/)
 ├── data/
-│   └── mock.json         # ข้อมูลสำรอง ใช้เมื่อต่อ Google Sheets ไม่ได้
+│   └── mock.json         # ข้อมูลสำรอง ใช้เมื่อต่อแหล่งข้อมูลไม่ได้เลย
+├── supabase/
+│   ├── config.toml       # ตั้งค่า Supabase CLI
+│   └── migrations/       # โครงตาราง + RLS (ไฟล์นี้คือ "ความจริง" ของฐานข้อมูล)
+├── scripts/
+│   └── import-sheets.mjs # ย้ายข้อมูลจาก Google Sheets เข้า Supabase ครั้งเดียวตอนเริ่มใช้
 └── public/               # รากของเว็บที่ถูก deploy — ทั้งเว็บอยู่ในนี้
     ├── index.html        # หน้าหลัก (มี matches / medals / schedule / school / sports)
+    ├── admin.html        # หน้า CMS จัดการข้อมูลหลังบ้าน (ปิดใช้งานอยู่ ดูหัวข้อ CMS)
     ├── .nojekyll         # บอก GitHub Pages ว่าไม่ต้องเอา Jekyll มาแปลงไฟล์
     ├── css/app.css       # CSS ที่ Tailwind สร้าง (commit ขึ้น repo ด้วย)
-    ├── js/sheets.js      # ดึง Google Sheets แล้วแปลงเป็น JSON — รันในเบราว์เซอร์
+    ├── js/config.js      # URL + key ของ Supabase — เว้นว่างไว้ = ใช้ Google Sheets
+    ├── js/supabase-data.js # อ่านจาก Supabase (ยังไม่ได้ใช้ รอเปิดที่ config.js)
+    ├── js/sheets.js      # ดึง Google Sheets — แหล่งข้อมูลที่ใช้อยู่จริง
+    ├── js/format.js      # ตัวแปลงค่าที่ทั้งสองแหล่งใช้ร่วมกัน (ย่อชื่อ/วันที่/ลิงก์รูป)
+    ├── js/admin.js       # ตรรกะของหน้า CMS
+    ├── js/package.json   # บอก Node ว่าโฟลเดอร์นี้เป็น ES module (สคริปต์ import ใช้)
     ├── js/               # ตรรกะฝั่งหน้าเว็บ แยกไฟล์ตามหน้า + common.js
     └── assets/           # ไอคอนกีฬา / โลโก้ / ภาพ
 ```
@@ -74,6 +85,85 @@ git push origin main
 
 คำสั่ง build คือ `npm run build` = คอมไพล์ Tailwind + ก๊อป `fonts/` กับ
 `data/mock.json` เข้า `public/` (ทั้งสองอย่างอยู่นอก `public/` จึงไม่ถูก deploy เอง)
+
+## CMS หลังบ้าน (Supabase) — ตอนนี้ปิดใช้งานอยู่
+
+> **สถานะปัจจุบัน: เว็บใช้ Google Sheets เป็นแหล่งข้อมูล** ไม่ได้ใช้ Supabase
+>
+> ระบบ CMS สร้างเสร็จและทดสอบผ่านแล้ว แต่ตัดสินใจกลับไปใช้ชีตเหมือนเดิม
+> โค้ดทั้งหมดยังอยู่ในสภาพพร้อมใช้ ปิดไว้ด้วยการเว้น `public/js/config.js` ให้ว่าง
+> ตราบใดที่สองค่านั้นว่าง `admin.html` จะขึ้นหน้า "ยังไม่ได้เชื่อมต่อฐานข้อมูล"
+> และหน้าเว็บสาธารณะจะดึงจากชีตตามปกติ — ไม่มีอะไรวิ่งไป Supabase เลย
+>
+> โปรเจกต์ที่สร้างไว้ยังอยู่ (ref `nrnblsmwfixxijawaevl`, org "Satit Patumwan")
+> พร้อมตารางและข้อมูลที่ย้ายเข้าไปแล้ว ณ 23 ก.ย. 2569
+>
+> **เปิดใช้อีกครั้ง** = กรอก `SUPABASE_URL` กับ `SUPABASE_KEY` กลับเข้า `config.js` เท่านั้น
+> (ถ้าข้อมูลในฐานล้าสมัยแล้ว ให้รัน `npm run import:sheets` ดึงจากชีตทับอีกรอบ)
+
+หน้า `admin.html` ให้ทีมงานแก้ผลการแข่งขัน เหรียญ ตารางแข่ง และภาพได้จากเว็บโดยตรง
+ไม่ต้องเปิด Google Sheets — ข้อมูลเก็บใน Supabase และหน้าเว็บสาธารณะอ่านจากที่เดียวกัน
+
+**ลำดับแหล่งข้อมูลของหน้าเว็บ** (`public/js/common.js`)
+
+1. **Supabase** — ใช้เมื่อกรอก `public/js/config.js` แล้วเท่านั้น (ตอนนี้เว้นว่าง = ข้าม)
+2. **Google Sheets** — แหล่งที่ใช้จริงอยู่ตอนนี้ และเป็นตัวสำรองอัตโนมัติถ้าวันหน้าเปิด Supabase
+3. **`data/mock.json`** — กันหน้าว่างเมื่อไม่เหลือทางไหนเลย
+
+ข้อ 2 ไม่ได้มีไว้แค่ช่วงย้ายระบบ: วันแข่งจริงถ้า Supabase มีปัญหา เว็บยังขึ้นผลจากชีตได้
+ตราบใดที่ยังไม่ปิดแชร์ชีตทิ้ง
+
+### ติดตั้งครั้งแรก (ถ้าวันหน้าจะเปิดใช้ หรือสร้างโปรเจกต์ใหม่)
+
+```bash
+# 1) สร้าง organization + โปรเจกต์ (ครั้งแรกต้องทำในหน้าเว็บ CLI สร้าง org เองไม่ได้)
+#    https://supabase.com/dashboard  →  New project  (เลือก region Southeast Asia)
+
+# 2) ผูกโฟลเดอร์นี้เข้ากับโปรเจกต์ แล้วส่งโครงตารางขึ้นไป
+supabase link --project-ref <project-ref>
+npm run db:push
+
+# 3) กรอก URL และ publishable key ลงใน public/js/config.js
+#    หาได้ที่ Dashboard → Project Settings → API
+
+# 4) (ถ้าต้องการ) ย้ายข้อมูลเดิมจากชีตเข้าฐานข้อมูล — ลองดูผลก่อนได้
+npm run import:sheets -- --dry-run
+SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_KEY=<service_role key> npm run import:sheets
+```
+
+### เพิ่มผู้ดูแล
+
+สมัครผู้ใช้ไม่ได้จากหน้าเว็บโดยตั้งใจ — ต้องเพิ่มให้ทีละคน สองขั้นตอน
+
+1. Dashboard → **Authentication → Users → Add user** ใส่อีเมลกับรหัสผ่าน
+2. Dashboard → **SQL Editor** รันคำสั่งนี้เพื่อให้สิทธิ์แก้ข้อมูล
+
+```sql
+insert into public.app_admins (user_id, email, display_name)
+select id, email, 'ชื่อที่จะให้แสดง' from auth.users where email = 'someone@example.com';
+```
+
+ล็อกอินได้แต่ยังไม่ได้อยู่ใน `app_admins` = เข้าหน้า CMS ไม่ได้ และต่อให้เรียก API เอง
+ฐานข้อมูลก็ปฏิเสธ เพราะ RLS ตรวจที่ตารางนี้ทุกครั้ง
+
+**ถอนสิทธิ์** ลบแถวออกจาก `app_admins` (บัญชียังอยู่แต่แก้อะไรไม่ได้แล้ว)
+
+### ความปลอดภัย
+
+เว็บอยู่บน GitHub Pages ซึ่งไม่มีเซิร์ฟเวอร์ของเรา เบราว์เซอร์จึงคุยกับ Supabase ตรง ๆ
+ด่านกันจริงมีชั้นเดียวคือ **RLS ในฐานข้อมูล** ไม่ใช่การซ่อนหน้า `admin.html` หรือซ่อนคีย์
+
+| คีย์ | ใส่ไว้ที่ไหนได้ | ทำอะไรได้ |
+|---|---|---|
+| publishable (anon) | `public/js/config.js` · commit ขึ้น repo ได้ | อ่านได้ทุกตาราง · เขียนได้เฉพาะเมื่อล็อกอินเป็นผู้ดูแล |
+| `service_role` | environment variable ตอนรันสคริปต์เท่านั้น | **ข้าม RLS ทั้งหมด** — หลุดเมื่อไรคือเสียฐานข้อมูล |
+
+ห้ามเอา `service_role` ใส่ใน `public/` หรือ commit ลง repo เด็ดขาด
+
+### แก้โครงตาราง
+
+แก้ที่ `supabase/migrations/` แล้ว `npm run db:push` เสมอ อย่าแก้ในหน้า Table Editor ตรง ๆ
+ไม่งั้นฐานข้อมูลจริงกับไฟล์ใน repo จะไม่ตรงกัน แล้ววันที่ต้องสร้างโปรเจกต์ใหม่จะสร้างกลับมาไม่เหมือนเดิม
 
 ## กีฬาที่รองรับ (14 ชนิด)
 

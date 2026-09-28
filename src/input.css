@@ -70,6 +70,8 @@
   --color-done-bg: oklch(93% 0.04 155);
   --color-upcoming: oklch(52% 0.018 260);
   --color-upcoming-bg: oklch(95.5% 0.01 250);
+  /* ลบ/อันตราย — ใช้กับปุ่มหรือข้อความเตือนที่ย้อนกลับไม่ได้เท่านั้น (btn-destructive) */
+  --color-danger: oklch(56% 0.21 27);
 
   --radius-lg: 18px;
   --radius-md: 14px;
@@ -125,6 +127,7 @@
     --color-done-bg: oklch(27% 0.045 155);
     --color-upcoming: oklch(75% 0.018 260);
     --color-upcoming-bg: oklch(29% 0.02 260);
+    --color-danger: oklch(70% 0.17 24);
     --shadow-panel: 0 1px 2px oklch(0% 0 0 / .3), 0 8px 24px oklch(0% 0 0 / .4);
     --shadow-card: 0 10px 26px oklch(0% 0 0 / .45);
   }
@@ -158,8 +161,87 @@
   --color-done-bg: oklch(27% 0.045 155);
   --color-upcoming: oklch(75% 0.018 260);
   --color-upcoming-bg: oklch(29% 0.02 260);
+  --color-danger: oklch(70% 0.17 24);
   --shadow-panel: 0 1px 2px oklch(0% 0 0 / .3), 0 8px 24px oklch(0% 0 0 / .4);
   --shadow-card: 0 10px 26px oklch(0% 0 0 / .45);
+}
+
+/* =========================================================
+   shadcn/ui — ชื่อ token มาตรฐานของ shadcn (bg-background, text-muted-foreground,
+   border-border, ring-ring ...) ชี้กลับไปที่ token ของเว็บชุดเดิม ไม่ได้เป็นสีชุดใหม่
+   `inline` ทำให้ utility อ่าน var(--color-paper) ฯลฯ ตรง ๆ โหมดมืดจึงสลับตามเองโดยไม่ต้องประกาศซ้ำ
+   shadcn ตัวจริงเป็นคอมโพเนนต์ React เว็บนี้เป็น HTML ล้วน จึงเขียนคอมโพเนนต์เป็นคลาส CSS ข้างล่างแทน
+   ========================================================= */
+@theme inline {
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-on-ink);
+  --color-secondary: var(--color-surface-soft);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted: var(--color-surface-soft);
+  --color-muted-foreground: var(--color-fg-mute);
+  --color-accent: var(--color-surface-soft);
+  --color-accent-foreground: var(--color-fg);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-on-ink);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-brand);
+}
+
+/* คอมโพเนนต์แบบ shadcn — อยู่ใน layer components ต่ำกว่า utilities
+   จึงแต่งทับด้วย utility ได้เสมอ เช่น class="btn btn-outline w-full"
+   ฟอนต์ Srinakharinwirot มีน้ำหนักเดียว (400) จึงไม่ใช้ font-medium แบบ shadcn ต้นฉบับ
+   ไม่งั้นเบราว์เซอร์จะทำตัวหนาปลอมขึ้นมาเอง */
+@layer components {
+  /* ปุ่ม: .btn = primary · สลับหน้าตาด้วย btn-secondary / btn-outline / btn-ghost / btn-destructive / btn-link
+     ขนาด: btn-sm / btn-lg / btn-icon */
+  .btn {
+    @apply inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-sm border border-transparent bg-primary px-4 text-sm whitespace-nowrap text-primary-foreground no-underline transition-[background-color,border-color,color,opacity] duration-150 select-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 motion-reduce:transition-none [&_svg]:size-4 [&_svg]:shrink-0 [&>.icon-mask]:size-4;
+  }
+  .btn-secondary { @apply bg-secondary text-secondary-foreground hover:bg-line hover:opacity-100; }
+  .btn-outline { @apply border-border bg-card text-foreground hover:border-line-strong hover:bg-accent hover:opacity-100; }
+  .btn-ghost { @apply bg-transparent text-foreground hover:bg-accent hover:opacity-100; }
+  .btn-destructive { @apply bg-destructive text-destructive-foreground; }
+  .btn-link { @apply h-auto bg-transparent px-0 text-primary underline-offset-4 hover:underline hover:opacity-100; }
+  .btn-sm { @apply h-8 gap-1.5 px-3 text-[13px]; }
+  .btn-lg { @apply h-10 px-6 text-base; }
+  .btn-icon { @apply size-9 px-0; }
+
+  /* การ์ด: .card > .card-header (.card-title + .card-description) > .card-content > .card-footer */
+  .card { @apply flex flex-col gap-6 rounded-lg border border-border bg-card py-6 text-card-foreground shadow-panel; }
+  .card-header { @apply grid auto-rows-min gap-1.5 px-6; }
+  .card-title { @apply font-display text-lg leading-tight; }
+  .card-description { @apply text-sm text-muted-foreground; }
+  .card-content { @apply px-6; }
+  .card-footer { @apply flex items-center gap-2 px-6; }
+
+  /* ป้าย: .badge = primary · badge-secondary / badge-outline / badge-destructive
+     และสถานะแข่งขันของเว็บ: badge-live / badge-done / badge-upcoming (ใส่ข้อความกำกับเสมอ ไม่สื่อด้วยสีอย่างเดียว) */
+  .badge { @apply inline-flex w-fit shrink-0 items-center gap-1 rounded-full border border-transparent bg-primary px-2.5 py-0.5 text-xs whitespace-nowrap text-primary-foreground [&>.icon-mask]:size-3; }
+  .badge-secondary { @apply bg-secondary text-secondary-foreground; }
+  .badge-outline { @apply border-border bg-transparent text-foreground; }
+  .badge-destructive { @apply bg-destructive text-destructive-foreground; }
+  .badge-live { @apply bg-live-bg text-live; }
+  .badge-done { @apply bg-done-bg text-done; }
+  .badge-upcoming { @apply bg-upcoming-bg text-upcoming; }
+
+  /* ช่องกรอก: ใช้ .input กับ <input> และ <select> · .textarea กับ <textarea> · .label กับ <label>
+     ใส่ aria-invalid="true" เมื่อค่าไม่ผ่าน ขอบจะเป็นสีแดง */
+  .input, .textarea {
+    @apply w-full min-w-0 rounded-sm border border-input bg-card px-3 text-base text-foreground transition-[border-color,box-shadow] duration-150 outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 motion-reduce:transition-none md:text-sm;
+  }
+  .input { @apply h-9 py-1; }
+  .textarea { @apply min-h-20 py-2; }
+  .label { @apply flex items-center gap-2 text-sm leading-none text-foreground select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50; }
+
+  .separator { @apply h-px w-full shrink-0 border-0 bg-border; }
+  .skeleton { @apply rounded-sm bg-line motion-safe:animate-skeleton; }
 }
 
 /* variant dark: — ใช้เฉพาะที่สลับค่าสีไม่พอ (ไอคอนพระอาทิตย์/พระจันทร์, แผ่นรองโลโก้) */

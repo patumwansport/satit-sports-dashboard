@@ -8,3 +8,7 @@ node_modules/
 
 # public/fonts/ กับ public/data/ เป็นสำเนาที่ `npm run build:assets` ก๊อปมาจากราก repo
 # (ต้นฉบับอยู่ที่ fonts/ และ data/) — commit ไว้ด้วย เผื่อ build บนโฮสต์ล้มจะได้ยังมีไฟล์ใช้
+
+# คีย์ Supabase ส่งผ่าน environment variable เท่านั้น — กันเผลอ commit ถ้าวันหนึ่งมีคนเขียนลงไฟล์
+.env
+.env.local

@@ -146,7 +146,7 @@ function paintModal(opening) {
       (opening ? ' motion-safe:animate-pop-in' : '') + '">' +
       artBlock(sp, 'h-[168px]', 'size-[92px]') +
       // ปุ่มปิดลอยอยู่บนภาพ พื้นทึบแสงพอให้เห็นเครื่องหมายกากบาททับมาสคอตสีอ่อน
-      '<button class="absolute top-2.5 right-2.5 flex size-[38px] cursor-pointer items-center justify-center rounded-full border border-line bg-surface/85 text-fg-soft backdrop-blur-[6px] transition-colors duration-150 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none" type="button" data-close aria-label="ปิดหน้าต่างรายละเอียด">' +
+      '<button class="btn btn-outline btn-icon absolute top-2.5 right-2.5 size-[38px] rounded-full bg-surface/85 text-fg-soft backdrop-blur-[6px] hover:text-fg" type="button" data-close aria-label="ปิดหน้าต่างรายละเอียด">' +
         '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' +
       '</button>' +
       '<div class="px-[18px] pt-[15px] pb-[18px]">' +

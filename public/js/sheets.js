@@ -9,6 +9,8 @@
    ใช้กับชีตที่แชร์แบบ "ทุกคนที่มีลิงก์ดูได้" เท่านั้น
    ========================================================= */
 
+import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl } from './format.js';
+
 const SHEET_ID = '1-gVKoQrOLBcv5fufZzOMrdrRuG9pB__vpb84SDrfeXE';
 /**
  * แท็บ "สถิติเหรียญรางวัล" — ตารางเหรียญรายโรงเรียน: โรงเรียน / ทอง / เงิน / ทองแดง / รวม
@@ -21,9 +23,11 @@ const SHEET_MEDAL_TABLE = 'สถิติเหรียญรางวัล';
 const GID_SPORT_MEDALS = '771077705'; // แท็บ: ทอง / เงิน / ทองแดง / รวมเหรียญ / ชนิดกีฬา
 const GID_SCHEDULE = '266724596';     // แท็บ "ผลการแข่งขันประจำวัน": วันที่ / กีฬา / ประเภท / เวลา / ระหว่าง / ผลการแข่งขัน / สถานะ
 /**
- * แท็บ "ตารางการแข่งขัน" — ผังกำหนดการทั้งรายการ: วันที่ / กีฬา / ประเภท / เวลา / ทีม A / VS / ทีม B
- * คอลัมน์แรก ๆ เรียงเหมือนแท็บผลการแข่งขัน จึงใช้ buildDays() ตัวเดียวกันได้
- * ต่างกันที่แท็บนี้ไม่มีช่องผล/สถานะ — ทุกรายการจึงออกมาเป็น "รอเริ่ม" ตามความจริงของผัง
+ * แท็บ "ตารางการแข่งขัน" — ผังกำหนดการทั้งรายการ:
+ *   วันที่ / รายการแข่งขัน (ชนิดกีฬา) / ประเภท / รอบ / สาย / เวลา / ระหว่าง (ทีม A · VS · ทีม B สามช่อง)
+ * ลำดับคอลัมน์ต่างจากแท็บผลการแข่งขัน (มีรอบกับสายแทรกก่อนเวลา) จึงหาคอลัมน์จากชื่อหัวตาราง
+ * ไม่ใช่ตำแหน่งตายตัว — ย้ายคอลัมน์ในชีตทีหลังหน้าเว็บก็ยังอ่านถูก ดู planColumns()
+ * แท็บนี้ไม่มีช่องผล/สถานะ — ทุกรายการจึงออกมาเป็น "รอเริ่ม" ตามความจริงของผัง
  */
 const GID_SCHEDULE_PLAN = '103481153';
 /**
@@ -33,8 +37,6 @@ const GID_SCHEDULE_PLAN = '103481153';
  */
 const SHEET_PHOTOS = 'img';
 
-// ชื่อโรงเรียนของเรา ตรงตามที่สะกดในชีต (ใช้จับคู่แถว isSelf)
-const SELF_SCHOOL_NAME = 'โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน';
 // คำเฉพาะท้ายชื่อ ใช้จับคู่ชื่อย่อในตารางแข่งขัน (แต่ละแท็บสะกดชื่อโรงเรียนไม่ตรงกัน)
 const SELF_SCHOOL_KEYWORD = SELF_SCHOOL_NAME.trim().split(/\s+/).pop();
 
@@ -69,18 +71,6 @@ function isSportNotEntered(name) {
   return SPORTS_NOT_ENTERED.some(function (word) { return text.indexOf(word) > -1; });
 }
 
-const WEEKDAYS_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
-function shortSchoolName(name) {
-  return String(name || '').trim()
-    .replace(/^โรงเรียน/, '')
-    .replace(/แห่งมหาวิทยาลัย/, 'ม.')
-    .replace(/มหาวิทยาลัยศรีนครินทรวิโรฒ/, 'มศว')
-    .replace(/มหาวิทยาลัย/, 'ม.')
-    .trim();
-}
-
 function cellText(cell) {
   if (!cell) return '';
   return String(cell.f != null ? cell.f : cell.v != null ? cell.v : '').trim();
@@ -95,10 +85,14 @@ function cellNum(cell) {
  * ดึงและแปลง JSON จาก Google Visualization API (gviz)
  * รับได้ทั้ง gid (ตัวเลข) และชื่อแท็บ — ระวังว่า gviz ตอบชีตแรกกลับมาเงียบ ๆ เมื่อชื่อแท็บไม่มีจริง
  * cache: 'no-store' เพราะเราโพลซ้ำทุกครึ่งนาทีเพื่อเอาคะแนนล่าสุด ไม่ใช่ของที่เบราว์เซอร์แคชไว้
+ * @param {number} [headers] - จำนวนแถวหัวตาราง ส่งให้ gviz ตรง ๆ แทนให้มันเดาเอง
+ *   gviz เดาหัวตารางจาก "ชนิดข้อมูลต่างจากแถวล่าง" แท็บที่ยังเป็นข้อความล้วน
+ *   (เช่นตารางเหรียญก่อนเริ่มแข่ง ช่องตัวเลขยังว่างทั้งหมด) จะเดาไม่ออก แล้วคืนหัวตารางมาเป็นแถวข้อมูลแถวแรก
  */
-async function fetchGvizTable(source) {
+async function fetchGvizTable(source, headers) {
   const key = /^\d+$/.test(String(source)) ? 'gid' : 'sheet';
-  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' + key + '=' + encodeURIComponent(source);
+  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' + key + '=' + encodeURIComponent(source) +
+    (headers != null ? '&headers=' + headers : '');
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('gviz ' + key + '=' + source + ' ตอบกลับ ' + res.status);
   const raw = await res.text();
@@ -135,7 +129,6 @@ function formatTimeValue(cell) {
   if (v >= 100) return pad2(Math.floor(v / 100)) + ':' + pad2(v % 100);
   return pad2(Math.floor(v)) + ':00';
 }
-function pad2(n) { return String(n).padStart(2, '0'); }
 
 /**
  * สถานะของรายการแข่ง
@@ -203,13 +196,39 @@ function buildSports(table) {
 }
 
 /* ---------- ตารางแข่งขัน/ผลการแข่งขัน จัดกลุ่มตามวัน ---------- */
-function buildDays(table) {
+
+/* ตำแหน่งคอลัมน์ของแท็บ "ผลการแข่งขันประจำวัน":
+   วันที่ / กีฬา / ประเภท / เวลา / ทีม A / VS / ทีม B / ผล / สถานะ */
+const RESULT_COLUMNS = { date: 0, sport: 1, kind: 2, time: 3, teamA: 4, teamB: 6, score: 7, status: 8, round: -1, pool: -1 };
+
+/**
+ * ตำแหน่งคอลัมน์ของแท็บ "ตารางการแข่งขัน" หาจากชื่อหัวตาราง
+ * "ระหว่าง" เป็นหัวที่ผสานสามช่อง (ทีม A · VS · ทีม B) gviz ให้ชื่อหัวแค่ช่องแรก ทีม B จึงอยู่ถัดไปสองช่อง
+ * หาหัวไหนไม่เจอก็ถอยไปใช้ตำแหน่งตามผังปัจจุบันของชีต
+ */
+function planColumns(table) {
+  const labels = (table.cols || []).map(function (c) { return String(c.label || '').trim(); });
+  function at(pattern, fallback) {
+    const i = labels.findIndex(function (l) { return pattern.test(l); });
+    return i > -1 ? i : fallback;
+  }
+  const teamA = at(/ระหว่าง/, 6);
+  return {
+    date: at(/วันที่/, 0), sport: at(/รายการ|กีฬา/, 1), kind: at(/ประเภท/, 2),
+    round: at(/รอบ/, 3), pool: at(/สาย/, 4), time: at(/เวลา/, 5),
+    teamA: teamA, teamB: teamA + 2, score: -1, status: -1
+  };
+}
+
+/** @param {object} cols - ตำแหน่งคอลัมน์ (-1 = แท็บนี้ไม่มีคอลัมน์นั้น) */
+function buildDays(table, cols) {
   const byDate = new Map();
+  function cell(c, i) { return i > -1 ? c[i] : null; }
 
   (table.rows || []).forEach(function (r) {
     const c = r.c || [];
-    const date = parseSheetDate(c[0]);
-    const sportName = cellText(c[1]);
+    const date = parseSheetDate(cell(c, cols.date));
+    const sportName = cellText(cell(c, cols.sport));
     if (!date || !sportName || isSportNotEntered(sportName)) return;
 
     const key = date.getFullYear() + '-' + date.getMonth() + '-' + date.getDate();
@@ -222,17 +241,21 @@ function buildDays(table) {
       });
     }
 
-    const teamA = cellText(c[4]);
-    const teamB = cellText(c[6]);
-    const statusText = cellText(c[8]);
-    const score = cellText(c[7]);
+    const teamA = cellText(cell(c, cols.teamA));
+    const teamB = cellText(cell(c, cols.teamB));
+    const statusText = cellText(cell(c, cols.status));
+    const score = cellText(cell(c, cols.score));
 
     byDate.get(key).items.push({
-      time: formatTimeValue(c[3]),
+      time: formatTimeValue(cell(c, cols.time)),
       sportId: sportIdOf(sportName),
-      event: [sportName, cellText(c[2])].filter(Boolean).join(' — '),
+      event: [sportName, cellText(cell(c, cols.kind))].filter(Boolean).join(' — '),
+      round: cellText(cell(c, cols.round)),
+      pool: cellText(cell(c, cols.pool)),
       teams: [teamA, teamB].filter(Boolean).join(' พบ '),
       status: normalizeStatus(statusText, score),
+      // ข้อความสถานะตามที่กรอกในชีต ("เสร็จสิ้น" / "ไม่เป็นทางการ") ตารางผลแสดงคำนี้ตรง ๆ
+      statusText: statusText,
       unofficial: isUnofficial(statusText),
       score: score
     });
@@ -242,26 +265,12 @@ function buildDays(table) {
     .sort(function (a, b) { return a.date - b.date; })
     .map(function (d, i) {
       d.items.sort(function (a, b) { return a.time.localeCompare(b.time); });
-      return { id: i + 1, weekday: d.weekday, date: d.label, note: '', items: d.items };
+      // iso = วันที่เต็มพร้อมปี ใช้เทียบ "วันนี้" กับปฏิทินจริง (date เป็นแค่ป้าย "21 ต.ค." ไม่มีปี)
+      return { id: i + 1, weekday: d.weekday, date: d.label, iso: isoDate(d.date), note: '', items: d.items };
     });
 }
 
 /* ---------- ภาพบรรยากาศ (แถบสไลด์บนหน้าหลัก) ---------- */
-
-/**
- * ลิงก์แชร์ของ Drive (…/file/d/<id>/view) เป็นหน้าเว็บ ไม่ใช่ไฟล์รูป เอาไปใส่ <img> ตรง ๆ ไม่ได้
- * ต้องแปลงเป็น endpoint รูปย่อของ Drive ซึ่งตอบไฟล์รูปจริงและเปิดให้ฝังข้ามเว็บได้
- * (ทดสอบแล้วโหลดได้จากโดเมนอื่นทั้งแบบมีและไม่มี Referer — <img> ฝั่งหน้าเว็บใส่ no-referrer ไว้อีกชั้น)
- * ไม่มีพร็อกซีฝั่งเซิร์ฟเวอร์อีกแล้ว เพราะบน GitHub Pages ไม่มีเซิร์ฟเวอร์ให้พร็อกซี
- */
-function driveFileId(url) {
-  const m = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=|thumbnail\?(?:[\w=&]*&)?id=)([\w-]{10,})/.exec(url);
-  return m ? m[1] : '';
-}
-function directImageUrl(url) {
-  const id = driveFileId(url);
-  return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600' : url;
-}
 
 function buildPhotos(table) {
   return (table.rows || [])
@@ -288,7 +297,7 @@ async function loadPhotos() {
 /* ---------- ประกอบเป็นก้อนเดียว schema เดียวกับ data/mock.json ---------- */
 export async function loadFromSheets() {
   const [medalTable, sportTable, scheduleTable, planTable, photos] = await Promise.all([
-    fetchGvizTable(SHEET_MEDAL_TABLE),
+    fetchGvizTable(SHEET_MEDAL_TABLE, 1),
     fetchGvizTable(GID_SPORT_MEDALS),
     fetchGvizTable(GID_SCHEDULE),
     fetchGvizTable(GID_SCHEDULE_PLAN),
@@ -311,8 +320,8 @@ export async function loadFromSheets() {
     leaderName: leader ? leader.school : '',
     medalTable: medals,
     sports: buildSports(sportTable),
-    days: buildDays(scheduleTable),
-    schedule: buildDays(planTable),
+    days: buildDays(scheduleTable, RESULT_COLUMNS),
+    schedule: buildDays(planTable, planColumns(planTable)),
     photos: photos,
     syncedAt: new Date().toISOString(),
     source: 'sheets'

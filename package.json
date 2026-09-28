@@ -1,13 +1,16 @@
 {
   "name": "satit-sports-dashboard",
   "version": "1.0.0",
-  "description": "แดชบอร์ดประกาศผลการแข่งขันกีฬาสาธิตสามัคคี แบบเรียลไทม์ เชื่อมต่อ Google Sheets",
+  "description": "แดชบอร์ดประกาศผลการแข่งขันกีฬาสาธิตสามัคคี พร้อมหน้าจัดการข้อมูลหลังบ้าน (Supabase)",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
     "build:css": "tailwindcss -i src/input.css -o public/css/app.css --minify",
     "build:assets": "mkdir -p public/fonts public/data && cp -f fonts/* public/fonts/ && cp -f data/mock.json public/data/mock.json",
     "build": "npm run build:css && npm run build:assets",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset --linked",
+    "import:sheets": "node scripts/import-sheets.mjs",
     "dev:css": "tailwindcss -i src/input.css -o public/css/app.css --watch",
     "prestart": "npm run build:css",
     "start": "node server.js",
