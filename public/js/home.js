@@ -1,7 +1,7 @@
 import {
-  el, esc, paintUiIcons, loadData, schedulePolling, initChrome, sportIcon, sportName, statusChip,
+  el, esc, paintUiIcons, loadData, onFreshData, initChrome, sportIcon, sportName, statusChip,
   allDayItems, currentDay, isToday, dayLabel, dayPhotos, teamSides, splitScore,
-  schoolCores, matchScore, medalDiff, schoolByText, schoolCrest,
+  schoolCores, matchScore, schoolByText, schoolCrest,
   sportMascotImg, eventParts, EMPTY_TEXT, showLoadError
 } from './common.js';
 import { MONTHS_TH, WEEKDAYS_TH } from './format.js';
@@ -131,11 +131,11 @@ function heroSlide(data, day, p, idx, total) {
       ? '<figcaption class="absolute inset-x-0 bottom-0 bg-linear-to-t from-[oklch(16%_0.02_260/.94)] via-[oklch(16%_0.02_260/.72)] via-42% to-[oklch(16%_0.02_260/0)] px-[22px] pt-[46px] pb-5 max-[560px]:px-4 max-[560px]:pt-10 max-[560px]:pb-4">' +
           '<span class="mb-[9px] flex flex-wrap items-center gap-2">' +
             statusChip(status) +
-            (sport ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[11.5px] text-white">' + esc(sport) + '</span>' : '') +
-            (dayLabel(day) ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[11.5px] text-white">' + esc(dayLabel(day)) + '</span>' : '') +
+            (sport ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[13px] text-white">' + esc(sport) + '</span>' : '') +
+            (dayLabel(day) ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[13px] text-white">' + esc(dayLabel(day)) + '</span>' : '') +
           '</span>' +
-          '<p class="m-0 max-w-[34ch] font-display text-[21px] leading-[1.35] text-balance text-white max-[560px]:text-[18px]">' + esc(p.caption || sport) + '</p>' +
-          '<p class="mt-1.5 text-[12.5px] text-white/[.82]">' +
+          '<p class="m-0 max-w-[34ch] font-display text-[22.5px] leading-[1.35] text-balance text-white max-[560px]:text-[20px]">' + esc(p.caption || sport) + '</p>' +
+          '<p class="mt-1.5 text-[14px] text-white/[.82]">' +
             [p.time, p.venue, p.credit ? 'ภาพ: ' + p.credit : ''].filter(Boolean).map(esc).join(' · ') +
           '</p>' +
         '</figcaption>'
@@ -204,11 +204,11 @@ var CARD_WIDE = {
   icIcon: ' min-[700px]:size-[25px]',
   art: ' min-[700px]:min-h-[56px] min-[700px]:w-[46px]',
   mascot: ' min-[700px]:max-h-[60px]',
-  sport: ' min-[700px]:text-[19px]',
-  kind: ' min-[700px]:text-[13.5px]',
+  sport: ' min-[700px]:text-[21.5px]',
+  kind: ' min-[700px]:text-[15px]',
   body: ' min-[700px]:col-start-2 min-[700px]:row-span-2 min-[700px]:row-start-1 min-[700px]:border-l min-[700px]:border-line min-[700px]:py-1 min-[700px]:pl-[30px]',
-  score: ' min-[700px]:text-[38px]',
-  crest: ' min-[700px]:size-[52px] min-[700px]:text-[21px]',
+  score: ' min-[700px]:text-[40.5px]',
+  crest: ' min-[700px]:size-[52px] min-[700px]:text-[22.5px]',
   foot: ' min-[700px]:col-start-1 min-[700px]:row-start-2 min-[700px]:border-t-0 min-[700px]:pt-0.5'
 };
 
@@ -220,11 +220,11 @@ var CARD_REVERT = {
   icIcon: ' min-[1000px]:size-[22px]',
   art: ' min-[1000px]:min-h-[46px] min-[1000px]:w-[38px]',
   mascot: ' min-[1000px]:max-h-[50px]',
-  sport: ' min-[1000px]:text-[15.5px]',
-  kind: ' min-[1000px]:text-[12.5px]',
+  sport: ' min-[1000px]:text-[17.5px]',
+  kind: ' min-[1000px]:text-[14px]',
   body: ' min-[1000px]:border-l-0 min-[1000px]:py-0.5 min-[1000px]:pl-0',
-  score: ' min-[1000px]:text-[29px]',
-  crest: ' min-[1000px]:size-11 min-[1000px]:text-[18px]',
+  score: ' min-[1000px]:text-[30.5px]',
+  crest: ' min-[1000px]:size-11 min-[1000px]:text-[20px]',
   foot: ' min-[1000px]:border-t min-[1000px]:pt-[11px]'
 };
 
@@ -255,17 +255,17 @@ function matchCard(data, item, cores, mode) {
   if (score && !live) {
     var a = parseInt(score[0], 10), b = parseInt(score[1], 10);
     if (!isNaN(a) && !isNaN(b) && a !== b) {
-      lead = a > b ? ['text-brand-strong', 'text-fg-mute'] : ['text-fg-mute', 'text-brand-strong'];
+      lead = a > b ? ['text-win', 'text-fg-mute'] : ['text-fg-mute', 'text-win'];
     }
   }
   if (live) lead = ['text-live', 'text-live'];
 
   var teamBox = 'flex min-w-0 flex-col items-center gap-2 text-center';
-  var crestSize = 'size-11 text-[18px]' + w.crest + r.crest;
+  var crestSize = 'size-11 text-[20px]' + w.crest + r.crest;
   // ไม่ย่อลงบนมือถือ: มือถือคือจอหลักของเว็บนี้ และชื่อโรงเรียนคือสิ่งที่ต้องอ่านออก
   // ตั้งแต่แวบแรกว่าคู่ไหนเป็นของเรา
-  var nameCls = 'text-[13.5px] leading-[1.35] ';
-  var scoreBox = '<div class="flex items-baseline gap-[7px] font-mono text-[29px] tabular-nums' + w.score + r.score + '">';
+  var nameCls = 'text-[15px] leading-[1.35] ';
+  var scoreBox = '<div class="flex items-baseline gap-[7px] font-mono text-[30.5px] tabular-nums' + w.score + r.score + '">';
   var bodyBox = '<div class="grid items-center gap-2.5 py-0.5' + w.body + r.body;
 
   var body;
@@ -278,9 +278,9 @@ function matchCard(data, item, cores, mode) {
         scoreBox +
           (score
             ? '<span class="' + lead[0] + '">' + esc(score[0]) + '</span>' +
-              '<span class="text-[19px] text-fg-mute" aria-hidden="true">–</span>' +
+              '<span class="text-[21.5px] text-fg-mute" aria-hidden="true">–</span>' +
               '<span class="' + lead[1] + '">' + esc(score[1]) + '</span>'
-            : '<span class="font-body text-[14px] text-fg-soft">' + esc(item.time || 'รอเริ่ม') + '</span>') +
+            : '<span class="font-body text-[15.5px] text-fg-soft">' + esc(item.time || 'รอเริ่ม') + '</span>') +
         '</div>' +
         '<div class="' + teamBox + '">' + crest(data, sides[1], crestSize, selfB) +
           '<span class="' + nameCls + (selfB ? 'text-fg' : 'text-fg-soft') + '">' + esc(sides[1]) + '</span></div>' +
@@ -291,7 +291,7 @@ function matchCard(data, item, cores, mode) {
       bodyBox + ' grid-cols-[1fr_auto]">' +
         '<div class="flex min-w-0 flex-row items-center gap-2 text-left">' + crest(data, sides[0] || sport, crestSize) +
           '<span class="' + nameCls + 'text-fg-soft">' + esc(sides[0] || 'รวมทุกโรงเรียน') + '</span></div>' +
-        scoreBox + '<span class="font-body text-[14px] text-fg-soft">' + esc(item.score || item.time || '') + '</span></div>' +
+        scoreBox + '<span class="font-body text-[15.5px] text-fg-soft">' + esc(item.score || item.time || '') + '</span></div>' +
       '</div>';
   }
 
@@ -313,15 +313,15 @@ function matchCard(data, item, cores, mode) {
     '<div class="flex min-h-[46px] items-start gap-2.5' + w.top + r.top + '">' +
       badge +
       '<span class="flex min-w-0 flex-1 flex-col gap-0.5">' +
-        '<span class="font-display text-[15.5px] leading-[1.3] text-fg' + w.sport + r.sport + '">' + esc(head.sport) + '</span>' +
-        (head.kind ? '<span class="text-[12.5px] leading-[1.4] text-fg-mute' + w.kind + r.kind + '">' + esc(head.kind) + '</span>' : '') +
+        '<span class="font-display text-[17.5px] leading-[1.3] text-fg' + w.sport + r.sport + '">' + esc(head.sport) + '</span>' +
+        (head.kind ? '<span class="text-[14px] leading-[1.4] text-fg-mute' + w.kind + r.kind + '">' + esc(head.kind) + '</span>' : '') +
       '</span>' +
       // สีสถานะเหลือไว้เฉพาะ "สด" ที่เป็นข้อมูลจริง ๆ ของแมตช์ที่กำลังเกิดขึ้น
       (live ? '<span class="mt-[3px] flex-none">' + statusChip('live') + '</span>' : '') +
     '</div>' +
     body +
     // ชีตกรอกว่า "ไม่เป็นทางการ" = กรรมการยังไม่รับรองผล ต้องบอกไว้ ไม่ปล่อยให้อ่านเป็นผลรับรองแล้ว
-    (foot ? '<p class="m-0 border-t border-line pt-[11px] text-[12.5px] text-fg-mute' + w.foot + r.foot + '">' + foot + '</p>' : ''));
+    (foot ? '<p class="m-0 border-t border-line pt-[11px] text-[14px] text-fg-mute' + w.foot + r.foot + '">' + foot + '</p>' : ''));
 }
 
 /**
@@ -407,36 +407,24 @@ function renderLive(data, day) {
    หน้าหลักตอบคำถามเดียว: "ตอนนี้เราอยู่อันดับไหน" ตัวเลขอันดับจึงเป็นของชิ้นใหญ่สุดในแถบ
    ส่วนตารางอันดับทั้ง 16 โรงเรียนอยู่หน้า "อันดับเหรียญรางวัล" — ไม่เอามาย่อซ้ำที่นี่อีก
    ========================================================= */
-var MEDAL_KINDS = [['gold', 'ทอง', 'bg-gold'], ['silver', 'เงิน', 'bg-silver-ink'], ['bronze', 'ทองแดง', 'bg-bronze']];
+var MEDAL_KINDS = [['gold', 'ทอง', 'bg-gold', 1], ['silver', 'เงิน', 'bg-silver-ink', 2], ['bronze', 'ทองแดง', 'bg-bronze', 3]];
 
-var RB_MEDAL = 'inline-flex items-center gap-[5px] text-[12.5px] text-fg-soft';
-var RB_NUM = 'font-mono text-[20px] font-normal text-fg tabular-nums max-[860px]:text-[18px]';
+var RB_MEDAL = 'inline-flex items-center gap-[6px] text-[15px] whitespace-nowrap text-fg-soft';
+var RB_NUM = 'font-mono text-[21px] font-normal text-fg tabular-nums max-[860px]:text-[20px]';
+/** จุดคั่นระหว่างวลีในแถบเลื่อน ให้อ่านเป็นประโยคเดียวต่อเนื่อง */
+// เป็นวงกลมที่วาดเอง ไม่ใช่ตัว "·" — จุดกลางของฟอนต์ Srinakharinwirot เล็กมากและจมต่ำกว่ากลางบรรทัด
+var RB_SEP = '<span class="mx-4 size-[5px] flex-none rounded-full bg-line-strong max-[560px]:mx-3" aria-hidden="true"></span>';
 
-/** ตัวเลขเหรียญของโรงเรียนเรา — ไอคอนเหรียญคู่กับข้อความกำกับเสมอ ไม่สื่อด้วยสีอย่างเดียว */
+/** เหรียญของโรงเรียนเรา: รูปเหรียญ 1/2/3 ตามด้วยจำนวน · "รวม 129 เหรียญ"
+    ใช้รูปเหรียญชุดเดียวกับหน้าอันดับเหรียญ (assets/medals/coin-N.webp) ไม่มีข้อความ ทอง/เงิน/ทองแดง
+    — ชื่อชนิดอยู่ใน title (ชี้เมาส์) และข้อความ sr-only ให้โปรแกรมอ่านหน้าจอ · "รวม" เป็นผลบวก จึงไม่มีไอคอน */
 function rankMedals(m) {
   return MEDAL_KINDS.map(function (c) {
     return '<span class="' + RB_MEDAL + '">' +
-      '<i class="medal-mic size-[14px] ' + c[2] + '" aria-hidden="true"></i>' +
-      '<b class="' + RB_NUM + '">' + m[c[0]] + '</b>' + c[1] + '</span>';
+      '<img class="size-[26px] flex-none max-[560px]:size-[22px]" src="assets/medals/coin-' + c[3] + '.webp" alt="" title="' + c[1] + '" width="64" height="64" decoding="async" />' +
+      '<span class="sr-only">' + c[1] + '</span><b class="' + RB_NUM + '">' + m[c[0]] + '</b></span>' + RB_SEP;
   }).join('') +
-  // "รวม" ไม่ใช่ชนิดเหรียญ จึงไม่มีไอคอนเหรียญ — เป็นผลบวก ไม่ใช่ของอีกอย่างหนึ่ง
-  '<span class="' + RB_MEDAL + ' border-l border-line pl-[18px] max-[860px]:pl-3.5">' +
-    '<b class="' + RB_NUM + '">' + (m.gold + m.silver + m.bronze) + '</b>รวม</span>';
-}
-
-/** ส่วนต่างกับโรงเรียนที่อยู่ติดกันในตาราง — บอกว่าต้องได้อีกกี่เหรียญถึงจะขยับอันดับ */
-function rankGap(all, self, idx) {
-  if (idx > 0) {
-    var up = all[idx - 1], dU = medalDiff(up, self);
-    return dU
-      ? 'ตามอันดับ ' + up.rank + ' ' + esc(up.school) + ' อยู่ ' + dU.n + ' ' + dU.label
-      : 'มีเหรียญเท่ากับอันดับ ' + up.rank + ' ' + esc(up.school) + ' ทุกชนิด';
-  }
-  if (all.length < 2) return 'อยู่อันดับ 1 ของตารางเหรียญ';
-  var down = all[1], dD = medalDiff(self, down);
-  return dD
-    ? 'อันดับ 1 ของตาราง · นำ ' + esc(down.school) + ' อยู่ ' + dD.n + ' ' + dD.label
-    : 'อันดับ 1 ของตาราง · มีเหรียญเท่ากับอันดับ 2 ทุกชนิด';
+  '<span class="' + RB_MEDAL + '">รวม <b class="' + RB_NUM + '">' + (m.gold + m.silver + m.bronze) + '</b> เหรียญ</span>';
 }
 
 function renderRankBar(data) {
@@ -447,26 +435,79 @@ function renderRankBar(data) {
   if (!self) { host.hidden = true; return; }
   host.hidden = false;
 
-  // ลำดับใน DOM = ลำดับที่ต้องอ่าน: อันดับก่อน แล้วค่อยบอกว่าของใครและห่างจากใครแค่ไหน
-  // อันดับเป็นของชิ้นเดียวที่ใช้สีเน้น — เส้นคั่นกันไม่ให้อ่านติดกับชื่อโรงเรียน
-  // จอแคบ: อันดับกับชื่อโรงเรียนอยู่บรรทัดเดียวกัน เหรียญลงบรรทัดล่างเต็มความกว้าง
+  // แถบเป็นข้อความสไลด์เลื่อนอัตโนมัติ (ticker) — ชิ้นเดียวในเว็บที่ยังเคลื่อนไหว ตามที่ผู้ใช้ขอ
+  // เนื้อหาเรียงบรรทัดเดียว ซ้ำสองชุดติดกัน แล้วเลื่อนไปครึ่งหนึ่งของความยาว = วนต่อกันไม่มีรอยต่อ
+  // แต่ละชุดต้องกว้างอย่างน้อยเท่ากล่อง ไม่งั้นท้ายชุดที่สองจะโผล่ช่องว่างยาวก่อนรอบถัดไป
+  // (จอกว้าง เนื้อหาหนึ่งรอบสั้นกว่ากล่อง) — tickerLayout() จึงซ้ำเนื้อหาในชุดให้พอดีความกว้างจริง
+  // มีแค่รอบแรกของชุดแรกที่โปรแกรมอ่านหน้าจออ่าน ที่เหลือซ่อนไว้ ไม่งั้นจะอ่านซ้ำหลายรอบ
   host.innerHTML =
-    '<p class="m-0 flex flex-none items-baseline gap-[9px] border-r border-line pr-6 max-[860px]:pr-[18px]' +
-      ' max-[560px]:flex-[1_1_100%] max-[560px]:border-r-0 max-[560px]:border-b max-[560px]:p-0 max-[560px]:pb-3">' +
-      '<span class="text-[12.5px] tracking-[.06em] text-fg-soft">อันดับ</span>' +
-      '<b class="font-mono text-[54px] leading-[.9] font-normal text-brand-strong tabular-nums max-[860px]:text-[42px]">' + self.rank + '</b>' +
-      '<span class="text-[12px] leading-[1.3] text-fg-mute">จาก ' + all.length + '<br />โรงเรียน</span></p>' +
-    '<div class="flex min-w-0 flex-[1_1_300px] items-center gap-3.5 max-[860px]:flex-[1_1_200px]">' +
-      schoolCrest(self, 'size-[52px] text-[21px] max-[560px]:size-11 max-[560px]:text-[18px]') +
-      '<div class="min-w-0">' +
-        '<p class="m-0 font-display text-[16px] leading-[1.35]">' + esc(self.fullName || self.school) + '</p>' +
-        '<p class="mt-[3px] text-[12.5px] leading-[1.5] text-fg-mute">' + rankGap(all, self, all.indexOf(self)) + '</p>' +
-      '</div>' +
-    '</div>' +
-    '<div class="flex flex-wrap items-center gap-[18px] max-[860px]:flex-[1_1_100%] max-[860px]:gap-4 max-[860px]:border-t max-[860px]:border-line max-[860px]:pt-[13px]">' +
-      rankMedals(self) + '</div>' +
-    '<a class="ml-auto inline-flex min-h-[34px] flex-none items-center rounded-full border border-line px-[13px] text-[12.5px] whitespace-nowrap text-fg-soft no-underline transition-[border-color,color] duration-150 hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-[560px]:flex-[1_1_100%] max-[560px]:justify-center" href="medals.html">ดูตารางเต็ม</a>';
+    '<div class="relative min-w-0 flex-1 overflow-hidden' +
+      ' [mask-image:linear-gradient(90deg,transparent,#000_28px,#000_calc(100%-28px),transparent)]" id="rankViewport">' +
+      '<div class="rank-ticker flex w-max motion-safe:animate-ticker hover:[animation-play-state:paused]" id="rankTrack"></div>' +
+    '</div>';
+  tickerItem = rankTickerItem(all, self);
+  tickerCopies = 0;
+  tickerLayout();
+  // ความกว้างจริงรู้ได้หลังโลโก้โหลดเสร็จ — คำนวณจำนวนรอบและความเร็วใหม่ ไม่งั้นรอบแรกจะผิด
+  Array.prototype.forEach.call(host.querySelectorAll('img'), function (img) {
+    if (!img.complete) img.addEventListener('load', tickerLayout, { once: true });
+  });
 }
+
+/** เนื้อหาหนึ่งรอบของแถบเลื่อน อ่านเป็นประโยคเดียว:
+    "อันดับ 1 จาก 16 โรงเรียน · [ตรา] ชื่อโรงเรียน · ทอง 46 · เงิน 49 · ทองแดง 34 · รวม 129 เหรียญ"
+    ทุกอย่างบรรทัดเดียว (เดิม "จาก 16 / โรงเรียน" ซ้อนสองบรรทัด พอเลื่อนผ่านขอบจะเหลือเป็นเศษอ่านไม่รู้เรื่อง)
+    ท้ายรอบมีเครื่องหมายเหรียญคั่นกว้าง ๆ รอบถัดไปจะได้ไม่อ่านติดกันเป็น "…129 เหรียญ อันดับ 1" */
+function rankTickerItem(all, self) {
+  return '<p class="m-0 flex flex-none items-baseline gap-2 pl-6 whitespace-nowrap max-[560px]:pl-4">' +
+      '<span class="text-[15px] text-fg-soft">อันดับ</span>' +
+      '<b class="font-mono text-[44px] leading-[.9] font-normal text-brand-strong tabular-nums max-[860px]:text-[38px]">' + self.rank + '</b>' +
+      '<span class="text-[15px] text-fg-soft">จาก ' + all.length + ' โรงเรียน</span></p>' +
+    RB_SEP +
+    // โลโก้โรงเรียนฉบับเต็ม (ตรา + ชื่อในรูป) ชุดเดียวกับแถบเมนูซ้าย — โหมดมืดใช้ฉบับตัวขาว
+    // สองไฟล์สัดส่วนเท่ากัน (3.63) สลับธีมแล้วความกว้างแถบไม่เปลี่ยน รอบเลื่อนจึงยังต่อกันพอดี
+    '<span class="flex flex-none items-center">' +
+      '<img class="block h-12 w-auto dark:hidden max-[560px]:h-10" src="assets/logo/satitpatumwan.png"' +
+        ' alt="' + esc(self.fullName || self.school) + '" width="776" height="214" decoding="async" />' +
+      '<img class="hidden h-12 w-auto dark:block max-[560px]:h-10" src="assets/logo/satitpatumwan-dark.webp"' +
+        ' alt="' + esc(self.fullName || self.school) + '" width="537" height="148" decoding="async" />' +
+    '</span>' +
+    RB_SEP +
+    '<div class="flex flex-none items-center">' + rankMedals(self) + '</div>' +
+    // คั่นระหว่างรอบ: เว้นกว้างกว่าจุดคั่นปกติ และใช้ไอคอนเหรียญสีแบรนด์ให้เห็นชัดว่าจบหนึ่งรอบ
+    '<span class="flex flex-none items-center px-10 max-[560px]:px-7" aria-hidden="true">' +
+      '<i class="medal-mic size-[16px] bg-brand"></i></span>';
+}
+
+/* ความเร็วคงที่เป็นพิกเซลต่อวินาที ไม่ใช่เวลาต่อรอบ — ชื่อโรงเรียนยาว/สั้นหรือจอมือถือ ก็อ่านทันเท่ากัน */
+var TICKER_PX_PER_SEC = 45;
+var tickerItem = '', tickerCopies = 0;
+
+/** จัดแถบเลื่อน: ใส่เนื้อหาซ้ำในแต่ละชุดให้ชุดกว้างไม่น้อยกว่ากล่อง แล้วตั้งความเร็วตามความยาวชุด */
+function tickerLayout() {
+  var track = document.getElementById('rankTrack');
+  var viewport = document.getElementById('rankViewport');
+  if (!track || !viewport || !tickerItem) return;
+
+  // วัดความกว้างเนื้อหาหนึ่งรอบจากชุดแรกที่วาดอยู่ (รอบแรกยังไม่มี ใส่ไว้หนึ่งรอบก่อนแล้ววัด)
+  if (!tickerCopies) { track.innerHTML = tickerGroup(1); tickerCopies = 1; }
+  var itemWidth = track.firstChild.scrollWidth / tickerCopies;
+  var need = itemWidth > 0 ? Math.max(1, Math.ceil(viewport.clientWidth / itemWidth)) : 1;
+  if (need !== tickerCopies || track.children.length !== 2) {
+    tickerCopies = need;
+    track.innerHTML = tickerGroup(need) + tickerGroup(need, true);
+  }
+  track.style.animationDuration = Math.max(12, (track.scrollWidth / 2) / TICKER_PX_PER_SEC) + 's';
+}
+
+function tickerGroup(copies, hidden) {
+  var html = '';
+  for (var i = 0; i < copies; i++) {
+    html += (!hidden && i === 0) ? tickerItem : '<div class="contents" aria-hidden="true">' + tickerItem + '</div>';
+  }
+  return '<div class="flex flex-none items-center"' + (hidden ? ' aria-hidden="true"' : '') + '>' + html + '</div>';
+}
+window.addEventListener('resize', tickerLayout);
 
 /* ===================== ภาพประจำแถวในแผงรายการ =====================
    ใช้มาสคอตของกีฬาเหมือนการ์ดแมตช์ด้านบน · มาสคอตมีสีของตัวเองอยู่แล้ว จึงไม่ปูพื้นสีรอง
@@ -500,20 +541,20 @@ function renderPlan(data) {
     var tail = i.status === 'live'
       ? statusChip('live')
       : done
-        ? '<span class="font-mono text-[14px] whitespace-nowrap text-fg-mute tabular-nums">' + esc(i.score || 'จบแล้ว') + '</span>'
+        ? '<span class="font-mono text-[15.5px] whitespace-nowrap text-fg-mute tabular-nums">' + esc(i.score || 'จบแล้ว') + '</span>'
         : '';
     host.appendChild(el('div', 'grid grid-cols-[52px_1fr_auto] items-center gap-[13px] border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-[44px_1fr_auto]' + (done ? ' text-fg-mute' : ''),
-      '<span class="font-mono text-[14px] tabular-nums ' + (i.status === 'live' ? 'text-live' : done ? 'text-fg-mute' : 'text-fg') + '">' + esc(i.time || '—') + '</span>' +
+      '<span class="font-mono text-[15.5px] tabular-nums ' + (i.status === 'live' ? 'text-live' : done ? 'text-fg-mute' : 'text-fg') + '">' + esc(i.time || '—') + '</span>' +
       '<span class="min-w-0">' +
-        '<p class="mb-[3px] text-[15px]' + (done ? ' text-fg-soft' : '') + '">' + esc(head.sport) +
-          (head.kind ? ' <span class="text-[13px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
-        '<p class="m-0 text-[13px] ' + (done ? 'text-fg-mute' : 'text-fg-soft') + '">' + esc(i.teams || where || '') +
+        '<p class="mb-[3px] text-[17px]' + (done ? ' text-fg-soft' : '') + '">' + esc(head.sport) +
+          (head.kind ? ' <span class="text-[14.5px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
+        '<p class="m-0 text-[14.5px] ' + (done ? 'text-fg-mute' : 'text-fg-soft') + '">' + esc(i.teams || where || '') +
           (i.teams && where ? ' <span class="text-fg-mute">· ' + esc(where) + '</span>' : '') + '</p>' +
       '</span>' +
       '<span>' + tail + '</span>'));
   });
   if (items.length > PLAN_TOP) {
-    host.appendChild(el('p', 'm-0 border-t border-line pt-3 text-[12.5px] text-fg-mute',
+    host.appendChild(el('p', 'm-0 border-t border-line pt-3 text-[14px] text-fg-mute',
       'และอีก ' + (items.length - PLAN_TOP) + ' รายการ'));
   }
 }
@@ -536,22 +577,54 @@ function renderTimeline(data) {
       // ผลที่ประกาศแล้วใช้สีเน้นเดียวกับไอคอนบนการ์ดแมตช์ เหลือสีสถานะไว้ให้ "สด" ใบเดียว
       rowArt(i.sportId, i.status === 'live' ? 'bg-live-bg text-live' : 'bg-brand-100 text-brand-strong') +
       '<span>' +
-        '<p class="mb-[3px] text-[15px]">' + esc(head.sport) +
-          (head.kind ? ' <span class="text-[13px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
-        '<p class="m-0 text-[13px] text-fg-soft">' + esc(i.teams || i.score || '') + '</p>' +
+        '<p class="mb-[3px] text-[17px]">' + esc(head.sport) +
+          (head.kind ? ' <span class="text-[14.5px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
+        '<p class="m-0 text-[14.5px] text-fg-soft">' + esc(i.teams || i.score || '') + '</p>' +
       '</span>' +
       // ทั้งแผงคือผลที่ประกาศแล้ว ป้ายจึงเหลือไว้เฉพาะรายการที่ยังแข่งอยู่ ที่เหลือแสดงสกอร์แทน
       (i.status === 'live'
         ? statusChip('live')
         : (i.score
-            ? '<span class="font-mono text-[17px] whitespace-nowrap text-brand-strong tabular-nums">' + esc(i.score) + '</span>'
+            ? '<span class="font-mono text-[19px] whitespace-nowrap text-brand-strong tabular-nums">' + esc(i.score) + '</span>'
             : ''))));
   });
   paintUiIcons(host);
 }
 
+/* ===================== หัวหน้า =====================
+   ชื่องานกับข้อความสถานะเป็นข้อความนิ่ง
+   จากข้อมูลจริงเท่านั้น (ไม่มีคำเชียร์) ประโยคไหนไม่มีข้อมูลก็ไม่ใส่
+   อันดับกับเหรียญไม่ใส่ซ้ำตรงนี้ เพราะแถบอันดับข้างล่างบอกอยู่แล้ว
+   ไม่มี "ประกาศผลแล้ว N รายการ": นับได้เฉพาะแถวที่กรอกสกอร์ในแท็บตารางแข่ง ตัวเลขจึงน้อยกว่าเหรียญ
+   ที่ได้จริงมาก (เช่น 4 รายการ แต่ได้ 129 เหรียญ) อ่านแล้วขัดกันเอง */
+function renderMasthead(data) {
+  var meta = data.meta || {};
+  document.getElementById('mastTitle').textContent = meta.title || 'กีฬาสาธิตสามัคคี';
+
+  var now = new Date();
+  document.getElementById('mastDate').textContent =
+    'วัน' + WEEKDAYS_TH[now.getDay()] + 'ที่ ' + now.getDate() + ' ' + MONTHS_TH[now.getMonth()] + ' ' + (now.getFullYear() + 543);
+
+  var all = allDayItems(data);
+  var live = all.filter(function (i) { return i.status === 'live'; }).length;
+  var today = (data.days || []).filter(isToday)[0];
+  var todayLeft = ((today && today.items) || []).filter(function (i) { return i.status === 'upcoming'; }).length;
+
+  var facts = [];
+  if (live) facts.push('กำลังแข่งสด ' + live + ' รายการ');
+  if (todayLeft) facts.push('วันนี้เหลืออีก ' + todayLeft + ' รายการ');
+
+  var box = document.getElementById('mastFacts');
+  box.hidden = !facts.length;
+  // จุดหน้าข้อความ: ชมพูกะพริบเฉพาะตอนมีแมตช์สดจริง นอกนั้นเป็นจุดเขียวนิ่ง ๆ ของ "ข้อมูลล่าสุด"
+  document.getElementById('factDot').className = 'size-[7px] flex-none rounded-full ' +
+    (live ? 'bg-live motion-safe:animate-blink' : 'bg-done');
+  document.getElementById('factText').textContent = facts.join(' · ');
+}
+
 function renderAll(data) {
   var day = currentDay(data);
+  renderMasthead(data);
   renderHero(data, day);
   renderLive(data, day);
   renderRankBar(data);
@@ -564,5 +637,5 @@ bindHero();
 
 loadData().then(function (data) {
   renderAll(data);
-  schedulePolling(renderAll);
+  onFreshData(renderAll);
 }).catch(showLoadError);

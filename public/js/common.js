@@ -12,11 +12,11 @@ import { hasSupabase } from './config.js';
 import { MONTHS_TH, isoDate } from './format.js';
 
 /** ป้ายสถานะ (สด / ประกาศแล้ว / รอเริ่ม) — โครงเดียว เปลี่ยนแค่คู่สีตามสถานะ */
-export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 text-[11.5px]';
+export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 text-[13px]';
 /** จุดกะพริบหน้าป้าย "กำลังแข่ง" — ย้อมตามสีข้อความของป้ายที่ครอบอยู่ */
 export var LIVE_DOT = '<span class="size-1.5 flex-none rounded-full bg-current motion-safe:animate-blink" aria-hidden="true"></span>';
 /** ข้อความบอกว่าไม่มีรายการ ใช้ตรงกลางพื้นที่ที่ควรมีตาราง/การ์ด */
-export var EMPTY_TEXT = 'p-[26px] text-center text-[13px] text-fg-mute';
+export var EMPTY_TEXT = 'p-[26px] text-center text-[14.5px] text-fg-mute';
 
 /* ไอคอน UI ทั้งชุดวาดบนกริดเดียวกัน: viewBox 24, เส้นหนา 1.7, ปลายเส้นมน
    และรูปกินพื้นที่ราว 3.5–20.5 ทุกตัว เพื่อให้น้ำหนักสายตาเท่ากันเวลาเรียงในเมนู */
@@ -42,22 +42,36 @@ export function paintUiIcons(root) {
     elm.style.webkitMaskImage = url; elm.style.maskImage = url;
   });
 }
-/* ไอคอนกีฬาเป็นภาพ 3D สี (PNG จากชุด Fluent Emoji ของ Microsoft, สัญญาอนุญาต MIT)
-   ไม่ใช่รูปทรง mask แบบเดิมแล้ว จึงย้อมสีตามข้อความรอบ ๆ ไม่ได้ แต่แลกมาด้วยการที่
-   "ดูออกว่าเป็นกีฬาอะไร" ตั้งแต่แวบแรก (ไอคอนเส้นเดิมของเทนนิสอ่านเป็นแว่นขยายที่ 16px)
-
-   ต้องเช็กชื่อกับ ICON_IDS ก่อนเสมอ: ไฟล์ที่ไม่มีจริงจะขึ้นเป็นรูปแตกในเบราว์เซอร์
-   ต่างจาก mask เดิมที่หายไปเงียบ ๆ — กีฬานอกรายการนี้ใช้ถ้วยรางวัลเป็นไอคอนกลาง */
-var ICON_IDS = [
-  'athletics', 'badminton', 'basketball', 'basketball3x3', 'boardgame', 'dancesport',
-  'football', 'futsal', 'golf', 'handball', 'hockey', 'petanque',
-  'softball', 'swimming', 'tabletennis', 'tennis', 'volleyball'
-];
+/* ไอคอนกีฬาเป็นไอคอนเส้น (SVG inline) ไม่ใช่อิโมจิ/ภาพ 3D — หน้าตาเหมือนกันทุกแพลตฟอร์ม
+   และย้อมสีตามข้อความรอบ ๆ (currentColor) ได้ เช่น สีแดงในกล่อง "กำลังแข่ง"
+   รูปทรงมาจากชุด Tabler Icons (สัญญาอนุญาต MIT) ยกเว้นแบดมินตันกับฮอกกี้ที่วาดเองบนกริดเดียวกัน
+   กีฬานอกรายการนี้ใช้ถ้วยรางวัล (default) เป็นไอคอนกลาง */
+var SPORT_ICONS = {
+  athletics: "<path d='M11.007 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' /><path d='M4 17l5 1l.75 -1.5' /><path d='M15 21v-4l-4 -3l1 -6' /><path d='M7 12v-3l5 -1l3 3l3 1' />",
+  badminton: "<path d='M9 17.5a3 3 0 0 0 6 0z'/><path d='M9.3 17.5L5.5 4h13l-3.8 13.5M10.2 4l.9 13.5M13.8 4l-.9 13.5'/>",
+  basketball: "<path d='M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' /><path d='M5.65 5.65l12.7 12.7' /><path d='M5.65 18.35l12.7 -12.7' /><path d='M12 3a9 9 0 0 0 9 9' /><path d='M3 12a9 9 0 0 1 9 9' />",
+  basketball3x3: "<path d='M9.007 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' /><path d='M5 21l3 -3l.75 -1.5' /><path d='M14 21v-4l-4 -3l.5 -6' /><path d='M5 12l1 -3l4.5 -1l3.5 3l4 -.5' /><path d='M18.007 15.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0' />",
+  boardgame: "<path d='M12 3a3 3 0 0 1 3 3c0 1.113 -.6 2.482 -1.5 3l1.5 7h-6l1.5 -7c-.9 -.518 -1.5 -1.887 -1.5 -3a3 3 0 0 1 3 -3' /><path d='M8 9h8' /><path d='M6.684 16.772a1 1 0 0 0 -.684 .949v1.279a1 1 0 0 0 1 1h10a1 1 0 0 0 1 -1v-1.28a1 1 0 0 0 -.684 -.948l-2.316 -.772h-6l-2.316 .772' />",
+  dancesport: "<path d='M3 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0' /><path d='M13 17a3 3 0 1 0 6 0a3 3 0 0 0 -6 0' /><path d='M9 17v-13h10v13' /><path d='M9 8h10' />",
+  esports: "<path d='M12 5h3.5a5 5 0 0 1 0 10h-5.5l-4.015 4.227a2.3 2.3 0 0 1 -3.923 -2.035l1.634 -8.173a5 5 0 0 1 4.904 -4.019h3.4' /><path d='M14 15l4.07 4.284a2.3 2.3 0 0 0 3.925 -2.023l-1.6 -8.232' /><path d='M8 9v2' /><path d='M7 10h2' /><path d='M14 10h2' />",
+  football: "<path d='M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' /><path d='M12 7l4.76 3.45l-1.76 5.55h-6l-1.76 -5.55l4.76 -3.45' /><path d='M12 7v-4m3 13l2.5 3m-.74 -8.55l3.74 -1.45m-11.44 7.05l-2.56 2.95m.74 -8.55l-3.74 -1.45' />",
+  futsal: "<path d='M3 17l5 1l.75 -1.5' /><path d='M14 21v-4l-4 -3l1 -6' /><path d='M6 12v-3l5 -1l3 3l3 1' /><path d='M18.007 19.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0' /><path d='M10.007 5a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' />",
+  hockey: "<path d='M6 3l6.2 13.4a2.6 2.6 0 0 0 2.4 1.6H20'/><circle cx='6.5' cy='18.5' r='2'/>",
+  golf: "<path d='M12 18v-15l7 4l-7 4' /><path d='M9 17.67c-.62 .36 -1 .82 -1 1.33c0 1.1 1.8 2 4 2s4 -.9 4 -2c0 -.5 -.38 -.97 -1 -1.33' />",
+  handball: "<path d='M13 21l3.5 -2l-4.5 -4l2 -4.5' /><path d='M5 7l4 3l5 .5l4 2.5l2.5 3' /><path d='M4 20l5 -1l1.5 -2' /><path d='M13.007 8a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' /><path d='M6.007 3.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0' />",
+  petanque: "<path d='M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0' /><path d='M2.5 17a4 4 0 1 0 8 0a4 4 0 1 0 -8 0' /><path d='M13.5 17a4 4 0 1 0 8 0a4 4 0 1 0 -8 0' />",
+  softball: "<path d='M5.636 18.364a9 9 0 1 0 12.728 -12.728a9 9 0 0 0 -12.728 12.728' /><path d='M12.495 3.02a9 9 0 0 1 -9.475 9.475' /><path d='M20.98 11.505a9 9 0 0 0 -9.475 9.475' /><path d='M9 9l2 2' /><path d='M13 13l2 2' /><path d='M11 7l2 1' /><path d='M7 11l1 2' /><path d='M16 11l1 2' /><path d='M11 16l2 1' />",
+  swimming: "<path d='M15 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0' /><path d='M6 11l4 -2l3.5 3l-1.5 2' /><path d='M3 16.75a2.4 2.4 0 0 0 1 .25a2.4 2.4 0 0 0 2 -1a2.4 2.4 0 0 1 2 -1a2.4 2.4 0 0 1 2 1a2.4 2.4 0 0 0 2 1a2.4 2.4 0 0 0 2 -1a2.4 2.4 0 0 1 2 -1a2.4 2.4 0 0 1 2 1a2.4 2.4 0 0 0 2 1a2.4 2.4 0 0 0 1 -.25' />",
+  tabletennis: "<path d='M12.718 20.713a7.64 7.64 0 0 1 -7.48 -12.755l.72 -.72a7.643 7.643 0 0 1 9.105 -1.283l2.387 -2.345a2.08 2.08 0 0 1 3.057 2.815l-.116 .126l-2.346 2.387a7.644 7.644 0 0 1 -1.052 8.864' /><path d='M11 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0' /><path d='M9.3 5.3l9.4 9.4' />",
+  tennis: "<path d='M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' /><path d='M6 5.3a9 9 0 0 1 0 13.4' /><path d='M18 5.3a9 9 0 0 0 0 13.4' />",
+  volleyball: "<path d='M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0' /><path d='M12 12a8 8 0 0 0 8 4' /><path d='M7.5 13.5a12 12 0 0 0 8.5 6.5' /><path d='M12 12a8 8 0 0 0 -7.464 4.928' /><path d='M12.951 7.353a12 12 0 0 0 -9.88 4.111' /><path d='M12 12a8 8 0 0 0 -.536 -8.928' /><path d='M15.549 15.147a12 12 0 0 0 1.38 -10.611' />",
+  default: "<path d='M8 21l8 0' /><path d='M12 17l0 4' /><path d='M7 4l10 0' /><path d='M17 4v8a5 5 0 0 1 -10 0v-8' /><path d='M3 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' /><path d='M17 9a2 2 0 1 0 4 0a2 2 0 1 0 -4 0' />"
+};
 /** @param {string} [extra] - คลาสขนาด (เช่น 'size-[22px]') ผู้เรียกกำหนดเองทุกที่ ไม่มีขนาดตั้งต้น */
 export function sportIcon(id, extra) {
-  var name = ICON_IDS.indexOf(id) > -1 ? id : 'default';
-  return '<img class="inline-block flex-none object-contain ' + (extra || '') + '" src="assets/icons/' + name + '.png"' +
-    ' alt="" loading="lazy" decoding="async" />';
+  return '<svg class="inline-block flex-none ' + (extra || '') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+    ' stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    (SPORT_ICONS[id] || SPORT_ICONS.default) + '</svg>';
 }
 
 /* ---------- ป้องกัน HTML injection: ข้อมูลมาจาก Google Sheets ที่แก้ไขได้จากภายนอก ---------- */
@@ -100,7 +114,7 @@ export function el(tag, cls, html) { var n = document.createElement(tag); if (cl
    ความเร็ว: Google Sheets ตอบช้าไม่แน่นอน (0.4–6 วินาทีต่อแท็บ) และเว็บนี้เป็นหลายไฟล์ HTML
    กดเมนูทีไรก็เริ่มดึงใหม่ทั้งหมด จึงเก็บชุดล่าสุดไว้ใน localStorage แล้วใช้แบบ stale-while-revalidate:
    เปิดหน้า → วาดจากชุดที่เก็บไว้ทันที → ดึงของจริงเบื้องหลัง → มาถึงแล้ววาดทับ
-   ตัวนับ "อัปเดตเมื่อ … วินาทีที่แล้ว" นับจาก syncedAt ของข้อมูล คนดูจึงเห็นว่าชุดที่ขึ้นอยู่เก่าแค่ไหน */
+   "อัปเดตล่าสุด hh:mm น." ในแถบบนมาจาก syncedAt ของข้อมูล คนดูจึงเห็นว่าชุดที่ขึ้นอยู่เก่าแค่ไหน */
 var CACHE_KEY = 'dash-data-v1';
 // เก่ากว่านี้ไม่เอามาวาดก่อน (ผลเมื่อวานขึ้นมาแวบหนึ่งก่อนเปลี่ยนชวนสับสนเกินไป) แต่ยังใช้เป็นของสำรองตอนดึงไม่ได้
 var CACHE_SHOW_MS = 6 * 60 * 60 * 1000;
@@ -120,12 +134,49 @@ function dataAgeMs(data) {
 }
 
 var lastGood = readCache();
-var listeners = [];        // callback จาก schedulePolling — รับข้อมูลใหม่ที่มาถึงนอกรอบ loadData()
+var listeners = [];        // callback จาก onFreshData — รับข้อมูลใหม่ที่มาถึงนอกรอบ loadData()
 var backgroundLoad = null; // รอบที่ดึงเบื้องหลังหลังวาดจาก cache ไปแล้ว
 var firstLoad = true;
 
 function publish(data) {
-  listeners.forEach(function (fn) { fn(data); });
+  listeners.forEach(function (fn) { deliver(fn, data); });
+}
+
+/* ---------- หน้าไม่เปลี่ยนเอง ผู้ใช้เป็นคนกดอัปเดต ----------
+   เบราว์เซอร์ยังดึงข้อมูลเบื้องหลังทุก 30 วินาทีเหมือนเดิม แต่ไม่วาดทับหน้าที่คนกำลังอ่านอยู่
+   (เดิมวาดทับทั้งหน้าทุกรอบ การ์ด/ตาราง/ตำแหน่งที่อ่านค้างไว้รีเซ็ตเองจนคนดูรำคาญ)
+   เทียบเนื้อหา (ไม่นับ syncedAt) กับชุดที่วาดอยู่:
+   - เหมือนเดิม = ยืนยันว่าหน้ายังเป็นปัจจุบัน อัปเดตแค่เวลา "อัปเดตล่าสุด" ในแถบบน
+   - มีผลใหม่ = เก็บไว้ แล้วโชว์ปุ่ม "มีผลใหม่ · อัปเดต" ในแถบบน กดเมื่อไรค่อยวาดชุดใหม่
+   ยกเว้นช่วงเปิดหน้า: วาดจาก cache แล้วของสดมาถึงภายใน OPEN_AUTO_MS = ถือเป็นการโหลดหน้าเดียวกัน วาดทับเลย */
+var OPEN_AUTO_MS = 3000;
+var shownFp = null;
+var syncHook = null;     // initChrome ตั้งไว้ อัปเดตเวลาในแถบบนโดยไม่วาดหน้าใหม่
+var pendingHook = null;  // initChrome ตั้งไว้ แสดง/ซ่อนปุ่ม "อัปเดต"
+var pending = null;      // ชุดใหม่ที่รอผู้ใช้กดอัปเดต { fn, data, fp }
+function fingerprint(data) {
+  return JSON.stringify(data, function (k, v) { return k === 'syncedAt' ? undefined : v; });
+}
+function deliver(onData, data, auto) {
+  var fp = fingerprint(data);
+  if (fp === shownFp) {
+    pending = null;
+    if (pendingHook) pendingHook(false);
+    if (syncHook) syncHook(data);
+    return;
+  }
+  if (auto) { shownFp = fp; pending = null; onData(data); return; }
+  pending = { fn: onData, data: data, fp: fp };
+  if (pendingHook) pendingHook(true);
+}
+/** ผู้ใช้กดปุ่มอัปเดต: วาดชุดที่รออยู่ */
+function applyPending() {
+  var p = pending;
+  pending = null;
+  if (pendingHook) pendingHook(false);
+  if (!p) return;
+  shownFp = p.fp;
+  p.fn(p.data);
 }
 
 /* ภาพบรรยากาศมาถึงหลังข้อมูลหลัก (ดู loadFromSheets) — เติมเข้าชุดล่าสุดแล้ววาดใหม่ */
@@ -170,6 +221,9 @@ function fetchFresh() {
 }
 
 export function loadData() {
+  return loadFirst().then(function (data) { shownFp = fingerprint(data); return data; });
+}
+function loadFirst() {
   if (firstLoad) {
     firstLoad = false;
     if (lastGood && dataAgeMs(lastGood) < CACHE_SHOW_MS) {
@@ -186,32 +240,23 @@ export function showLoadError(err) {
   document.getElementById('main').innerHTML =
     '<div class="rounded-lg border border-line bg-surface px-6 py-[22px] shadow-panel">' +
       '<p class="mt-0 mb-1.5 text-live">โหลดข้อมูลการแข่งขันไม่สำเร็จ</p>' +
-      '<p class="m-0 text-[13.5px] text-fg-soft">ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต และเปิดหน้าเว็บผ่าน http(s):// ไม่ใช่เปิดไฟล์ตรง ๆ แล้วลองรีเฟรชอีกครั้ง</p>' +
+      '<p class="m-0 text-[15px] text-fg-soft">ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต และเปิดหน้าเว็บผ่าน http(s):// ไม่ใช่เปิดไฟล์ตรง ๆ แล้วลองรีเฟรชอีกครั้ง</p>' +
     '</div>';
 }
 
-/* ---------- ดึงข้อมูลใหม่เป็นระยะ เพื่อให้ตัวเลขสดจริงตามชีต ----------
-   ตอนมีเซิร์ฟเวอร์ ชีตถูกยิงอย่างมากทุก 15 วินาทีไม่ว่าจะมีคนเปิดกี่คน (แคชรวมที่เซิร์ฟเวอร์)
-   ตอนนี้ทุกเบราว์เซอร์ยิงชีตเอง รอบละ 5 คำขอ (4 แท็บ + ภาพ) จึงเว้นห่างขึ้นเป็นครึ่งนาที
-   — ช้ากว่าเดิม 10 วินาทีแต่แลกกับการไม่ให้ Google มองว่าถูกยิงถี่จนตัดการเชื่อมต่อช่วงคนดูเยอะ
-   แท็บที่ถูกซ่อนอยู่ (สลับไปแท็บอื่น/พับจอ) ไม่โพล กลับมาเมื่อไรค่อยดึงทันทีถ้าเลยรอบไปแล้ว */
-var POLL_MS = 30000;
-export function schedulePolling(onData) {
+/* ---------- ข้อมูลชุดใหม่ที่มาถึงหลังวาดหน้าแล้ว ----------
+   ไม่มีการเช็กข้อมูลซ้ำเป็นระยะแล้ว — ดึงครั้งเดียวตอนเปิดหน้า ผลใหม่จะเห็นเมื่อผู้ใช้รีเฟรช/เปิดหน้าใหม่เอง
+   (เดิมโพลทุก 30 วินาทีแล้ววาดทับ หน้าจึงรีเซ็ตเองระหว่างอ่านจนคนดูรำคาญ)
+   ที่เหลือคือกรณีเดียว: หน้าวาดจาก cache ไปก่อน แล้วของสดจากรอบเปิดหน้ามาถึงทีหลัง
+   มาถึงเร็ว (ภายใน OPEN_AUTO_MS) = วาดทับเลย ถือเป็นการโหลดหน้าเดียวกัน
+   มาช้า (คนเริ่มอ่านแล้ว) = ขึ้นปุ่ม "มีผลใหม่ · อัปเดต" ให้ผู้ใช้กดเอง
+   ภาพบรรยากาศที่มาถึงทีหลัง (onLatePhotos → publish) ก็ผ่านทางนี้เช่นกัน */
+export function onFreshData(onData) {
   listeners.push(onData);
-  function refresh() {
-    fetchFresh().then(onData).catch(function (err) { console.warn('ซิงก์ข้อมูลใหม่ไม่สำเร็จ:', err); });
-  }
-  // หน้าวาดจาก cache ไปแล้ว: รอบเบื้องหลังที่ loadData() เริ่มไว้มาถึงเมื่อไรก็วาดทับ
   if (backgroundLoad) {
-    backgroundLoad.then(onData).catch(function (err) { console.warn('ซิงก์ข้อมูลใหม่ไม่สำเร็จ:', err); });
+    backgroundLoad.then(function (d) { deliver(onData, d, performance.now() < OPEN_AUTO_MS); }).catch(function (err) { console.warn('ดึงข้อมูลล่าสุดไม่สำเร็จ:', err); });
     backgroundLoad = null;
   }
-  setInterval(function () {
-    if (!document.hidden) refresh();
-  }, POLL_MS);
-  document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && Date.now() - lastFetchAt >= POLL_MS) refresh();
-  });
 }
 
 export function selfMedals(data) { return data.medalTable.filter(function (m) { return m.isSelf; })[0] || { gold: 0, silver: 0, bronze: 0 }; }
@@ -455,13 +500,13 @@ export function schoolMatches(data, m) {
    ยอดรวมเป็นสีเน้นและตัวโตสุด เพราะเป็นตัวเลขที่คนมองหาเป็นอันดับแรก
    เงินใช้เฉดเข้มกับไอคอนด้วย (ไม่ใช่ bg-silver) เพราะสีเงินสดเกือบขาว ไอคอน 14px จะจมหายไปกับพื้น */
 var MEDAL_COLS = [
-  { key: 'gold', mic: 'bg-gold', num: 'text-gold-ink text-[16px] max-[720px]:text-[18px]', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
-  { key: 'silver', mic: 'bg-silver-ink', num: 'text-silver-ink text-[16px] max-[720px]:text-[18px]', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
-  { key: 'bronze', mic: 'bg-bronze', num: 'text-bronze-ink text-[16px] max-[720px]:text-[18px]', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
+  { key: 'gold', coin: 1, num: 'text-gold-ink text-[18px] max-[720px]:text-[20px]', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
+  { key: 'silver', coin: 2, num: 'text-silver-ink text-[18px] max-[720px]:text-[20px]', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
+  { key: 'bronze', coin: 3, num: 'text-bronze-ink text-[18px] max-[720px]:text-[20px]', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
 ];
 // "รวม" ไม่ใช่ชนิดเหรียญ จึงไม่มีไอคอนเหรียญ — เป็นผลบวก ไม่ใช่ของอีกอย่างหนึ่ง
 var TOTAL_COL = {
-  num: 'text-brand-strong text-[17.5px] max-[720px]:text-[20px]', label: 'รวม', plain: true,
+  num: 'text-brand-strong text-[19.5px] max-[720px]:text-[21px]', label: 'รวม', plain: true,
   pos: 'max-[720px]:col-start-5 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:justify-end'
 };
 
@@ -469,12 +514,15 @@ var TOTAL_COL = {
    คอลัมน์ชื่อมีพื้นขั้นต่ำ 7rem: ถ้าปล่อยเป็น minmax(0,1fr) แล้วแผงแคบกว่าที่คาด
    คอลัมน์จะยุบจนเหลือความกว้างตัวอักษรเดียว ชื่อไทยจะเรียงลงแนวตั้งอ่านไม่ออก
    จอ ≥1200px แบ่งที่ว่างส่วนหนึ่งให้คอลัมน์ตัวเลข ไม่งั้นตัวเลขจะอยู่ไกลจากชื่อจนต้องกวาดสายตาข้ามแถว */
-var MT_GRID = 'grid grid-cols-[34px_minmax(7rem,1fr)_repeat(4,minmax(58px,72px))] items-center gap-3 px-5' +
-  ' min-[1200px]:grid-cols-[34px_minmax(7rem,1fr)_repeat(4,minmax(58px,104px))]';
+var MT_GRID = 'grid grid-cols-[40px_minmax(7rem,1fr)_repeat(4,minmax(58px,76px))] items-center gap-3 px-5' +
+  ' min-[1200px]:grid-cols-[40px_minmax(7rem,1fr)_repeat(4,92px)] min-[1200px]:px-6';
 
-/** ไอคอน + ข้อความกำกับชนิดเหรียญ ใช้ทั้งในหัวตาราง (จอกว้าง) และในช่องตัวเลข (จอแคบ) */
+/** ไอคอนกำกับชนิดเหรียญ (คอลัมน์รวมเป็นข้อความ) ใช้ทั้งในหัวตาราง (จอกว้าง) และในช่องตัวเลข (จอแคบ) */
 function medalTag(col, micSize) {
-  return (col.plain ? '' : '<i class="medal-mic ' + micSize + ' ' + col.mic + '" aria-hidden="true"></i>') + col.label;
+  // ไอคอนคือวงเหรียญที่ครอปจากรูปเหรียญบนโพเดียม (assets/medals/coin-N.webp) ให้เป็นชุดเดียวกันทั้งหน้า
+  // ชนิดเหรียญบอกด้วยรูปเหรียญอย่างเดียว ไม่มีข้อความ — ชื่อชนิดอยู่ใน title (ชี้เมาส์) และ aria-label ของแถว
+  if (col.plain) return col.label;
+  return '<img class="flex-none ' + micSize + '" src="assets/medals/coin-' + col.coin + '.webp" alt="" title="' + col.label + '" width="64" height="64" decoding="async" />';
 }
 
 /* จอกว้างมีหัวคอลัมน์บอกชนิดเหรียญอยู่แล้ว ป้ายในช่องจึงโผล่เฉพาะจอแคบที่ไม่มีหัวตาราง
@@ -485,10 +533,11 @@ function medalTag(col, micSize) {
    ไม่ใช่ผลรวมของป้ายบวกตัวเลข เหลือที่ให้ขยายตัวเลขเป็น 18px ได้โดยไม่ดันอะไรหลุดขอบ */
 function medalCell(col, value) {
   return '<span class="min-w-0 text-right max-[720px]:flex max-[720px]:flex-col max-[720px]:items-start max-[720px]:gap-px max-[720px]:text-left max-[720px]:whitespace-nowrap ' + col.pos + '">' +
-    '<span class="hidden text-[12px] text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[4px]">' +
-      medalTag(col, 'size-[12px]') +
+    '<span class="hidden text-[13.5px] text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[4px]">' +
+      medalTag(col, 'size-[20px]') +
     '</span>' +
-    '<b class="font-mono leading-[1.1] font-normal tabular-nums ' + col.num + '">' + value + '</b>' +
+    // ศูนย์ใช้สีจาง ตัวเลขที่มีเหรียญจริงจึงเด่นขึ้นมาเอง ไม่ต้องไล่อ่านทีละช่อง
+    '<b class="font-mono leading-[1.1] font-normal tabular-nums ' + col.num + (value ? '' : ' opacity-35') + '">' + value + '</b>' +
   '</span>';
 }
 
@@ -501,10 +550,10 @@ export function renderMedalTable(host, rows, opts) {
 
   host.innerHTML = '';
   // จอแคบไม่มีหัวตาราง (ตัวเลขพกป้ายกำกับของตัวเองแทน) — หัวคอลัมน์ตัวเลขชิดขวาเหมือนตัวเลขที่อยู่ใต้มัน
-  host.appendChild(el('div', MT_GRID + ' border-b border-line py-[11px] text-[12px] text-fg-mute max-[720px]:hidden',
+  host.appendChild(el('div', MT_GRID + ' border-b border-line py-3 text-[15px] text-fg-soft max-[720px]:hidden',
     '<span class="flex items-center">อันดับ</span><span class="flex items-center">โรงเรียน</span>' +
     MEDAL_COLS.concat(TOTAL_COL).map(function (c) {
-      return '<span class="flex items-center justify-end gap-[5px] whitespace-nowrap">' + medalTag(c, 'size-[14px]') + '</span>';
+      return '<span class="flex items-center justify-end gap-1.5 whitespace-nowrap">' + medalTag(c, 'size-[26px]') + '</span>';
     }).join('')));
   host.lastChild.setAttribute('aria-hidden', 'true');
 
@@ -522,23 +571,33 @@ export function renderMedalTable(host, rows, opts) {
     // ชื่อยาวจึงตัดขึ้นบรรทัดใหม่ได้ ไม่ตัดท้ายทิ้งด้วย ellipsis เพราะชื่อโรงเรียนต่างกันที่ท้ายชื่อ
     // (ฝ่ายมัธยม / วิทยาเขต…) — break-words ตัดตามขอบคำไทยก่อน แล้วค่อยหักกลางคำที่ยาวเกินคอลัมน์จริง ๆ
     var name = m.fullName || m.school;
-    var row = el('a',
-      MT_GRID + ' border-b border-line py-[11px] text-[15px] text-fg no-underline transition-colors duration-150' +
-      ' last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand' +
-      ' motion-reduce:transition-none' +
+    // opts.onPick: แตะแถวแล้วเปิดป๊อปอัปรายละเอียด (ไม่ได้พาไปหน้าใหม่) — ไม่ส่งมา แถวเป็นข้อมูลเฉย ๆ
+    var pick = typeof opts.onPick === 'function';
+    var row = el(pick ? 'button' : 'div',
+      MT_GRID + ' border-b border-line py-3 text-[17px] text-fg last:border-b-0' +
+      (pick ? ' w-full cursor-pointer text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand active:bg-surface-soft motion-reduce:transition-none' +
+        (m.isSelf ? '' : ' hover:bg-surface-soft') : '') +
       /* จอแคบ: ตัวเลขเหรียญย้ายลงบรรทัดที่สอง ชื่อโรงเรียนกับยอดรวมอยู่บรรทัดแรก */
       ' max-[720px]:grid-cols-[28px_repeat(3,minmax(0,1fr))_minmax(38px,auto)] max-[720px]:gap-x-1.5 max-[720px]:gap-y-2 max-[720px]:px-3.5 max-[720px]:py-3' +
-      // แถวโรงเรียนเรามีพื้นสีเน้นอยู่แล้ว จึงไม่เปลี่ยนสีตอนชี้เมาส์ (พื้นเดิมคือสิ่งที่ต้องเห็น)
-      (m.isSelf ? ' bg-brand-100' : ' hover:bg-surface-soft'),
-      '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono text-[15px] max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
+      (m.isSelf ? ' bg-brand-100' : ''),
+      '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono text-[17px] max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
         (RANK_TONE[m.rank] || 'text-fg-mute') + '">' + m.rank + '</span>' +
-      '<span class="min-w-0 text-[15px] leading-[1.35] break-words max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:text-[15.5px]">' + esc(name) + '</span>' +
+      '<span class="flex min-w-0 items-center gap-3 max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1">' +
+        schoolCrest(m, 'size-9 max-[720px]:hidden') +
+        '<span class="min-w-0 text-[17px] leading-[1.35] break-words max-[720px]:text-[17.5px]">' + esc(name) + '</span>' +
+      '</span>' +
       MEDAL_COLS.map(function (c) { return medalCell(c, m[c.key]); }).join('') +
       medalCell(TOTAL_COL, total));
-    row.href = 'school.html?id=' + schoolId(schoolKey(m));
     // ไม่มีป้าย "โรงเรียนเรา" ในแถวแล้ว (พื้นสีบอกอยู่แล้ว) แต่โปรแกรมอ่านหน้าจอยังต้องรู้
+    if (pick) {
+      row.type = 'button';
+      row.setAttribute('aria-haspopup', 'dialog');
+      row.addEventListener('click', function () { opts.onPick(m, row); });
+    } else {
+      row.setAttribute('role', 'group');
+    }
     row.setAttribute('aria-label',
-      'ดูรายละเอียด ' + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') + ' อันดับ ' + m.rank +
+      (pick ? 'ดูรายละเอียด ' : '') + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') + ' อันดับ ' + m.rank +
       ' ทอง ' + m.gold + ' เงิน ' + m.silver + ' ทองแดง ' + m.bronze + ' รวม ' + total);
     host.appendChild(row);
   }
@@ -546,7 +605,7 @@ export function renderMedalTable(host, rows, opts) {
   rows.forEach(addRow);
   if (opts.pinned) {
     // ช่องว่างเมื่อโรงเรียนเราหลุดจากอันดับต้น ๆ แต่ยังถูกตรึงไว้ท้ายตาราง
-    host.appendChild(el('div', 'border-b border-line py-1.5 text-center text-[13px] tracking-[.35em] text-fg-mute', '⋯'));
+    host.appendChild(el('div', 'border-b border-line py-1.5 text-center text-[14.5px] tracking-[.35em] text-fg-mute', '⋯'));
     addRow(opts.pinned);
   }
 }
@@ -597,24 +656,35 @@ export function initChrome(activePage) {
 
   document.getElementById('liveBell').addEventListener('click', function () { location.href = 'matches.html'; });
 
-  var secs = 0, out = document.getElementById('syncTime');
-  out.textContent = secs;
-  var syncCb = null;
-  setInterval(function () {
-    secs += 1;
-    out.textContent = secs;
-    if (syncCb) syncCb(secs);
-  }, 1000);
+  // แถบบนแสดง "เวลา" ที่ข้อมูลถูกดึงมา (อัปเดตล่าสุด 14:32 น.) — เขียนครั้งเดียวต่อชุดข้อมูล ไม่มีตัวนับวินาที
+  var syncedMs = NaN, out = document.getElementById('syncTime');
+  function showSynced(data) {
+    syncedMs = Date.parse(data.syncedAt);
+    var t = isNaN(syncedMs) ? new Date() : new Date(syncedMs);
+    out.textContent = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+  }
+  syncHook = showSynced;
+
+  // ปุ่ม "มีผลใหม่ · อัปเดต" — สร้างจาก JS ที่เดียว ไม่ต้องแก้ HTML ทั้ง 6 หน้า
+  // วางหน้าข้อความ "อัปเดตล่าสุด" ซ่อนไว้จนกว่าจะมีชุดใหม่รออยู่ ไม่กะพริบ ไม่เด้ง
+  var status = out.closest('[role="status"]');
+  var newBtn = document.createElement('button');
+  newBtn.type = 'button';
+  newBtn.hidden = true;
+  newBtn.className = 'btn h-[38px] rounded-full px-4 text-[13.5px]';
+  newBtn.innerHTML = '<span class="max-[560px]:hidden">มีผลใหม่ · </span>อัปเดต';
+  newBtn.setAttribute('aria-label', 'มีผลการแข่งขันใหม่ กดเพื่ออัปเดตหน้า');
+  newBtn.addEventListener('click', applyPending);
+  if (status) status.parentNode.insertBefore(newBtn, status);
+  pendingHook = function (on) { newBtn.hidden = !on; };
 
   paintUiIcons();
 
   return {
     /** เรียกทุกครั้งที่ข้อมูลใหม่มาถึง: อัปเดตชื่อโรงเรียน/อันดับ/แจ้งเตือนสด ในแถบบน */
     onData: function (data) {
-      // นับจากเวลาที่ข้อมูลชุดนี้ถูกดึงมาจริง ไม่ใช่เวลาที่วาด — ชุดจาก cache จึงไม่ถูกอ้างว่าเพิ่งอัปเดต
-      var age = Date.parse(data.syncedAt);
-      secs = isNaN(age) ? 0 : Math.max(0, Math.round((Date.now() - age) / 1000));
-      out.textContent = secs;
+      // เวลาที่ข้อมูลชุดนี้ถูกดึงมาจริง ไม่ใช่เวลาที่วาด — ชุดจาก cache จึงไม่ถูกอ้างว่าเพิ่งอัปเดต
+      showSynced(data);
       // แต่ละหน้ามีองค์ประกอบในแถบบนไม่เท่ากัน จึงอัปเดตเฉพาะอันที่มีจริงในหน้านั้น
       setText('schoolChipName', data.school.name);
       setText('schoolChipRank', 'อันดับ ' + (data.school.rank || '—') + ' / ' + data.school.totalSchools);
@@ -626,8 +696,7 @@ export function initChrome(activePage) {
       var badge = document.getElementById('liveBadge');
       if (badge) { badge.textContent = liveNow; badge.hidden = liveNow === 0; }
     },
-    /** ให้หน้าเพจย่อยผูก callback ของตัวเองเข้ากับตัวนับวินาที (เช่น เตือนข้อมูลเก่าบนหน้าโรงเรียน) */
-    onTick: function (fn) { syncCb = fn; },
-    secondsSinceSync: function () { return secs; }
+    /** อายุของชุดข้อมูลที่แสดงอยู่ (วินาที) คำนวณตอนเรียก — ไม่มีตัวจับเวลาวิ่งอยู่เบื้องหลัง */
+    secondsSinceSync: function () { return isNaN(syncedMs) ? 0 : Math.max(0, Math.round((Date.now() - syncedMs) / 1000)); }
   };
 }

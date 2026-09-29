@@ -9,6 +9,9 @@
        แต่ไม่มีเหตุผลให้หน้าแก้ข้อมูลไปโผล่ในผลค้นหาร่วมกับหน้าสาธารณะ -->
   <meta name="robots" content="noindex, nofollow" />
   <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png" />
 </head>
 <body class="min-h-screen bg-paper font-body leading-[1.6] tracking-[.01em] text-fg antialiased selection:bg-brand-100 selection:text-brand-strong">
   <a class="absolute top-0 -left-[999px] z-[100] rounded-br-[8px] bg-ink px-4 py-2.5 text-on-ink focus:left-0" href="#main">ข้ามไปยังเนื้อหาหลัก</a>
@@ -16,14 +19,14 @@
   <!-- ===================== 1. ยังไม่ได้ตั้งค่า Supabase ===================== -->
   <div class="mx-auto flex min-h-screen max-w-[620px] items-center px-5" id="setupScreen" hidden>
     <div class="w-full rounded-lg border border-line bg-surface px-7 py-7 shadow-panel">
-      <h1 class="m-0 font-display text-[22px] font-normal text-brand-strong">ยังไม่ได้เชื่อมต่อฐานข้อมูล</h1>
-      <p class="mt-2.5 mb-0 text-[13.5px] text-fg-soft">
-        หน้านี้ต้องใช้ Supabase — เปิดไฟล์ <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[12.5px]">public/js/config.js</code>
-        แล้วกรอก <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[12.5px]">SUPABASE_URL</code> กับ
-        <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[12.5px]">SUPABASE_KEY</code>
+      <h1 class="m-0 font-display text-[23.5px] font-normal text-brand-strong">ยังไม่ได้เชื่อมต่อฐานข้อมูล</h1>
+      <p class="mt-2.5 mb-0 text-[15px] text-fg-soft">
+        หน้านี้ต้องใช้ Supabase — เปิดไฟล์ <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[14px]">public/js/config.js</code>
+        แล้วกรอก <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[14px]">SUPABASE_URL</code> กับ
+        <code class="rounded-sm bg-surface-soft px-1.5 py-0.5 font-mono text-[14px]">SUPABASE_KEY</code>
         (หาได้ที่ Dashboard → Project Settings → API) จากนั้นรีเฟรชหน้านี้
       </p>
-      <p class="mt-4 mb-0 text-[12.5px] text-fg-mute">ระหว่างที่ยังไม่ตั้งค่า หน้าเว็บสาธารณะยังทำงานตามปกติ โดยดึงข้อมูลจาก Google Sheets เหมือนเดิม</p>
+      <p class="mt-4 mb-0 text-[14px] text-fg-mute">ระหว่างที่ยังไม่ตั้งค่า หน้าเว็บสาธารณะยังทำงานตามปกติ โดยดึงข้อมูลจาก Google Sheets เหมือนเดิม</p>
     </div>
   </div>
 
@@ -34,8 +37,8 @@
       <img class="mx-auto mb-7 hidden h-auto w-[230px] dark:block" src="assets/logo/satitpatumwan-dark.webp" alt="โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน" width="537" height="148" decoding="async" />
 
       <form class="rounded-lg border border-line bg-surface px-7 py-7 shadow-panel" id="loginForm">
-        <h1 class="m-0 font-display text-[21px] font-normal text-brand-strong">จัดการข้อมูลแดชบอร์ด</h1>
-        <p class="mt-1.5 mb-6 text-[13px] text-fg-soft">สำหรับทีมงานที่ได้รับสิทธิ์ผู้ดูแลเท่านั้น</p>
+        <h1 class="m-0 font-display text-[22.5px] font-normal text-brand-strong">จัดการข้อมูลแดชบอร์ด</h1>
+        <p class="mt-1.5 mb-6 text-[14.5px] text-fg-soft">สำหรับทีมงานที่ได้รับสิทธิ์ผู้ดูแลเท่านั้น</p>
 
         <label class="label mb-2" for="email">อีเมล</label>
         <input class="input mb-4 h-10" id="email" name="email" type="email" autocomplete="username" required />
@@ -43,11 +46,11 @@
         <label class="label mb-2" for="password">รหัสผ่าน</label>
         <input class="input mb-5 h-10" id="password" name="password" type="password" autocomplete="current-password" required />
 
-        <p class="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[13px] text-destructive" id="loginError" role="alert" hidden></p>
+        <p class="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14.5px] text-destructive" id="loginError" role="alert" hidden></p>
 
         <button class="btn btn-lg w-full" id="loginBtn" type="submit">เข้าสู่ระบบ</button>
 
-        <a class="mt-5 block text-center text-[12.5px] text-fg-mute no-underline hover:text-brand hover:underline" href="index.html">← กลับไปหน้าแดชบอร์ด</a>
+        <a class="mt-5 block text-center text-[14px] text-fg-mute no-underline hover:text-brand hover:underline" href="index.html">← กลับไปหน้าแดชบอร์ด</a>
       </form>
     </div>
   </div>
@@ -59,10 +62,10 @@
         <img class="block h-auto w-full dark:hidden" src="assets/logo/satitpatumwan.png" alt="โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน" width="776" height="214" decoding="async" />
         <img class="hidden h-auto w-full dark:block" src="assets/logo/satitpatumwan-dark.webp" alt="โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน" width="537" height="148" decoding="async" />
       </div>
-      <p class="px-[22px] pb-2 text-[11.5px] tracking-[.06em] text-fg-mute uppercase">จัดการข้อมูล</p>
+      <p class="px-[22px] pb-2 text-[13px] tracking-[.06em] text-fg-mute uppercase">จัดการข้อมูล</p>
       <nav class="flex flex-1 flex-col gap-[3px] overflow-y-auto px-3.5 py-1" id="tabNav" aria-label="หมวดข้อมูล"></nav>
       <div class="border-t border-line px-3.5 py-3.5">
-        <p class="mb-2 truncate px-1 text-[12px] text-fg-mute" id="userEmail">—</p>
+        <p class="mb-2 truncate px-1 text-[13.5px] text-fg-mute" id="userEmail">—</p>
         <a class="btn btn-ghost btn-sm mb-1.5 w-full justify-start px-3.5 text-fg-soft hover:text-fg" href="index.html">ดูหน้าเว็บจริง</a>
         <button class="btn btn-ghost btn-sm w-full justify-start px-3.5 text-fg-soft hover:text-fg" id="logoutBtn" type="button">ออกจากระบบ</button>
       </div>
@@ -73,7 +76,7 @@
       <header class="sticky top-0 z-30 flex items-center gap-3.5 border-b border-line bg-paper/85 px-[26px] py-4 backdrop-blur-[14px] max-[560px]:px-3.5">
         <button class="btn btn-outline btn-icon relative size-[38px] rounded-[11px] text-fg-soft hover:text-fg hidden max-[860px]:inline-flex" id="menuBtn" type="button" aria-label="เปิด/ปิดเมนู"><i class="icon-mask size-[19px]" data-ic="menu"></i></button>
         <div class="flex-1"></div>
-        <span class="text-[12.5px] whitespace-nowrap text-fg-mute" id="saveState" role="status" aria-live="polite"></span>
+        <span class="text-[14px] whitespace-nowrap text-fg-mute" id="saveState" role="status" aria-live="polite"></span>
         <button class="btn btn-outline btn-icon relative size-[38px] rounded-[11px] text-fg-soft hover:text-fg" id="themeToggle" type="button" aria-label="สลับโหมดสว่าง/มืด">
           <svg class="block dark:hidden" viewBox="0 0 24 24" width="18" height="18" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12h2.5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <svg class="hidden dark:block" viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="M20 14.5A8 8 0 019.5 4a7 7 0 108.9 8.9 8 8 0 011.6 1.6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
@@ -83,16 +86,16 @@
       <main id="main" class="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-8 pt-8 pb-14 max-[560px]:px-3.5 max-[560px]:pt-4 max-[560px]:pb-10">
         <div class="flex items-end gap-4 max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-2.5">
           <div class="min-w-0 flex-1">
-            <h1 class="m-0 font-display text-[25px] font-normal text-brand-strong" id="panelTitle">—</h1>
-            <p class="mt-1.5 text-[13.5px] text-fg-soft" id="panelHint"></p>
+            <h1 class="m-0 font-display text-[26.5px] font-normal text-brand-strong" id="panelTitle">—</h1>
+            <p class="mt-1.5 text-[15px] text-fg-soft" id="panelHint"></p>
           </div>
           <button class="btn flex-none" id="addBtn" type="button">+ เพิ่มรายการ</button>
         </div>
 
-        <p class="rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-3 text-[13px] text-destructive" id="panelError" role="alert" hidden></p>
+        <p class="rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-3 text-[14.5px] text-destructive" id="panelError" role="alert" hidden></p>
 
         <div class="overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
-          <div class="overflow-x-auto"><table class="w-full border-collapse text-[13.5px]" id="grid"></table></div>
+          <div class="overflow-x-auto"><table class="w-full border-collapse text-[15px]" id="grid"></table></div>
         </div>
       </main>
     </div>
@@ -103,10 +106,10 @@
   <dialog class="m-auto w-[min(560px,calc(100vw-28px))] rounded-lg border border-line bg-surface p-0 text-fg shadow-card backdrop:bg-[oklch(24%_0.03_260/.45)] motion-safe:animate-pop-in" id="editor">
     <form method="dialog" id="editorForm">
       <div class="border-b border-line px-6 pt-5 pb-4">
-        <h2 class="m-0 font-display text-[18px] font-normal text-fg" id="editorTitle">แก้ไขรายการ</h2>
+        <h2 class="m-0 font-display text-[20px] font-normal text-fg" id="editorTitle">แก้ไขรายการ</h2>
       </div>
       <div class="flex max-h-[min(60vh,520px)] flex-col gap-4 overflow-y-auto px-6 py-5" id="editorFields"></div>
-      <p class="mx-6 mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[13px] text-destructive" id="editorError" role="alert" hidden></p>
+      <p class="mx-6 mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14.5px] text-destructive" id="editorError" role="alert" hidden></p>
       <div class="flex items-center gap-2.5 border-t border-line px-6 py-4">
         <button class="btn btn-outline mr-auto text-destructive hover:border-destructive hover:bg-destructive/10" id="deleteBtn" type="button">ลบรายการนี้</button>
         <button class="btn btn-outline" id="cancelBtn" type="button">ยกเลิก</button>

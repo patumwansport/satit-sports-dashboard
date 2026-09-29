@@ -1,5 +1,5 @@
 import {
-  el, esc, loadData, schedulePolling, initChrome, sportIcon, sportMascotImg,
+  el, esc, loadData, onFreshData, initChrome, sportIcon, sportMascotImg,
   statusChip, eventParts, dayLabel, CHIP, LIVE_DOT, showLoadError
 } from './common.js';
 
@@ -39,7 +39,7 @@ function renderSports(data) {
       ' motion-reduce:transition-none',
       artBlock(sp, 'h-[200px]', 'size-[104px]') +
       '<div class="px-[15px] pt-[13px] pb-3.5">' +
-        '<p class="m-0 font-display text-[15px]">' + esc(sp.name) + '</p>' +
+        '<p class="m-0 font-display text-[17px]">' + esc(sp.name) + '</p>' +
       '</div>');
     card.type = 'button';
     card.setAttribute('aria-haspopup', 'dialog');
@@ -59,9 +59,9 @@ var painted = '';
 /** เหรียญของกีฬานี้ — ไอคอนคู่กับข้อความกำกับเสมอ ไม่สื่อความหมายด้วยสีอย่างเดียว */
 function medalRow(sp) {
   return MEDAL_KINDS.map(function (c) {
-    return '<span class="inline-flex items-baseline gap-[5px] text-[12px] text-fg-soft">' +
+    return '<span class="inline-flex items-baseline gap-[5px] text-[13.5px] text-fg-soft">' +
       '<i class="medal-mic size-[13px] ' + c[2] + ' self-center" aria-hidden="true"></i>' +
-      '<b class="font-mono text-[17px] font-normal text-fg tabular-nums">' + (sp[c[0]] || 0) + '</b>' + c[1] +
+      '<b class="font-mono text-[19px] font-normal text-fg tabular-nums">' + (sp[c[0]] || 0) + '</b>' + c[1] +
     '</span>';
   }).join('');
 }
@@ -101,7 +101,7 @@ function sportRows(sp) {
 
 /** รายการแข่งขันของกีฬานี้ เรียงตามวันและเวลาเหมือนที่อยู่ในตารางแข่งขัน */
 function matchList(sp, rows) {
-  if (!rows.length) return '<p class="m-0 py-2 text-[13px] text-fg-mute">ยังไม่มีรายการของกีฬานี้ในผังการแข่งขัน</p>';
+  if (!rows.length) return '<p class="m-0 py-2 text-[14.5px] text-fg-mute">ยังไม่มีรายการของกีฬานี้ในผังการแข่งขัน</p>';
 
   // กล่องเตี้ยกว่ารายการยาว ๆ เสมอ: ป๊อปอัปต้องเป็นกล่องเล็ก ไม่ใช่หน้าใหม่ที่ยาวเต็มจอ
   return '<ul class="m-0 flex max-h-[172px] list-none flex-col overflow-y-auto p-0">' +
@@ -110,13 +110,13 @@ function matchList(sp, rows) {
       var kind = eventParts(sp.name, m.event).kind || m.event;
       return '<li class="flex flex-col gap-0.5 border-b border-line py-2 last:border-b-0">' +
         '<span class="flex items-center justify-between gap-2">' +
-          '<span class="font-mono text-[12px] text-fg-soft tabular-nums">' + esc(m.date) + ' · ' + esc(m.time) + '</span>' +
+          '<span class="font-mono text-[13.5px] text-fg-soft tabular-nums">' + esc(m.date) + ' · ' + esc(m.time) + '</span>' +
           statusChip(m.status) +
         '</span>' +
-        '<span class="text-[13px] leading-[1.4] text-fg">' + esc(kind) + '</span>' +
+        '<span class="text-[14.5px] leading-[1.4] text-fg">' + esc(kind) + '</span>' +
         // คู่แข่งมีเฉพาะแถวจากแท็บผล (ผังกำหนดการยังไม่ระบุคู่) จึงขึ้นบรรทัดนี้เท่าที่มีจริง
-        (m.teams ? '<span class="text-[12.5px] leading-[1.4] text-fg-soft">' + esc(m.teams) + '</span>' : '') +
-        (m.score ? '<span class="font-mono text-[12.5px] text-fg-soft tabular-nums">ผล ' + esc(m.score) + '</span>' : '') +
+        (m.teams ? '<span class="text-[14px] leading-[1.4] text-fg-soft">' + esc(m.teams) + '</span>' : '') +
+        (m.score ? '<span class="font-mono text-[14px] text-fg-soft tabular-nums">ผล ' + esc(m.score) + '</span>' : '') +
       '</li>';
     }).join('') +
   '</ul>';
@@ -151,13 +151,13 @@ function paintModal(opening) {
       '</button>' +
       '<div class="px-[18px] pt-[15px] pb-[18px]">' +
         '<div class="flex items-start justify-between gap-3">' +
-          '<h2 class="m-0 font-display text-[19px] leading-[1.3] font-normal text-brand-strong" id="sportModalTitle">' + esc(sp.name) + '</h2>' +
+          '<h2 class="m-0 font-display text-[21.5px] leading-[1.3] font-normal text-brand-strong" id="sportModalTitle">' + esc(sp.name) + '</h2>' +
           '<span class="flex-none">' + statusChip(sp.status) + '</span>' +
         '</div>' +
         '<div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-line bg-surface-soft px-3.5 py-2.5">' +
           medalRow(sp) +
         '</div>' +
-        '<p class="mt-4 mb-0.5 text-[11.5px] text-fg-mute">รายการแข่งขัน' + (rows.length ? ' · ' + rows.length + ' รายการ' : '') + '</p>' +
+        '<p class="mt-4 mb-0.5 text-[13px] text-fg-mute">รายการแข่งขัน' + (rows.length ? ' · ' + rows.length + ' รายการ' : '') + '</p>' +
         matchList(sp, rows) +
       '</div>' +
     '</div>';
@@ -196,5 +196,5 @@ function renderAll(data) {
 
 loadData().then(function (data) {
   renderAll(data);
-  schedulePolling(renderAll);
+  onFreshData(renderAll);
 }).catch(showLoadError);

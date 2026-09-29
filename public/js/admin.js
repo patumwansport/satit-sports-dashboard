@@ -12,7 +12,7 @@
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from './config.js';
-import { esc, paintUiIcons } from './common.js';
+import { esc, paintUiIcons, sportIcon } from './common.js';
 
 /* =========================================================
    คำอธิบายหมวดข้อมูล
@@ -114,7 +114,7 @@ var RESOURCES = [
     ],
     fields: [
       { key: 'id', label: 'รหัสกีฬา', type: 'text', required: true, createOnly: true,
-        hint: 'ภาษาอังกฤษตัวพิมพ์เล็ก ต้องตรงกับชื่อไฟล์ไอคอนใน assets/icons/ เช่น football' },
+        hint: 'ภาษาอังกฤษตัวพิมพ์เล็ก ต้องตรงกับชื่อไอคอนใน SPORT_ICONS (common.js) เช่น football' },
       { key: 'name', label: 'ชื่อกีฬา (ภาษาไทย)', type: 'text', required: true },
       { key: 'entered', label: 'ปีนี้ส่งเข้าแข่ง', type: 'checkbox', hint: 'ไม่ติ๊ก = ซ่อนกีฬานี้ออกจากทุกหน้าของเว็บ โดยไม่ต้องลบข้อมูลทิ้ง' },
       { key: 'gold', label: 'เหรียญทอง', type: 'number' },
@@ -173,9 +173,9 @@ var $ = function (id) { return document.getElementById(id); };
    ห้ามต่อชื่อคลาสจากตัวแปร (เช่น 'text-' + tone) ไม่งั้นคลาสนั้นจะไม่ถูกสร้างลงไฟล์ CSS
    ========================================================= */
 var INPUT = 'input';
-var TH = 'border-b border-line px-4 py-3 text-left text-[12px] font-normal tracking-[.03em] text-fg-mute uppercase whitespace-nowrap';
+var TH = 'border-b border-line px-4 py-3 text-left text-[13.5px] font-normal tracking-[.03em] text-fg-mute uppercase whitespace-nowrap';
 var TD = 'border-b border-line px-4 py-3 align-middle';
-var NAV_ITEM = 'group/nav flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent px-3.5 py-[11px] text-left text-[13.5px] text-fg-soft transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none';
+var NAV_ITEM = 'group/nav flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent px-3.5 py-[11px] text-left text-[15px] text-fg-soft transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none';
 var CHIP = 'badge';
 
 var STATUS_TONE = {
@@ -205,7 +205,7 @@ function cellHtml(col, row) {
   if (col.type === 'time') return row.start_time ? esc(String(row.start_time).slice(0, 5)) : '—';
   if (col.type === 'sport') return esc(sportNameOf(row.sport_id));
   if (col.type === 'sportName') return '<span class="flex items-center gap-2.5">' +
-    '<img class="inline-block size-[22px] flex-none object-contain" src="assets/icons/' + esc(row.id) + '.png" alt="" loading="lazy" decoding="async" />' +
+    '<span class="text-fg-soft">' + sportIcon(row.id, 'size-[22px]') + '</span>' +
     esc(row.name) + '</span>';
   if (col.type === 'versus') {
     var sides = [row.team_a, row.team_b].filter(Boolean);
@@ -241,7 +241,7 @@ function renderGrid() {
   var grid = $('grid');
 
   if (!rows.length) {
-    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center text-[13px] text-fg-mute">' +
+    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center text-[14.5px] text-fg-mute">' +
       'ยังไม่มีข้อมูลในหมวดนี้ — กด "เพิ่มรายการ" เพื่อเริ่มกรอก</td></tr></tbody>';
     return;
   }
@@ -276,7 +276,7 @@ function fieldHtml(f, value) {
   var id = 'f_' + f.key;
   var label = '<label class="label mb-2" for="' + id + '">' + esc(f.label) +
     (f.required ? ' <span class="-ml-1 text-destructive">*</span>' : '') + '</label>';
-  var hint = f.hint ? '<p class="mt-1.5 text-[12px] text-fg-mute">' + esc(f.hint) + '</p>' : '';
+  var hint = f.hint ? '<p class="mt-1.5 text-[13.5px] text-fg-mute">' + esc(f.hint) + '</p>' : '';
   var input;
 
   if (f.type === 'select') {
@@ -292,7 +292,7 @@ function fieldHtml(f, value) {
     // ช่องติ๊กวางป้ายไว้ข้างหลัง ไม่ใช่ข้างบนเหมือนช่องอื่น — กล่องเล็ก ๆ ลอยเดี่ยว
     // ใต้ป้ายของตัวเองอ่านยากว่ามันคู่กับข้อความไหน
     return '<div>' +
-      '<label class="flex cursor-pointer items-center gap-2.5 text-[13.5px] text-fg">' +
+      '<label class="flex cursor-pointer items-center gap-2.5 text-[15px] text-fg">' +
         '<input class="size-[17px] flex-none accent-brand" id="' + id + '" name="' + f.key + '" type="checkbox"' + (value ? ' checked' : '') + ' />' +
         esc(f.label) +
       '</label>' + hint + '</div>';

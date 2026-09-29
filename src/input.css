@@ -32,13 +32,13 @@
   --font-body: 'Srinakharinwirot', sans-serif;
   --font-mono: 'Srinakharinwirot', monospace;
 
-  --color-paper: oklch(96.5% 0.012 250);
-  --color-surface: oklch(99% 0.002 250);
+  --color-paper: oklch(100% 0 0);
+  --color-surface: oklch(100% 0 0);
   --color-surface-soft: oklch(95.5% 0.01 250);
   --color-line: oklch(91% 0.012 250);
   /* rail = แถบเมนูข้าง แยก token ออกจาก surface เพราะโหมดมืดต้องการให้มันจมเป็นฉากหลัง
      ไม่ใช่ลอยเด่นกว่าเนื้อหา — โหมดสว่างใช้ค่าเดียวกับ surface หน้าตาจึงไม่เปลี่ยน */
-  --color-rail: oklch(99% 0.002 250);
+  --color-rail: oklch(100% 0 0);
   --color-line-strong: oklch(83% 0.016 250);
 
   /* fg = ตัวหนังสือ · ink = พื้นเข้มที่มีตัวหนังสือสว่างอยู่บน (on-ink) */
@@ -65,6 +65,7 @@
 
   /* สีสถานะ: จุดเดียวในเว็บที่ "สด/กำลังเกิดขึ้น" ได้ใช้สี ข้อมูลนิ่งอื่นทั้งหมดเป็นกลาง */
   --color-live: oklch(64% 0.20 350);
+  --color-win: oklch(58% 0.21 355);
   --color-live-bg: oklch(94% 0.03 350);
   --color-done: oklch(62% 0.13 155);
   --color-done-bg: oklch(93% 0.04 155);
@@ -80,11 +81,15 @@
   --shadow-panel: 0 6px 20px oklch(40% 0.04 260 / .07);
   --shadow-card: 0 14px 32px oklch(40% 0.04 260 / .12);
 
-  --animate-sync-pulse: sync-pulse 2.2s ease-in-out infinite;
-  --animate-blink: blink 1.5s ease-in-out infinite;
+  /* จุดสถานะ (ซิงก์/สด) ขยับครั้งเดียวตอนปรากฏ แล้วนิ่ง — เดิมวนไม่รู้จบทุกหน้า คนดูรำคาญ
+     สีกับข้อความ "สด" บอกสถานะอยู่แล้ว ไม่ต้องกะพริบค้างไว้ */
+  --animate-sync-pulse: sync-pulse 2.2s ease-in-out 1;
+  --animate-blink: blink 1.5s ease-in-out 1;
   --animate-skeleton: skeleton 1.4s ease-in-out infinite;
   /* ป๊อปอัปรายละเอียดกีฬา — เด้งเข้าสั้น ๆ พอให้ตาจับได้ว่ากล่องใหม่มาจากการ์ดที่เพิ่งแตะ */
   --animate-pop-in: pop-in .16s ease-out;
+  /* แถบอันดับบนหน้าหลัก: ข้อความเลื่อนจากขวาไปซ้ายวนไม่รู้จบ (ความยาวรอบตั้งจาก JS ตามความกว้างเนื้อหา) */
+  --animate-ticker: ticker 30s linear infinite;
 }
 
 /* โหมดมืด — สลับเฉพาะค่าของ token ชุดเดิม utility ในหน้าเว็บไม่ต้องรู้เรื่องธีมเลย
@@ -122,6 +127,7 @@
     --color-silver-ink: oklch(80% 0.01 250);
     --color-bronze-ink: oklch(72% 0.12 45);
     --color-live: oklch(75% 0.16 350);
+    --color-win: oklch(76% 0.15 355);
     --color-live-bg: oklch(29% 0.055 350);
     --color-done: oklch(72% 0.13 155);
     --color-done-bg: oklch(27% 0.045 155);
@@ -156,6 +162,7 @@
   --color-silver-ink: oklch(80% 0.01 250);
   --color-bronze-ink: oklch(72% 0.12 45);
   --color-live: oklch(75% 0.16 350);
+  --color-win: oklch(76% 0.15 355);
   --color-live-bg: oklch(29% 0.055 350);
   --color-done: oklch(72% 0.13 155);
   --color-done-bg: oklch(27% 0.045 155);
@@ -209,7 +216,7 @@
   .btn-ghost { @apply bg-transparent text-foreground hover:bg-accent hover:opacity-100; }
   .btn-destructive { @apply bg-destructive text-destructive-foreground; }
   .btn-link { @apply h-auto bg-transparent px-0 text-primary underline-offset-4 hover:underline hover:opacity-100; }
-  .btn-sm { @apply h-8 gap-1.5 px-3 text-[13px]; }
+  .btn-sm { @apply h-8 gap-1.5 px-3 text-[14.5px]; }
   .btn-lg { @apply h-10 px-6 text-base; }
   .btn-icon { @apply size-9 px-0; }
 
@@ -256,6 +263,15 @@
   /* JS ซ่อน/แสดงองค์ประกอบด้วย property `hidden` ของ DOM ไม่ใช่การสลับคลาส
      กฎนี้ทำให้ [hidden] ชนะ utility ที่ตั้ง display (flex/grid/block) ได้เสมอ */
   [hidden] { display: none !important; }
+
+  /* ไม่มีการเคลื่อนไหวใด ๆ ทั้งเว็บ — ผู้ใช้ขอยกเลิกทรานซิชั่น/อนิเมชันทั้งหมด (ขยับ กะพริบ เด้ง จางเข้า)
+     ปิดที่ต้นทางจุดเดียว utility animate-* / transition-* ที่ยังเหลือในหน้าเว็บจึงไม่มีผล
+     (ปุ่มยังเปลี่ยนสีเมื่อชี้/โฟกัสตามปกติ แค่เปลี่ยนทันทีไม่ค่อย ๆ จาง)
+     ยกเว้นชิ้นเดียวที่ผู้ใช้ขอให้เลื่อน: แถบอันดับบนหน้าหลัก (.rank-ticker) */
+  *:not(.rank-ticker), ::before, ::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* คีย์เฟรม: heroFill ถูกเรียกด้วยชื่อจาก JS (home.js) จึงต้องอยู่นอก @theme ให้มีอยู่เสมอ */
@@ -266,6 +282,10 @@
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes skeleton { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+/* translate3d + will-change (ที่ .rank-ticker ข้างล่าง) = ให้การ์ดจอเลื่อนทั้งแถบเป็นชั้นเดียว
+   ไม่วาดตัวอักษรใหม่ทุกเฟรม ข้อความจึงไม่สั่น/กระตุกที่ความเร็วต่ำกว่า 1 พิกเซลต่อเฟรม */
+@keyframes ticker { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+.rank-ticker { will-change: transform; backface-visibility: hidden; }
 @keyframes heroFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* =========================================================
