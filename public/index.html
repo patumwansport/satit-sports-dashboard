@@ -2,10 +2,14 @@
 <html lang="th" data-theme="light">
 <head>
   <meta charset="UTF-8" />
+  <!-- stamp:importmap -->
+  <!-- สร้างจาก scripts/stamp-assets.mjs — อย่าแก้เอง -->
+  <script type="importmap">{"imports":{"./js/admin.js":"./js/admin.js?v=91e2972944","./js/common.js":"./js/common.js?v=cdfeb9f933","./js/config.js":"./js/config.js?v=fa7a30172d","./js/fixture-table.js":"./js/fixture-table.js?v=711fb61227","./js/format.js":"./js/format.js?v=56b4ebc8d3","./js/home.js":"./js/home.js?v=94fcf125e9","./js/matches.js":"./js/matches.js?v=76de4fa26d","./js/medals.js":"./js/medals.js?v=e96a5f6b25","./js/schedule.js":"./js/schedule.js?v=de26b081f1","./js/school-popup.js":"./js/school-popup.js?v=154e761ac9","./js/school.js":"./js/school.js?v=685cb54192","./js/sheets.js":"./js/sheets.js?v=690c4bb8bc","./js/sports.js":"./js/sports.js?v=71f9d78b1c","./js/supabase-data.js":"./js/supabase-data.js?v=afb62d0969"}}</script>
+  <!-- /stamp:importmap -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>หน้าหลัก — กีฬาสาธิตสามัคคี</title>
   <meta name="description" content="แดชบอร์ดประกาศผลการแข่งขันกีฬาสาธิตสามัคคีแบบเรียลไทม์ สรุปอันดับและเหรียญรางวัลของโรงเรียนเรา" />
-  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/app.css?v=895017516c" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/icon-192.png" />
   <link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png" />
@@ -13,10 +17,10 @@
        crossorigin เพราะ fetch ข้ามโดเมนไม่ส่งคุกกี้ ต้องเป็นการเชื่อมต่อแบบเดียวกันถึงจะหยิบไปใช้ได้ -->
   <link rel="preconnect" href="https://docs.google.com" crossorigin />
   <!-- โมดูลที่ถูก import ต่อกันเป็นทอด ๆ: สั่งโหลดพร้อมกันเลย ไม่ต้องรอ import ทีละชั้น -->
-  <link rel="modulepreload" href="js/common.js" />
-  <link rel="modulepreload" href="js/sheets.js" />
-  <link rel="modulepreload" href="js/format.js" />
-  <link rel="modulepreload" href="js/config.js" />
+  <link rel="modulepreload" href="js/common.js?v=cdfeb9f933" />
+  <link rel="modulepreload" href="js/sheets.js?v=690c4bb8bc" />
+  <link rel="modulepreload" href="js/format.js?v=56b4ebc8d3" />
+  <link rel="modulepreload" href="js/config.js?v=fa7a30172d" />
 </head>
 <body class="min-h-screen bg-paper font-body leading-[1.6] tracking-[.01em] text-fg antialiased selection:bg-brand-100 selection:text-brand-strong">
   <a class="absolute top-0 -left-[999px] z-[100] rounded-br-[8px] bg-ink px-4 py-2.5 text-on-ink focus:left-0" href="#main">ข้ามไปยังเนื้อหาหลัก</a>
@@ -151,6 +155,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/home.js"></script>
+  <script type="module" src="js/home.js?v=94fcf125e9"></script>
 </body>
 </html>

@@ -7,7 +7,8 @@
   "scripts": {
     "build:css": "tailwindcss -i src/input.css -o public/css/app.css --minify",
     "build:assets": "mkdir -p public/fonts public/data && cp -f fonts/* public/fonts/ && cp -f data/mock.json public/data/mock.json",
-    "build": "npm run build:css && npm run build:assets",
+    "stamp": "node scripts/stamp-assets.mjs",
+    "build": "npm run build:css && npm run build:assets && npm run stamp",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset --linked",
     "import:sheets": "node scripts/import-sheets.mjs",

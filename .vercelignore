@@ -1,0 +1,7 @@
+# Vercel เป็นที่สำรองของเว็บ GitHub Pages: เสิร์ฟ public/ เป็นไฟล์นิ่งเหมือนกันทุกตัว
+# server.js ต้องไม่ถูกส่งขึ้นไป ไม่งั้น Vercel จะเดาว่าเป็นแอป Express แล้วรันเป็นฟังก์ชันแทน
+server.js
+web
+supabase
+*.png
+!public/**

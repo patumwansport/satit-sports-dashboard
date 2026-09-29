@@ -12,3 +12,5 @@ node_modules/
 # คีย์ Supabase ส่งผ่าน environment variable เท่านั้น — กันเผลอ commit ถ้าวันหนึ่งมีคนเขียนลงไฟล์
 .env
 .env.local
+.vercel
+.env*

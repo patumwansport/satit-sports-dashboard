@@ -71,7 +71,8 @@ export function mountFixtureTable(opts) {
   var chrome = initChrome(opts.page);
   var state = {
     data: null,
-    dayId: 'all', sportId: 'all', q: '',
+    // ?sport=<id> ในลิงก์ = เปิดมาพร้อมกรองชนิดกีฬานั้นไว้ (การ์ดในหน้าชนิดกีฬาลิงก์มาแบบนี้)
+    dayId: 'all', sportId: new URLSearchParams(location.search).get('sport') || 'all', q: '',
     page: 1, perPage: 25
   };
 
@@ -198,6 +199,12 @@ export function mountFixtureTable(opts) {
       seen[r.sportId] = true;
       sports.push({ id: r.sportId, name: r.sport });
     });
+    // กีฬาที่ลิงก์มากรองไว้แต่ยังไม่มีรายการในตาราง: ใส่ไว้ในดรอปดาวน์ด้วย
+    // จะได้เห็นว่ากำลังกรองกีฬานั้นอยู่และขึ้น "ไม่พบรายการ" แทนที่จะเด้งกลับเป็นทุกชนิดกีฬาเงียบ ๆ
+    if (state.sportId !== 'all' && !seen[state.sportId]) {
+      var name = sportName(state.data, state.sportId);
+      if (name) sports.push({ id: state.sportId, name: name });
+    }
     sports.sort(function (a, b) {
       var ia = order.indexOf(a.id), ib = order.indexOf(b.id);
       return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
@@ -208,7 +215,7 @@ export function mountFixtureTable(opts) {
     }).join('');
     sel.value = state.sportId;
     // กีฬาที่เลือกไว้หายไปจากตารางหลังซิงก์ ก็กลับไปทุกชนิดกีฬา แทนที่จะค้างเป็นตัวกรองที่มองไม่เห็น
-    if (sel.value !== state.sportId) { state.sportId = 'all'; sel.value = 'all'; }
+    if (sel.value !== state.sportId) { state.sportId = 'all'; sel.value = 'all'; syncSportParam(); }
 
     document.getElementById('sportClear').hidden = state.sportId === 'all';
     document.getElementById('sportRow').hidden = sports.length < 2;
@@ -277,7 +284,16 @@ export function mountFixtureTable(opts) {
   function setFilter(key, value) {
     state[key] = value;
     state.page = 1;
+    syncSportParam();
     if (state.data) render();
+  }
+
+  /** เก็บกีฬาที่กรองไว้ใน URL (?sport=) — รีเฟรชหรือแชร์ลิงก์แล้วยังกรองอยู่ ไม่เพิ่มประวัติย้อนกลับ */
+  function syncSportParam() {
+    var url = new URL(location.href);
+    if (state.sportId === 'all') url.searchParams.delete('sport');
+    else url.searchParams.set('sport', state.sportId);
+    if (url.href !== location.href) history.replaceState(null, '', url);
   }
 
   /** ล้างทุกตัวกรองกลับไปเป็นตารางเต็ม — ใช้ทั้งปุ่มบนแถบตัวกรองและปุ่มในสถานะว่าง */

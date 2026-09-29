@@ -76,14 +76,9 @@ function paint(opening) {
     .sort(function (a, b) { return (a.dayId - b.dayId) || a.time.localeCompare(b.time); });
   var done = rows.filter(function (i) { return i.status === 'done'; })
     .sort(function (a, b) { return (b.dayId - a.dayId) || b.time.localeCompare(a.time); });
-  var sports = m.isSelf ? (data.sports || [])
-    .filter(function (sp) { return (sp.gold + sp.silver + sp.bronze) > 0; })
-    .sort(function (a, b) { return (b.gold - a.gold) || (b.silver - a.silver) || (b.bronze - a.bronze); }) : [];
-
   /* ข้อมูลรอบใหม่มาทุก 20 วินาที ส่วนใหญ่เหมือนเดิม — วาดทับทั้งกล่องจะทำให้ที่เลื่อนค้างไว้ดีดกลับ
      จึงวาดเฉพาะตอนที่เปลี่ยนจริง */
-  var key = [state.id, m.rank, list.length, m.gold, m.silver, m.bronze, JSON.stringify(rows),
-    sports.map(function (sp) { return sp.id + sp.gold + sp.silver + sp.bronze; }).join()].join('|');
+  var key = [state.id, m.rank, list.length, m.gold, m.silver, m.bronze, JSON.stringify(rows)].join('|');
   if (!opening && key === state.painted) return;
   state.painted = key;
 
@@ -120,18 +115,6 @@ function paint(opening) {
       (done.length > RESULTS_PREVIEW ? '<p class="m-0 mt-1 text-[13px] text-fg-mute">และอีก ' + (done.length - RESULTS_PREVIEW) + ' รายการ ดูได้ที่หน้าผลการแข่งขัน</p>' : '')
     : '';
 
-  var sportsHtml = sports.length
-    ? sectionHead('เหรียญแยกตามชนิดกีฬา') +
-      '<ul class="m-0 grid list-none grid-cols-2 gap-1.5 p-0 max-[380px]:grid-cols-1">' + sports.map(function (sp) {
-        return '<li class="flex items-center gap-2 rounded-md border border-line bg-surface-soft px-2.5 py-1.5">' +
-          '<span class="text-fg-soft">' + sportIcon(sp.id, 'size-4') + '</span>' +
-          '<span class="min-w-0 flex-1 truncate text-[13.5px]">' + esc(sp.name) + '</span>' +
-          '<span class="flex gap-1.5 font-mono text-[12.5px] text-fg-soft tabular-nums">' +
-            MEDALS.map(function (k) { return '<span class="inline-flex items-center gap-0.5">' + coin(k[1], 'size-3.5', k[2]) + sp[k[0]] + '</span>'; }).join('') +
-          '</span></li>';
-      }).join('') + '</ul>'
-    : '';
-
   modal.innerHTML =
     '<div class="relative flex max-h-[calc(100dvh-32px)] flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-card' +
       (opening ? ' motion-safe:animate-pop-in' : '') + '">' +
@@ -165,7 +148,7 @@ function paint(opening) {
               '<span class="font-mono text-[19px] leading-none text-brand-strong tabular-nums">' + total + '</span></div>' +
           '</div>' +
         '</div>' +
-        nowHtml + doneHtml + sportsHtml +
+        nowHtml + doneHtml +
       '</div>' +
     '</div>';
 

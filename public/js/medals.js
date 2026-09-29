@@ -26,10 +26,9 @@ function renderPodium(rows) {
     var p = PODIUM[i + 1];
     var name = m.fullName || m.school;
     var total = m.gold + m.silver + m.bronze;
-    // แตะแท่นแล้วเปิดป๊อปอัปรายละเอียดโรงเรียน
-    var col = el('button',
-      'group/pod flex min-w-0 cursor-pointer flex-col items-center text-center text-fg ' + p.order +
-      ' rounded-t-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
+    // แท่นตอบสนองแค่ตอนชี้/แตะ (ตราลอยขึ้น ชื่อเปลี่ยนสี) — ไม่ใช่ปุ่ม กดแล้วไม่เปิดอะไร
+    var col = el('div',
+      'group/pod flex min-w-0 flex-col items-center text-center text-fg ' + p.order,
       // ตราโรงเรียนเป็นตัวเอกของแท่น (อันดับ 1 ใหญ่สุด) — สีอันดับบอกอยู่แล้วที่ขอบแท่นกับตัวเลข
       schoolCrest(m, p.crest + ' shadow-panel transition-transform duration-200 group-hover/pod:-translate-y-1 group-active/pod:scale-95 motion-reduce:transition-none') +
       '<span class="mt-3 flex w-full min-w-0 flex-col items-center gap-2 px-1 max-[560px]:mt-2 max-[560px]:gap-1.5">' +
@@ -49,9 +48,7 @@ function renderPodium(rows) {
         '<span class="font-display text-[34px] leading-none max-[560px]:text-[24px] ' + p.num + '">' + m.rank + '</span>' +
         '<span class="mt-1 text-[13.5px] text-fg-mute max-[560px]:text-[12px]">รวม ' + total + ' เหรียญ</span>' +
       '</span>');
-    col.type = 'button';
-    col.setAttribute('aria-haspopup', 'dialog');
-    col.addEventListener('click', function () { openSchoolPopup(current, m, col); });
+    col.setAttribute('role', 'group');
     col.setAttribute('aria-label',
       'อันดับ ' + m.rank + ' ' + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') +
       ' ทอง ' + m.gold + ' เงิน ' + m.silver + ' ทองแดง ' + m.bronze + ' รวม ' + total);
