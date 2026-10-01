@@ -215,6 +215,19 @@ function buildSports(table) {
    วันที่ / กีฬา / ประเภท / เวลา / ทีม A / VS / ทีม B / ผล / สถานะ */
 const RESULT_COLUMNS = { date: 0, sport: 1, kind: 2, time: 3, teamA: 4, teamB: 6, score: 7, status: 8, round: -1, pool: -1 };
 
+/** ตำแหน่งคอลัมน์ที่ไม่บังคับ หาจากชื่อหัวตาราง — ไม่มีหัวนั้นในแท็บ = -1 (ช่องนั้นว่างทุกแถว) */
+function headerIndex(table, pattern) {
+  return (table.cols || []).findIndex(function (c) { return pattern.test(String(c.label || '').trim()); });
+}
+
+/**
+ * แท็บผลการแข่งขันประจำวัน: คอลัมน์หลักอยู่ตำแหน่งตายตัวตามผังชีต
+ * ส่วน "นักกีฬา" เป็นคอลัมน์เสริม เพิ่มไว้ตรงไหนของแท็บก็ได้ ขอแค่หัวคอลัมน์มีคำว่า "นักกีฬา"
+ */
+function resultColumns(table) {
+  return Object.assign({}, RESULT_COLUMNS, { athletes: headerIndex(table, /นักกีฬา/) });
+}
+
 /**
  * ตำแหน่งคอลัมน์ของแท็บ "ตารางการแข่งขัน" หาจากชื่อหัวตาราง
  * "ระหว่าง" เป็นหัวที่ผสานสามช่อง (ทีม A · VS · ทีม B) gviz ให้ชื่อหัวแค่ช่องแรก ทีม B จึงอยู่ถัดไปสองช่อง
@@ -230,7 +243,8 @@ function planColumns(table) {
   return {
     date: at(/วันที่/, 0), sport: at(/รายการ|กีฬา/, 1), kind: at(/ประเภท/, 2),
     round: at(/รอบ/, 3), pool: at(/สาย/, 4), time: at(/เวลา/, 5),
-    teamA: teamA, teamB: teamA + 2, score: -1, status: -1
+    teamA: teamA, teamB: teamA + 2, score: -1, status: -1,
+    athletes: headerIndex(table, /นักกีฬา/)
   };
 }
 
@@ -271,7 +285,9 @@ function buildDays(table, cols) {
       // ข้อความสถานะตามที่กรอกในชีต ("เสร็จสิ้น" / "ไม่เป็นทางการ") ตารางผลแสดงคำนี้ตรง ๆ
       statusText: statusText,
       unofficial: isUnofficial(statusText),
-      score: score
+      score: score,
+      // ชื่อนักกีฬาตามที่พิมพ์ในชีต หลายคนคั่นด้วยจุลภาคหรือขึ้นบรรทัดใหม่ในช่องเดียวกันก็ได้
+      athletes: cellText(cell(c, cols.athletes))
     });
   });
 
@@ -348,7 +364,7 @@ export async function loadFromSheets(opts) {
     leaderName: leader ? leader.school : '',
     medalTable: medals,
     sports: buildSports(sportTable),
-    days: buildDays(scheduleTable, RESULT_COLUMNS),
+    days: buildDays(scheduleTable, resultColumns(scheduleTable)),
     schedule: buildDays(planTable, planColumns(planTable)),
     photos: photos,
     syncedAt: new Date().toISOString(),

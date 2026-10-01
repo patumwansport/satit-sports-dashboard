@@ -128,7 +128,7 @@ export function mountFixtureTable(opts) {
   }
 
   /* ---------- แถวตาราง ---------- */
-  function rowEl(r, n) {
+  function rowEl(r, n, columns) {
     var tr = el('tr', TR);
     tr.innerHTML =
       '<td class="' + TD + ' font-mono text-[14px] text-fg-mute tabular-nums @max-[800px]:hidden">' + n + '</td>' +
@@ -138,23 +138,28 @@ export function mountFixtureTable(opts) {
         (isToday(r.day) ? ' <span class="text-[13px] text-fg-mute">(วันนี้)</span>' : '') + '</td>' +
       '<td class="' + TD + TD_SUB + ' whitespace-nowrap @max-[800px]:col-start-2 @max-[800px]:row-start-1 @max-[800px]:min-w-0 @max-[800px]:truncate">' +
         esc(r.sport) + '</td>' +
-      opts.columns.map(function (c) {
+      columns.map(function (c) {
         return '<td class="' + TD + ' ' + c.cls(r) + '">' + c.cell(r) + '</td>';
       }).join('');
     return tr;
   }
 
-  function tableEl(rows, offset) {
+  /** คอลัมน์ที่มี showIf จะโผล่เมื่อข้อมูลทั้งตาราง (ก่อนกรอง) เข้าเงื่อนไข เช่น มีชื่อนักกีฬาอย่างน้อยหนึ่งแถว */
+  function visibleColumns(all) {
+    return opts.columns.filter(function (c) { return !c.showIf || c.showIf(all); });
+  }
+
+  function tableEl(rows, offset, columns) {
     var table = el('table', 'w-full border-collapse @max-[800px]:block');
     table.innerHTML =
       '<thead class="@max-[800px]:hidden"><tr>' +
         '<th class="' + TH + ' w-12" scope="col">#</th>' +
         '<th class="' + TH + '" scope="col">วันแข่งขัน</th>' +
         '<th class="' + TH + '" scope="col">รายการแข่งขัน</th>' +
-        opts.columns.map(function (c) { return '<th class="' + TH + '" scope="col">' + esc(c.head) + '</th>'; }).join('') +
+        columns.map(function (c) { return '<th class="' + TH + '" scope="col">' + esc(c.head) + '</th>'; }).join('') +
       '</tr></thead>';
     var body = el('tbody', '@max-[800px]:block');
-    rows.forEach(function (r, i) { body.appendChild(rowEl(r, offset + i + 1)); });
+    rows.forEach(function (r, i) { body.appendChild(rowEl(r, offset + i + 1, columns)); });
     table.appendChild(body);
     return table;
   }
@@ -261,7 +266,7 @@ export function mountFixtureTable(opts) {
       empty.appendChild(clear);
       host.appendChild(empty);
     } else {
-      host.appendChild(tableEl(rows.slice(offset, offset + state.perPage), offset));
+      host.appendChild(tableEl(rows.slice(offset, offset + state.perPage), offset, visibleColumns(all)));
     }
     renderPager(rows.length);
 
