@@ -212,6 +212,7 @@ var VIEWS = [
     id: 'settings', kind: 'table', table: 'site_settings', pk: 'key', icon: 'settings',
     title: 'ตั้งค่าเว็บ',
     hint: 'ชื่อรายการและคำโปรยที่ขึ้นหัวหน้าเว็บ',
+    exclude: { key: 'last_sheet_sync' },   // ค่าภายในของระบบซิงก์ ไม่ใช่สิ่งที่ทีมงานต้องแก้
     order: 'key.asc',
     columns: [
       { key: 'key', label: 'ค่า' },
@@ -365,8 +366,15 @@ function rowText(row) {
   return (Object.keys(row).map(function (k) { return row[k]; }).join(' ') + ' ' + sportNameOf(row.sport_id || row.id)).toLowerCase();
 }
 
+/** หมวดที่ซิงก์จาก Google Sheets ทุก 15 นาที — แก้ในหน้านี้แล้วจะถูกเขียนทับรอบถัดไป */
+var SYNCED_FROM_SHEETS = ['results', 'plan', 'schools', 'sports', 'photos', 'settings'];
+
 function renderTableView() {
+  var synced = SYNCED_FROM_SHEETS.indexOf(current.id) > -1;
   $('viewBody').innerHTML =
+    (synced ? '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-4 py-3 text-[14.5px] text-gold-ink">' +
+      'ข้อมูลหมวดนี้คัดลอกจาก Google Sheets อัตโนมัติทุก 15 นาที — <strong class="font-semibold">ให้แก้ที่ชีต</strong> ' +
+      'ถ้าแก้ที่นี่จะถูกเขียนทับในรอบถัดไป และหน้าเว็บก็ยังแสดงตามชีตอยู่ดี</p>' : '') +
     '<div class="flex items-center gap-3 max-[560px]:flex-col max-[560px]:items-stretch">' +
       '<label class="relative block w-full max-w-[360px] max-[560px]:max-w-none">' +
         '<span class="sr-only">ค้นหาในหมวดนี้</span>' +
@@ -423,6 +431,7 @@ async function refreshTable() {
   var view = current;
   var q = db.from(current.table).select('*');
   if (current.filter) Object.keys(current.filter).forEach(function (k) { q = q.eq(k, current.filter[k]); });
+  if (current.exclude) Object.keys(current.exclude).forEach(function (k) { q = q.neq(k, current.exclude[k]); });
   current.order.split(',').forEach(function (part) {
     var bits = part.split('.');
     q = q.order(bits[0], { ascending: bits[1] !== 'desc', nullsFirst: false });
@@ -717,8 +726,9 @@ function renderBackupView() {
       '<section class="' + CARD + ' flex flex-col gap-3">' +
         '<h2 class="m-0 text-[17px] font-semibold text-fg">ดึงข้อมูลล่าสุดจาก Google Sheets</h2>' +
         '<p class="m-0 text-[14.5px] text-fg-soft">อ่านชีตตัวเดียวกับที่หน้าเว็บใช้อยู่ แล้วเขียนทับลงฐานข้อมูลนี้ ให้ระบบสำรองมีข้อมูลตรงกับหน้าเว็บจริงเสมอ</p>' +
-        '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 text-[14px] text-gold-ink">รายการแข่งขันและภาพจะถูกแทนที่ทั้งชุด — สิ่งที่แก้ในหน้านี้เองจะหาย ระบบจะดาวน์โหลดไฟล์สำรองให้อัตโนมัติก่อนเริ่ม · แบนเนอร์ไม่ถูกแตะ</p>' +
-        '<button class="btn mt-auto self-start" type="button" id="syncBtn">ดึงจาก Google Sheets</button>' +
+        '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 text-[14px] text-gold-ink">ข้อมูลการแข่งขันถูกเขียนทับจากชีตทุกรอบ — สิ่งที่แก้ในหน้านี้เอง (ยกเว้นแบนเนอร์) จะหายในรอบถัดไป ให้แก้ที่ชีตเท่านั้น</p>' +
+        '<p class="m-0 text-[14px] text-fg-soft" id="lastSync">ซิงก์ล่าสุด: กำลังตรวจ…</p>' +
+        '<button class="btn mt-auto self-start" type="button" id="syncBtn">ดึงจาก Google Sheets เดี๋ยวนี้</button>' +
       '</section>' +
     '</div>' +
     '<section class="' + PANEL + '"><div class="border-b border-line px-5 py-3.5"><h2 class="m-0 text-[15px] font-semibold text-fg">บันทึกการทำงาน</h2></div>' +
@@ -729,6 +739,22 @@ function renderBackupView() {
   $('restoreFile').addEventListener('change', readRestoreFile);
   $('restoreBtn').addEventListener('click', function () { runTask($('restoreBtn'), restoreBackup); });
   $('syncBtn').addEventListener('click', function () { runTask($('syncBtn'), syncFromSheets); });
+  showLastSync();
+}
+
+/** เวลาซิงก์ชีตล่าสุด (ทั้งรอบอัตโนมัติของ GitHub Actions และปุ่มในหน้านี้) — ค้างนานผิดปกติ = ซิงก์มีปัญหา */
+async function showLastSync() {
+  var res = await db.from('site_settings').select('value').eq('key', 'last_sheet_sync').maybeSingle();
+  var n = $('lastSync');
+  if (!n) return;
+  var ts = res.data && res.data.value;
+  if (!ts) { n.innerHTML = 'ซิงก์ล่าสุด: <span class="text-fg-mute">ยังไม่เคยซิงก์</span>'; return; }
+  var mins = Math.round((Date.now() - new Date(ts)) / 60000);
+  var ago = mins < 1 ? 'เมื่อสักครู่' : mins < 60 ? mins + ' นาทีที่แล้ว' : mins < 1440 ? Math.floor(mins / 60) + ' ชั่วโมงที่แล้ว' : Math.floor(mins / 1440) + ' วันที่แล้ว';
+  // ซิงก์อัตโนมัติทุก 15 นาที — เกินชั่วโมงแปลว่ารอบอัตโนมัติล้มหรือถูกปิด ให้เห็นเป็นสีเตือน
+  var stale = mins > 60;
+  n.innerHTML = 'ซิงก์ล่าสุด: <strong class="' + (stale ? 'text-destructive' : 'text-done') + '">' + esc(thaiDateTime(ts)) + '</strong> (' + esc(ago) + ')' +
+    '<br><span class="text-[13px] text-fg-mute">ระบบซิงก์ให้เองทุก 15 นาที' + (stale ? ' — ค้างเกิน 1 ชั่วโมง ตรวจแท็บ Actions ใน GitHub' : '') + '</span>';
 }
 
 function log(text, tone) {
@@ -890,6 +916,8 @@ async function syncFromSheets() {
     if (res.error) throw res.error;
     log('  ✓ ' + steps[i][0], 'ok');
   }
+  await db.from('site_settings').upsert({ key: 'last_sheet_sync', value: new Date().toISOString() }, { onConflict: 'key' });
+  showLastSync();
   await loadSports();
   log('ดึงข้อมูลจาก Google Sheets เสร็จแล้ว', 'ok');
   setSaveState('ซิงก์จากชีตแล้ว');

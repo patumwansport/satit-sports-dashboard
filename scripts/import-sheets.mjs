@@ -13,6 +13,9 @@
  * คีย์ตัวนี้ข้าม RLS ได้ทั้งหมด — ส่งผ่าน environment variable เท่านั้น
  * ห้าม commit ลงไฟล์ ห้ามเอาไปใส่ใน public/js/config.js เด็ดขาด
  *
+ * GitHub Actions รันไฟล์นี้เองทุก 15 นาที (.github/workflows/sync-sheets.yml) ให้ฐานข้อมูลสำรอง
+ * ตรงกับชีตเสมอ — รันมือได้ตามวิธีข้างบน
+ *
  * รันซ้ำได้: เขียนทับด้วย upsert และล้างตาราง matches ก่อนทุกครั้ง
  * (ชีตไม่มี id ถาวรให้จับคู่รายแถว การ "อัปเดต" จึงทำไม่ได้ นอกจากเขียนใหม่ทั้งชุด)
  * >>> ข้อมูลที่แก้ไว้ในหน้า CMS จะหายถ้ารันซ้ำหลังเริ่มใช้งานจริงแล้ว <<<
@@ -61,6 +64,14 @@ async function main() {
   const data = await loadFromSheets();
   const rows = sheetRows(data);
   rows.skippedDays.forEach((d) => console.warn('  ข้ามวัน "' + d + '" — แปลงเป็นวันที่ไม่ได้'));
+
+  // ด่านกันล้างฐานข้อมูลทิ้ง: ชีตอ่านไม่ได้/ถูกเปลี่ยนชื่อแท็บ/ปิดแชร์ชั่วคราว อาจได้ข้อมูลว่างกลับมา
+  // ถ้าเขียนต่อ รายการแข่งทั้งหมดในฐานจะถูกลบแล้วไม่มีอะไรมาแทน — รอบอัตโนมัติทุก 15 นาทีจะทำลาย
+  // ข้อมูลสำรองในจังหวะที่ต้องใช้มันที่สุด จึงหยุดทันทีแล้วให้ workflow ขึ้นสีแดง
+  if (data.source && data.source !== 'sheets') throw new Error('ข้อมูลไม่ได้มาจาก Google Sheets (source = ' + data.source + ') — ยกเลิก');
+  if (!rows.matches.length || !rows.schools.length) {
+    throw new Error('ชีตให้ข้อมูลว่าง (รายการแข่ง ' + rows.matches.length + ' · โรงเรียน ' + rows.schools.length + ') — ยกเลิกเพื่อไม่ให้ฐานข้อมูลถูกล้าง');
+  }
   console.log('  โรงเรียน ' + data.medalTable.length + ' · กีฬา ' + data.sports.length +
     ' · ผลการแข่งขัน ' + data.days.length + ' วัน · ผังกำหนดการ ' + data.schedule.length + ' วัน' +
     ' · ภาพ ' + data.photos.length);
@@ -94,6 +105,10 @@ async function main() {
     await rest('POST', 'photos', rows.photos);
   }
   console.log('✓ ภาพ ' + data.photos.length + ' แถว');
+
+  // จดเวลาซิงก์ "หลังทุกขั้นสำเร็จ" เท่านั้น — หน้า admin/ แสดงค่านี้ให้รู้ว่าซิงก์อัตโนมัติยังทำงานอยู่
+  // ถ้ารอบไหนล้มกลางทาง เวลานี้จะไม่ขยับ ทีมงานเห็นได้ว่าข้อมูลสำรองค้างมานานแค่ไหน
+  await rest('POST', 'site_settings', [{ key: 'last_sheet_sync', value: new Date().toISOString() }], 'resolution=merge-duplicates');
 
   console.log(DRY
     ? '\nลองรันเสร็จแล้ว — ยังไม่ได้เขียนอะไรลงฐานข้อมูล ตัดคำว่า --dry-run ออกเมื่อพร้อมย้ายจริง'

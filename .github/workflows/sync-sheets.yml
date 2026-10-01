@@ -1,0 +1,44 @@
+# ซิงก์ Google Sheets → ฐานข้อมูล CMS สำรอง (Supabase) อัตโนมัติทุก 15 นาที
+#
+# หน้าเว็บยังอ่านผลจากชีตโดยตรง งานนี้มีไว้ให้ "ข้อมูลสำรอง" ในฐานข้อมูลตรงกับชีตอยู่เสมอ
+# วันที่ชีตใช้ไม่ได้ จะได้สลับหน้าเว็บมาอ่านจากฐานข้อมูลได้ทันทีโดยข้อมูลไม่ค้างเก่า
+# ทำงานเหมือนกดปุ่ม "ดึงจาก Google Sheets" ในหน้า admin/ (สคริปต์เดียวกัน: scripts/import-sheets.mjs)
+#
+# ต้องมี secret ใน repo → Settings → Secrets and variables → Actions:
+#   SUPABASE_URL           https://<project-ref>.supabase.co
+#   SUPABASE_SERVICE_KEY   service_role key — ข้าม RLS ได้ทั้งหมด เก็บใน secret เท่านั้น ห้ามใส่ในไฟล์
+#
+# หมายเหตุของ GitHub: เวลา schedule อาจช้ากว่ากำหนดได้หลายนาทีช่วงคนใช้เยอะ และถ้า repo ไม่มี
+# ความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง (เปิดคืนที่แท็บ Actions)
+
+name: Sync Sheets to CMS
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:   # กดรันเองจากแท็บ Actions ได้
+
+permissions:
+  contents: read
+
+# รอบก่อนยังไม่จบ อย่าเริ่มรอบใหม่ซ้อน — สองรอบลบ/เขียน matches พร้อมกันจะได้ข้อมูลซ้ำหรือหาย
+concurrency:
+  group: sync-sheets
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # สคริปต์ใช้แค่ fetch ของ Node ไม่ต้อง npm install
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: node scripts/import-sheets.mjs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
