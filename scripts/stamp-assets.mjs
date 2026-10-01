@@ -15,35 +15,56 @@
    ========================================================= */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PUB = fileURLToPath(new URL('../public/', import.meta.url));
 const hash = (file) => createHash('sha1').update(readFileSync(join(PUB, file))).digest('hex').slice(0, 10);
 
-const jsFiles = readdirSync(join(PUB, 'js')).filter((f) => f.endsWith('.js')).sort();
-const ver = Object.fromEntries(jsFiles.map((f) => ['js/' + f, hash('js/' + f)]));
+// ไฟล์ที่ติดเวอร์ชัน (path นับจาก public/) — JS ของเว็บ (js/) กับของ CMS สำรอง (admin/)
+const JS_DIRS = ['js', 'admin'];
+const jsFiles = JS_DIRS.flatMap((dir) =>
+  readdirSync(join(PUB, dir)).filter((f) => f.endsWith('.js')).sort().map((f) => dir + '/' + f));
+const ver = Object.fromEntries(jsFiles.map((f) => [f, hash(f)]));
 ver['css/app.css'] = hash('css/app.css');
 
-const importMap = '<script type="importmap">' + JSON.stringify({
-  imports: Object.fromEntries(jsFiles.map((f) => ['./js/' + f, './js/' + f + '?v=' + ver['js/' + f]]))
-}) + '</script>';
+// หน้า HTML อยู่สองชั้น: public/*.html กับ public/admin/*.html
+// path ในหน้าเขียนแบบสัมพัทธ์กับโฟลเดอร์ของหน้านั้น (หน้าใน admin/ อ้าง ../js/…) จึงต้องแปลงต่อหน้า
+const PAGE_DIRS = ['', 'admin'];
+
+/** path จาก public/ → path สัมพัทธ์จากโฟลเดอร์ของหน้า ในรูปที่ import map ใช้ ("./x.js" / "../js/x.js") */
+function relFrom(dir, file) {
+  const r = relative(dir || '.', file).split('\\').join('/');
+  return r.startsWith('..') ? r : './' + r;
+}
 
 const MAP_RE = /\n?[ \t]*<!-- stamp:importmap -->[\s\S]*?<!-- \/stamp:importmap -->/;
-const MAP_BLOCK = '\n  <!-- stamp:importmap -->\n  <!-- สร้างจาก scripts/stamp-assets.mjs — อย่าแก้เอง -->\n  ' + importMap + '\n  <!-- /stamp:importmap -->';
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-for (const page of readdirSync(PUB).filter((f) => f.endsWith('.html'))) {
-  const path = join(PUB, page);
-  let html = readFileSync(path, 'utf8');
+for (const dir of PAGE_DIRS) {
+  for (const page of readdirSync(join(PUB, dir)).filter((f) => f.endsWith('.html'))) {
+    const path = join(PUB, dir, page);
+    let html = readFileSync(path, 'utf8');
 
-  // src="js/x.js" / href="js/x.js" / href="css/app.css" (มี ?v= เก่าอยู่ก็ทับ)
-  html = html.replace(/((?:src|href)=")((?:js|css)\/[\w.-]+\.(?:js|css))(?:\?v=[\w]+)?(")/g,
-    (all, a, file, z) => (ver[file] ? a + file + '?v=' + ver[file] + z : all));
+    // src="…" / href="…" ที่ชี้ไฟล์ในรายการ (มี ?v= เก่าอยู่ก็ทับ) — เทียบทั้งแบบมีและไม่มี "./" นำหน้า
+    for (const file of Object.keys(ver)) {
+      const rel = relFrom(dir, file);
+      const bare = rel.replace(/^\.\//, '');
+      const re = new RegExp('((?:src|href)=")((?:\\./)?' + escRe(bare) + ')(?:\\?v=\\w+)?(")', 'g');
+      html = html.replace(re, (all, a, f, z) => a + f + '?v=' + ver[file] + z);
+    }
 
-  // import map ต้องมาก่อน <script type="module"> และ modulepreload ทุกตัว จึงวางต่อท้าย <meta charset>
-  html = html.replace(MAP_RE, '');
-  html = html.replace(/(<meta charset="UTF-8" \/>)/, '$1' + MAP_BLOCK);
+    // import map ให้ทุก import ที่ชี้ไฟล์เดียวกันได้ URL เวอร์ชันเดียวกัน ไม่ว่าจะ import จากหน้าไหนหรือไฟล์ JS ไหน
+    const importMap = '<script type="importmap">' + JSON.stringify({
+      imports: Object.fromEntries(jsFiles.map((f) => [relFrom(dir, f), relFrom(dir, f) + '?v=' + ver[f]]))
+    }) + '</script>';
+    const block = '\n  <!-- stamp:importmap -->\n  <!-- สร้างจาก scripts/stamp-assets.mjs — อย่าแก้เอง -->\n  ' + importMap + '\n  <!-- /stamp:importmap -->';
 
-  writeFileSync(path, html);
+    // import map ต้องมาก่อน <script type="module"> และ modulepreload ทุกตัว จึงวางต่อท้าย <meta charset>
+    html = html.replace(MAP_RE, '');
+    html = html.replace(/(<meta charset="UTF-8" \/>)/, '$1' + block);
+
+    writeFileSync(path, html);
+  }
 }
 console.log('stamped', Object.keys(ver).length, 'files');

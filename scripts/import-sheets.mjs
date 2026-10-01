@@ -19,6 +19,8 @@
  */
 
 import { loadFromSheets } from '../public/js/sheets.js';
+// กฎแปลงชีต → แถวตาราง ใช้ร่วมกับปุ่ม "ดึงจาก Google Sheets" ในหน้า admin/
+import { sheetRows } from '../public/admin/sheets-sync.js';
 
 // --dry-run: อ่านชีตและแปลงข้อมูลให้ดูว่าจะได้อะไร แต่ไม่เขียนลงฐานข้อมูล
 // ใช้ตรวจว่าวันที่/คู่แข่งขันถูกแปลงถูกต้องก่อนจะไปแตะของจริง
@@ -54,103 +56,33 @@ async function rest(method, path, body, extraPrefer) {
   return res.status === 204 ? null : res.json().catch(() => null);
 }
 
-/** ปีของรายการแข่ง — ชีตส่งวันที่มาเป็น "20 ต.ค." เท่านั้น ปีต้องเดาจากวันที่ดึงข้อมูล */
-const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-
-/**
- * "20 ต.ค." → "2026-10-20"
- * รายการแข่งกินเวลาไม่กี่วันและจัดปีละครั้ง จึงใช้ปีปัจจุบันเป็นหลัก
- * แต่ถ้าวันที่นั้นผ่านมาแล้วเกินครึ่งปี ให้ถือว่าเป็นของปีหน้า (กรณีรันสคริปต์ปลายปี
- * เพื่อเตรียมรายการที่จะแข่งต้นปีถัดไป)
- */
-function toIsoDate(label, now = new Date()) {
-  const m = /^(\d{1,2})\s+(.+)$/.exec(String(label).trim());
-  if (!m) return null;
-  const day = Number(m[1]);
-  const month = MONTHS_TH.indexOf(m[2].trim());
-  if (month < 0) return null;
-
-  let year = now.getFullYear();
-  const guess = new Date(year, month, day);
-  const halfYearMs = 182 * 24 * 60 * 60 * 1000;
-  if (now - guess > halfYearMs) year += 1;
-
-  return year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-}
-
-/** "ฟุตบอล — ชาย รอบชิง" → "ชาย รอบชิง" (ชื่อกีฬาเก็บแยกในคอลัมน์ sport_id แล้ว) */
-function eventTypeOf(event) {
-  const cut = String(event || '').indexOf(' — ');
-  return cut > -1 ? event.slice(cut + 3).trim() : '';
-}
-
-/** "A พบ B" → { team_a, team_b } */
-function teamsOf(teams) {
-  const sides = String(teams || '').split(/\s+พบ\s+/).map((s) => s.trim()).filter(Boolean);
-  return { team_a: sides[0] || '', team_b: sides[1] || '' };
-}
-
-function flattenDays(days, kind) {
-  const out = [];
-  days.forEach((day) => {
-    const date = toIsoDate(day.date);
-    if (!date) { console.warn('  ข้ามวัน "' + day.date + '" — แปลงเป็นวันที่ไม่ได้'); return; }
-    day.items.forEach((i) => {
-      out.push(Object.assign({
-        kind,
-        match_date: date,
-        sport_id: i.sportId || null,
-        event_type: eventTypeOf(i.event),
-        start_time: i.time || null,
-        score: kind === 'result' ? (i.score || '') : '',
-        status: kind === 'result' ? (i.status || 'upcoming') : 'upcoming',
-        unofficial: kind === 'result' ? Boolean(i.unofficial) : false,
-        note: ''
-      }, teamsOf(i.teams)));
-    });
-  });
-  return out;
-}
-
 async function main() {
   console.log('กำลังอ่าน Google Sheets…');
   const data = await loadFromSheets();
+  const rows = sheetRows(data);
+  rows.skippedDays.forEach((d) => console.warn('  ข้ามวัน "' + d + '" — แปลงเป็นวันที่ไม่ได้'));
   console.log('  โรงเรียน ' + data.medalTable.length + ' · กีฬา ' + data.sports.length +
     ' · ผลการแข่งขัน ' + data.days.length + ' วัน · ผังกำหนดการ ' + data.schedule.length + ' วัน' +
     ' · ภาพ ' + data.photos.length);
 
   // ---- ตั้งค่าเว็บ ----
-  await rest('POST', 'site_settings', [
-    { key: 'title', value: data.meta.title },
-    { key: 'subtitle', value: data.meta.subtitle }
-  ], 'resolution=merge-duplicates');
+  await rest('POST', 'site_settings', rows.settings, 'resolution=merge-duplicates');
   console.log('✓ ตั้งค่าเว็บ');
 
   // ---- โรงเรียน ----
   // on_conflict=full_name: ชื่อเต็มคือกุญแจธรรมชาติของโรงเรียน (id เป็น uuid ที่ฝั่งชีตไม่มี)
-  await rest('POST', 'schools?on_conflict=full_name', data.medalTable.map((m) => ({
-    full_name: m.fullName,
-    short_name: m.school || '',
-    abbr: m.abbr || '',
-    logo: m.logo || '',
-    is_self: Boolean(m.isSelf),
-    gold: m.gold, silver: m.silver, bronze: m.bronze
-  })), 'resolution=merge-duplicates');
+  await rest('POST', 'schools?on_conflict=full_name', rows.schools, 'resolution=merge-duplicates');
   console.log('✓ โรงเรียน ' + data.medalTable.length + ' แถว');
 
   // ---- กีฬา ----
-  await rest('POST', 'sports?on_conflict=id', data.sports.map((s, i) => ({
-    id: s.id, name: s.name, entered: true,
-    gold: s.gold, silver: s.silver, bronze: s.bronze,
-    sort_order: i + 1
-  })), 'resolution=merge-duplicates');
-  console.log('✓ กีฬา ' + data.sports.length + ' แถว');
+  await rest('POST', 'sports?on_conflict=id', rows.sports, 'resolution=merge-duplicates');
+  console.log('✓ กีฬา ' + rows.sports.length + ' แถว');
 
   // ---- รายการแข่งขัน ----
   // neq.<uuid ที่เป็นไปไม่ได้> = "ทุกแถว" — PostgREST ปฏิเสธ DELETE ที่ไม่มีเงื่อนไข
   // เพื่อกันการลบทั้งตารางโดยไม่ตั้งใจ จึงต้องเขียนเงื่อนไขที่จริงเสมอมาหลอกมัน
   await rest('DELETE', 'matches?id=neq.00000000-0000-0000-0000-000000000000');
-  const matches = flattenDays(data.days, 'result').concat(flattenDays(data.schedule, 'plan'));
+  const matches = rows.matches;
   if (matches.length) await rest('POST', 'matches', matches);
   console.log('✓ รายการแข่งขัน ' + matches.length + ' แถว');
 
@@ -159,9 +91,7 @@ async function main() {
   // เก็บลงฐานข้อมูลได้ตามนั้น — supabase-data.js ปล่อยผ่าน URL ที่ไม่ใช่ลิงก์แชร์ Drive
   if (data.photos.length) {
     await rest('DELETE', 'photos?id=neq.00000000-0000-0000-0000-000000000000');
-    await rest('POST', 'photos', data.photos.map((p, i) => ({
-      url: p.src, caption: p.caption || '', sort_order: i + 1
-    })));
+    await rest('POST', 'photos', rows.photos);
   }
   console.log('✓ ภาพ ' + data.photos.length + ' แถว');
 
