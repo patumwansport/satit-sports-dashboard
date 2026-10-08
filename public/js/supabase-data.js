@@ -139,7 +139,7 @@ export async function loadFromSupabase() {
 
   return {
     meta: {
-      title: settings.title || 'กีฬาสาธิตสามัคคี',
+      title: settings.title || 'กีฬาสาธิตสามัคคี ครั้งที่ 49 “คำมอกหลวงเกมส์”',
       subtitle: settings.subtitle || 'การแข่งขันกีฬานักเรียนสาธิตสัมพันธ์แห่งประเทศไทย'
     },
     school: {

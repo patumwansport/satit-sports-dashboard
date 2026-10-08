@@ -467,7 +467,7 @@ export async function loadFromSheets(opts) {
 
   return {
     meta: {
-      title: 'กีฬาสาธิตสามัคคี',
+      title: 'กีฬาสาธิตสามัคคี ครั้งที่ 49 “คำมอกหลวงเกมส์”',
       subtitle: 'การแข่งขันกีฬานักเรียนสาธิตสัมพันธ์แห่งประเทศไทย'
     },
     school: self ? {

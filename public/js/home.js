@@ -650,7 +650,7 @@ function renderTimeline(data) {
    ที่ได้จริงมาก (เช่น 4 รายการ แต่ได้ 129 เหรียญ) อ่านแล้วขัดกันเอง */
 function renderMasthead(data) {
   var meta = data.meta || {};
-  document.getElementById('mastTitle').textContent = meta.title || 'กีฬาสาธิตสามัคคี';
+  document.getElementById('mastTitle').textContent = meta.title || 'กีฬาสาธิตสามัคคี ครั้งที่ 49 “คำมอกหลวงเกมส์”';
 
   var now = new Date();
   document.getElementById('mastDate').textContent =
