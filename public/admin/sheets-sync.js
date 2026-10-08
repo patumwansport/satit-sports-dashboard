@@ -67,8 +67,21 @@ function flattenDays(days, kind, skipped) {
  * ผลของ loadFromSheets() → แถวที่พร้อมเขียนลงแต่ละตาราง
  * @returns {{settings:object[], schools:object[], sports:object[], matches:object[], photos:object[], skippedDays:string[]}}
  */
+/**
+ * ฐานข้อมูลที่ยังไม่ได้รัน migration 20261008000001_photo_days.sql จะไม่มีคอลัมน์ taken_on / sport_id
+ * — ตัดสองช่องนี้ออกแล้วเขียนใหม่ได้ ซิงก์จะได้ไม่ล้มทั้งรอบเพราะภาพ (ภาพเข้าครบ แค่ยังไม่รู้วัน)
+ */
+export function isMissingPhotoColumns(message) {
+  return /taken_on|sport_id/.test(String(message || '')) && /column|schema cache/i.test(String(message || ''));
+}
+export function withoutPhotoDays(photos) {
+  return photos.map(function (p) { return { url: p.url, caption: p.caption, sort_order: p.sort_order }; });
+}
+
 export function sheetRows(data) {
   var skipped = [];
+  var sportIds = {};
+  data.sports.forEach(function (s) { if (s.id) sportIds[s.id] = 1; });
   return {
     settings: [
       { key: 'title', value: data.meta.title },
@@ -94,7 +107,13 @@ export function sheetRows(data) {
     }),
     matches: flattenDays(data.days, 'result', skipped).concat(flattenDays(data.schedule, 'plan', skipped)),
     // ชีตเก็บลิงก์รูปดิบ แต่ loadFromSheets() แปลงเป็นลิงก์ thumbnail ให้แล้ว เก็บตามนั้นได้เลย
-    photos: data.photos.map(function (p, i) { return { url: p.src, caption: p.caption || '', sort_order: i + 1 }; }),
+    // sport_id ต้องเป็นกีฬาที่มีในตาราง sports (foreign key) — ชื่อกีฬาที่จับคู่รหัสไม่ได้ให้เป็น null
+    photos: data.photos.map(function (p, i) {
+      return {
+        url: p.link || p.src, caption: p.caption || '', sort_order: i + 1,
+        taken_on: p.iso || null, sport_id: (p.sportId && sportIds[p.sportId]) ? p.sportId : null
+      };
+    }),
     skippedDays: skipped
   };
 }

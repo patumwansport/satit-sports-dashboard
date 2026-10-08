@@ -116,7 +116,7 @@ function bannerHtml(b) {
 
   var tone = TONE[b.tone] || TONE.info;
   return '<div class="flex items-start gap-3 rounded-lg border px-4 py-3 ' + tone + '" role="status">' +
-    '<div class="min-w-0 flex-1 text-[15px] leading-[1.55]">' +
+    '<div class="min-w-0 flex-1 fs-15 leading-[1.55]">' +
       (b.title ? '<strong class="font-semibold">' + esc(b.title) + '</strong> ' : '') +
       (b.message ? '<span>' + esc(b.message) + '</span>' : '') +
       (link ? ' <a class="font-semibold whitespace-nowrap text-current underline underline-offset-2" href="' + esc(link) + '"' + external + '>' +
@@ -172,9 +172,9 @@ function showCookieNotice() {
   box.className = 'fixed right-4 bottom-4 z-[60] w-[min(380px,calc(100vw-32px))] rounded-xl border border-line bg-surface px-5 py-4 text-fg shadow-card motion-safe:animate-pop-in';
   box.setAttribute('aria-label', 'การใช้คุกกี้');
   box.innerHTML =
-    '<h2 class="m-0 text-[15.5px] font-semibold">คุกกี้บนเว็บไซต์นี้</h2>' +
-    '<p class="mt-1.5 mb-0 text-[14px] leading-[1.6] text-fg-soft">เราใช้คุกกี้และพื้นที่เก็บข้อมูลในเบราว์เซอร์เท่าที่จำเป็น เพื่อให้เว็บไซต์ทำงานได้ราบรื่นและนับจำนวนผู้เข้าชม</p>' +
-    '<div class="mt-2 text-[13.5px] leading-[1.6] text-fg-mute" data-more hidden>' +
+    '<h2 class="m-0 fs-15.5 font-semibold">คุกกี้บนเว็บไซต์นี้</h2>' +
+    '<p class="mt-1.5 mb-0 fs-14 leading-[1.6] text-fg-soft">เราใช้คุกกี้และพื้นที่เก็บข้อมูลในเบราว์เซอร์เท่าที่จำเป็น เพื่อให้เว็บไซต์ทำงานได้ราบรื่นและนับจำนวนผู้เข้าชม</p>' +
+    '<div class="mt-2 fs-13.5 leading-[1.6] text-fg-mute" data-more hidden>' +
       '<ul class="m-0 flex list-disc flex-col gap-1 pl-5">' +
         '<li><strong class="font-semibold text-fg-soft">รหัสผู้เข้าชม</strong> — ตัวเลขสุ่มสำหรับนับว่ามีกี่คนเข้าชม ไม่เก็บชื่อ อีเมล หรือ IP และระบุตัวบุคคลไม่ได้</li>' +
         '<li><strong class="font-semibold text-fg-soft">การตั้งค่าหน้าจอ</strong> — โหมดสว่าง/มืด และประกาศที่กดปิดไปแล้ว</li>' +

@@ -40,6 +40,8 @@
      ไม่ใช่ลอยเด่นกว่าเนื้อหา — โหมดสว่างใช้ค่าเดียวกับ surface หน้าตาจึงไม่เปลี่ยน */
   --color-rail: oklch(100% 0 0);
   --color-line-strong: oklch(83% 0.016 250);
+  /* stripe = พื้นแถวคู่ในตาราง (ขาวสลับฟ้าอ่อน) ช่วยให้สายตาไล่แถวยาว ๆ ได้ไม่หลุดบรรทัด */
+  --color-stripe: #ecf1f6;
 
   /* fg = ตัวหนังสือ · ink = พื้นเข้มที่มีตัวหนังสือสว่างอยู่บน (on-ink) */
   --color-fg: oklch(22% 0.03 260);
@@ -111,6 +113,7 @@
     --color-rail: oklch(16% 0.022 260);
     --color-line: oklch(44% 0.034 260);
     --color-line-strong: oklch(52% 0.034 260);
+    --color-stripe: oklch(36.5% 0.045 260);
     --color-fg: oklch(93% 0.012 260);
     --color-fg-soft: oklch(82% 0.016 260);
     --color-fg-mute: oklch(71% 0.016 260);
@@ -146,6 +149,7 @@
   --color-rail: oklch(16% 0.022 260);
   --color-line: oklch(44% 0.034 260);
   --color-line-strong: oklch(52% 0.034 260);
+  --color-stripe: oklch(36.5% 0.045 260);
   --color-fg: oklch(93% 0.012 260);
   --color-fg-soft: oklch(82% 0.016 260);
   --color-fg-mute: oklch(71% 0.016 260);
@@ -216,7 +220,7 @@
   .btn-ghost { @apply bg-transparent text-foreground hover:bg-accent hover:opacity-100; }
   .btn-destructive { @apply bg-destructive text-destructive-foreground; }
   .btn-link { @apply h-auto bg-transparent px-0 text-primary underline-offset-4 hover:underline hover:opacity-100; }
-  .btn-sm { @apply h-8 gap-1.5 px-3 text-[14.5px]; }
+  .btn-sm { @apply h-8 gap-1.5 px-3 fs-14.5; }
   .btn-lg { @apply h-10 px-6 text-base; }
   .btn-icon { @apply size-9 px-0; }
 
@@ -267,8 +271,9 @@
   /* ไม่มีการเคลื่อนไหวใด ๆ ทั้งเว็บ — ผู้ใช้ขอยกเลิกทรานซิชั่น/อนิเมชันทั้งหมด (ขยับ กะพริบ เด้ง จางเข้า)
      ปิดที่ต้นทางจุดเดียว utility animate-* / transition-* ที่ยังเหลือในหน้าเว็บจึงไม่มีผล
      (ปุ่มยังเปลี่ยนสีเมื่อชี้/โฟกัสตามปกติ แค่เปลี่ยนทันทีไม่ค่อย ๆ จาง)
-     ยกเว้นชิ้นเดียวที่ผู้ใช้ขอให้เลื่อน: แถบอันดับบนหน้าหลัก (.rank-ticker) */
-  *:not(.rank-ticker), ::before, ::after {
+     ยกเว้นที่ผู้ใช้ขอให้เลื่อน: แถบอันดับบนหน้าหลัก (.rank-ticker)
+     และสไลด์ภาพในหน้าประมวลภาพ (.motion-ok — แทร็ก/ภาพ/จุด/วงแหวนนับเวลา ใน gallery.js) */
+  *:not(.rank-ticker):not(.motion-ok), ::before, ::after {
     animation: none !important;
     transition: none !important;
   }
@@ -287,6 +292,9 @@
 @keyframes ticker { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
 .rank-ticker { will-change: transform; backface-visibility: hidden; }
 @keyframes heroFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* วงแหวนนับเวลารอบปุ่มหยุด/เล่นของสไลด์ภาพ (gallery.js) — วิ่งครบรอบ = เลื่อนไปภาพถัดไป
+   113.1 = เส้นรอบวงของวง r=18 · ถูกเรียกด้วยชื่อจาก JS จึงต้องอยู่นอก @theme */
+@keyframes carRing { from { stroke-dashoffset: 113.1; } to { stroke-dashoffset: 0; } }
 
 /* =========================================================
    utility เพิ่มเอง 2 ตัว — ทั้งคู่เป็น "รูปทรง mask" ที่เขียนเป็น utility สำเร็จรูปไม่ได้
@@ -317,4 +325,17 @@
 
 :root {
   --mic-medal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23000' fill-rule='evenodd' d='M2.8 12a9.2 9.2 0 1 0 18.4 0 9.2 9.2 0 1 0-18.4 0zM12 7.4l1.15 3.02 3.22.16-2.52 2.02.85 3.12L12 13.95l-2.7 1.77.85-3.12-2.52-2.02 3.22-.16z'/%3E%3C/svg%3E");
+}
+
+/* =========================================================
+   ขนาดตัวอักษรทั้งเว็บ — ปรับที่ --font-scale ตัวเดียว ทุกข้อความในทุกหน้าโตหรือเล็กลงตามกัน
+   ในหน้าเขียนเป็น fs-15 = "15px ตามแบบ × --font-scale" (เดิมเป็นพิกเซลตายตัวทั่วทั้งเว็บ)
+   1 = ขนาดตามแบบเดิม · ผู้ใช้ขอตัวอักษรใหญ่ขึ้นมาก จึงตั้งไว้ 1.2
+   ช่องว่าง/ขนาดกล่อง/รูป ไม่ได้ผูกกับค่านี้ — ตัวอักษรใหญ่ขึ้นแต่ผังหน้าเดิม
+   ========================================================= */
+:root {
+  --font-scale: 1.2;
+}
+@utility fs-* {
+  font-size: calc(--value(number) * 1px * var(--font-scale));
 }

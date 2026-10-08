@@ -24,29 +24,29 @@ import {
    เพราะช่วง 861–1100px แถบเมนูข้างกินที่ไป 252px ตารางเหลือที่น้อยกว่าบนมือถือเสียอีก
    บรรทัดแรก วัน · กีฬา กับเวลาชิดขวา แล้วคอลัมน์อื่นเรียงลงตามที่แต่ละหน้ากำหนด
    หัวตารางซ่อนไป เพราะแต่ละบรรทัดบอกตัวเองได้แล้ว */
-var TH = 'px-4 py-3 text-left text-[14.5px] font-normal whitespace-nowrap text-fg-soft first:pl-5 last:pr-5';
-export var TD = 'px-4 py-3 align-top text-[15.5px] text-fg first:pl-5 last:pr-5 @max-[800px]:p-0';
-var TR = 'border-t border-line @max-[800px]:grid @max-[800px]:grid-cols-[auto_1fr_auto] @max-[800px]:items-baseline @max-[800px]:gap-x-2 @max-[800px]:gap-y-1 @max-[800px]:px-4 @max-[800px]:py-3';
+var TH = 'px-4 py-3 text-left fs-14.5 font-normal whitespace-nowrap text-fg-soft first:pl-5 last:pr-5';
+export var TD = 'px-4 py-3 align-top fs-15.5 text-fg first:pl-5 last:pr-5 @max-[800px]:p-0';
+var TR = 'border-t border-line even:bg-stripe @max-[800px]:grid @max-[800px]:grid-cols-[auto_1fr_auto] @max-[800px]:items-baseline @max-[800px]:gap-x-2 @max-[800px]:gap-y-1 @max-[800px]:px-4 @max-[800px]:py-3';
 /* จุดคั่น "วัน · กีฬา" บนจอแคบ — เขียนด้วยอัญประกาศคู่ ตัวสร้าง CSS จึงอ่านคลาสได้ตรงตัว */
 var DOT_AFTER = " @max-[800px]:after:pl-2 @max-[800px]:after:text-fg-mute @max-[800px]:after:content-['·']";
 /* บรรทัดรอง (วัน · กีฬา · รอบ/สาย) บนจอแคบ ตัวเล็กและจางกว่าเนื้อหาหลัก */
-export var TD_SUB = ' @max-[800px]:text-[14px] @max-[800px]:text-fg-soft';
+export var TD_SUB = ' @max-[800px]:fs-14 @max-[800px]:text-fg-soft';
 /* เวลาเป็นสิ่งที่คนกวาดตาหาก่อนอย่างอื่น บนจอแคบจึงอยู่มุมขวาบนของบล็อก ตัวไม่เล็กลง */
-export var TD_TIME = ' font-mono text-[17px] whitespace-nowrap tabular-nums @max-[800px]:col-start-3 @max-[800px]:row-start-1';
+export var TD_TIME = ' font-mono fs-17 whitespace-nowrap tabular-nums @max-[800px]:col-start-3 @max-[800px]:row-start-1';
 
-/* ลิงก์เลือกวัน: ตัวอักษรสีแบรนด์เหมือนลิงก์ ไม่มีกรอบ วันที่เลือกอยู่เป็นสีเข้มขีดเส้นใต้
+/* ลิงก์เลือกวัน: ไม่มีกรอบ ยังไม่เลือก = ตัวสีดำ · วันที่เลือกอยู่ = ตัวสีน้ำเงินขีดเส้นใต้
    (ฟอนต์มีน้ำหนักเดียว จึงใช้เส้นใต้แทนตัวหนา) */
-var DAY_LINK = 'inline-flex flex-none cursor-pointer items-center gap-1.5 rounded-[7px] border-0 bg-transparent px-3 py-1.5 font-body text-[15.5px] whitespace-nowrap' +
+var DAY_LINK = 'inline-flex flex-none cursor-pointer items-center gap-1.5 rounded-[7px] border-0 bg-transparent px-3 py-1.5 font-body fs-15.5 whitespace-nowrap' +
   ' underline-offset-[6px] transition-colors duration-150 hover:bg-surface-soft focus-visible:outline-2 focus-visible:-outline-offset-1' +
-  ' focus-visible:outline-brand motion-reduce:transition-none max-[560px]:px-2.5 max-[560px]:text-[14.5px]';
-var DAY_LINK_OFF = ' text-brand hover:underline';
-var DAY_LINK_ON = ' text-fg underline decoration-2 decoration-brand';
+  ' focus-visible:outline-brand motion-reduce:transition-none max-[560px]:px-2.5 max-[560px]:fs-14.5';
+var DAY_LINK_OFF = ' text-fg hover:text-brand hover:underline';
+var DAY_LINK_ON = ' text-brand-strong underline decoration-2 decoration-brand';
 /* วันที่กรองแล้วไม่เหลือรายการจางลงแต่ยังกดได้ — บอกล่วงหน้าว่ากดไปจะว่าง */
 var DAY_LINK_EMPTY = ' opacity-45';
 var DAY_SEP = '<span class="h-4 flex-none border-l border-line-strong" aria-hidden="true"></span>';
 
 /* ปุ่มในสถานะว่าง (ล้างตัวกรอง) */
-var FILTER_CHIP = 'cursor-pointer rounded-[11px] border border-line bg-surface-soft px-[15px] py-2 font-body text-[14.5px] text-fg-soft' +
+var FILTER_CHIP = 'cursor-pointer rounded-[11px] border border-line bg-surface-soft px-[15px] py-2 font-body fs-14.5 text-fg-soft' +
   ' transition-[border-color,color,background-color] duration-150 hover:border-line-strong hover:text-fg' +
   ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none';
 
@@ -131,11 +131,11 @@ export function mountFixtureTable(opts) {
   function rowEl(r, n, columns) {
     var tr = el('tr', TR);
     tr.innerHTML =
-      '<td class="' + TD + ' font-mono text-[14px] text-fg-mute tabular-nums @max-[800px]:hidden">' + n + '</td>' +
+      '<td class="' + TD + ' font-mono fs-14 text-fg-mute tabular-nums @max-[800px]:hidden">' + n + '</td>' +
       // บนจอแคบ สองช่องนี้ต่อกันเป็นบรรทัดหัวของบล็อก: "เสาร์ 24 ต.ค. · กรีฑา"
       '<td class="' + TD + DOT_AFTER + TD_SUB + ' whitespace-nowrap @max-[800px]:col-start-1 @max-[800px]:row-start-1">' +
         esc(dayLabel(r.day)) +
-        (isToday(r.day) ? ' <span class="text-[13px] text-fg-mute">(วันนี้)</span>' : '') + '</td>' +
+        (isToday(r.day) ? ' <span class="fs-13 text-fg-mute">(วันนี้)</span>' : '') + '</td>' +
       '<td class="' + TD + TD_SUB + ' whitespace-nowrap @max-[800px]:col-start-2 @max-[800px]:row-start-1 @max-[800px]:min-w-0 @max-[800px]:truncate">' +
         esc(r.sport) + '</td>' +
       columns.map(function (c) {
@@ -188,7 +188,7 @@ export function mountFixtureTable(opts) {
       // "วันนี้" (ตามปฏิทินจริง) ติดไว้ท้ายวันนั้นด้วย เพราะแถวนี้คือที่ที่คนมองหาว่าจะกดวันไหน
       host.insertAdjacentHTML('beforeend', DAY_SEP);
       host.appendChild(dayLink(esc(dayLabel(day) || ('วันที่ ' + day.id)) +
-        (isToday(day) ? '<span class="text-[13px] text-fg-mute">(วันนี้)</span>' : ''),
+        (isToday(day) ? '<span class="fs-13 text-fg-mute">(วันนี้)</span>' : ''),
         on, !n, function () { setFilter('dayId', state.dayId === day.id ? 'all' : day.id); }));
     });
     document.getElementById('dayRow').hidden = days.length < 2;
@@ -256,10 +256,10 @@ export function mountFixtureTable(opts) {
     host.innerHTML = '';
 
     if (!opts.days(state.data).length) {
-      host.appendChild(el('p', 'm-0 border-t border-line px-5 py-5 text-[14.5px] text-fg-mute', esc(opts.emptyText)));
+      host.appendChild(el('p', 'm-0 border-t border-line px-5 py-5 fs-14.5 text-fg-mute', esc(opts.emptyText)));
     } else if (!rows.length) {
       var empty = el('div', 'flex flex-col items-center gap-3 border-t border-line px-5 py-6 text-center',
-        '<p class="m-0 text-[15px] text-fg-mute">ไม่พบรายการที่ตรงกับตัวกรอง</p>');
+        '<p class="m-0 fs-15 text-fg-mute">ไม่พบรายการที่ตรงกับตัวกรอง</p>');
       var clear = el('button', FILTER_CHIP, 'ล้างตัวกรองทั้งหมด');
       clear.type = 'button';
       clear.addEventListener('click', clearFilters);

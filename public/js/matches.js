@@ -1,6 +1,6 @@
 /* =========================================================
    matches.js — ผลการแข่งขัน
-   อ่านจากแท็บ "ผลการแข่งขันประจำวัน" ในชีต: วันที่ / กีฬา / ประเภท / เวลา / ระหว่าง / ผลการแข่งขัน / สถานะ
+   อ่านจากแท็บ "ผลการแข่งขัน" ในชีต: วันที่ / กีฬา / ประเภท / เวลา / ระหว่าง / ผลการแข่งขัน / สถานะ
    หน้าตาเดียวกับหน้าตารางการแข่งขัน (ตัวตาราง/ตัวกรอง/แบ่งหน้าอยู่ใน fixture-table.js)
    คอลัมน์เรียงตามชีตตรง ๆ ไม่มีไอคอน ไม่แบ่งสี — ผลกับสถานะแสดงเป็นข้อความตามที่กรอกในชีต
    ========================================================= */
@@ -45,7 +45,7 @@ mountFixtureTable({
        ไม่ปล่อยให้เป็นขีดว่างทั้งตาราง · ขึ้นบรรทัดใหม่ในช่องของชีตก็ขึ้นบรรทัดใหม่บนเว็บด้วย */
     { head: 'นักกีฬา',
       showIf: function (all) { return all.some(function (r) { return r.athletes; }); },
-      cls: function (r) { return 'leading-[1.5] text-fg-soft @min-[800px]:whitespace-nowrap @max-[800px]:col-[1/-1] @max-[800px]:row-start-5 @max-[800px]:mt-1 @max-[800px]:min-w-0 @max-[800px]:text-[14.5px]' + ATHLETES_BEFORE + (r.athletes ? '' : ' @max-[800px]:hidden'); },
+      cls: function (r) { return 'leading-[1.5] text-fg-soft @min-[800px]:whitespace-nowrap @max-[800px]:col-[1/-1] @max-[800px]:row-start-5 @max-[800px]:mt-1 @max-[800px]:min-w-0 @max-[800px]:fs-14.5' + ATHLETES_BEFORE + (r.athletes ? '' : ' @max-[800px]:hidden'); },
       cell: function (r) { return athleteList(r.athletes); } },
     { head: 'ผลการแข่งขัน', cls: function () { return 'font-mono whitespace-nowrap tabular-nums @max-[800px]:col-start-1 @max-[800px]:row-start-4 @max-[800px]:mt-1' + SCORE_BEFORE; },
       cell: function (r) { return orDash(r.score); } },

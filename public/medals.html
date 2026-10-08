@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <!-- stamp:importmap -->
   <!-- สร้างจาก scripts/stamp-assets.mjs — อย่าแก้เอง -->
-  <script type="importmap">{"imports":{"./js/admin.js":"./js/admin.js?v=91e2972944","./js/common.js":"./js/common.js?v=cdfeb9f933","./js/config.js":"./js/config.js?v=fa7a30172d","./js/fixture-table.js":"./js/fixture-table.js?v=3e9cff90b7","./js/format.js":"./js/format.js?v=56b4ebc8d3","./js/home.js":"./js/home.js?v=94fcf125e9","./js/matches.js":"./js/matches.js?v=220eda4e31","./js/medals.js":"./js/medals.js?v=e96a5f6b25","./js/schedule.js":"./js/schedule.js?v=de26b081f1","./js/school-popup.js":"./js/school-popup.js?v=154e761ac9","./js/school.js":"./js/school.js?v=685cb54192","./js/sheets.js":"./js/sheets.js?v=557abe1213","./js/sports.js":"./js/sports.js?v=71f9d78b1c","./js/supabase-data.js":"./js/supabase-data.js?v=afb62d0969","./admin/admin.js":"./admin/admin.js?v=2b87f3ff25","./admin/config.js":"./admin/config.js?v=ceabcc8960","./admin/sheets-sync.js":"./admin/sheets-sync.js?v=ebe02cdfd9","./admin/site.js":"./admin/site.js?v=e6790790ec"}}</script>
+  <script type="importmap">{"imports":{"./js/admin.js":"./js/admin.js?v=67849faad5","./js/common.js":"./js/common.js?v=135353dd54","./js/config.js":"./js/config.js?v=fa7a30172d","./js/drive-photos.js":"./js/drive-photos.js?v=76c793d49e","./js/fixture-table.js":"./js/fixture-table.js?v=a9a97ec79d","./js/format.js":"./js/format.js?v=795dfb7c51","./js/gallery-config.js":"./js/gallery-config.js?v=f1105d6f4f","./js/gallery-settings.js":"./js/gallery-settings.js?v=5d0918d592","./js/gallery.js":"./js/gallery.js?v=368c8b7f05","./js/home.js":"./js/home.js?v=759916f98a","./js/matches.js":"./js/matches.js?v=a8e739a0aa","./js/medals.js":"./js/medals.js?v=e837286750","./js/schedule.js":"./js/schedule.js?v=de26b081f1","./js/school-popup.js":"./js/school-popup.js?v=d6d5aac4a3","./js/school.js":"./js/school.js?v=b3f6d42adb","./js/sheets.js":"./js/sheets.js?v=1a924c78e2","./js/sports.js":"./js/sports.js?v=545e7eaebf","./js/supabase-data.js":"./js/supabase-data.js?v=e69c45629e","./admin/admin.js":"./admin/admin.js?v=cb2d4978f5","./admin/config.js":"./admin/config.js?v=ceabcc8960","./admin/sheets-sync.js":"./admin/sheets-sync.js?v=1c5e18c3b0","./admin/site.js":"./admin/site.js?v=40fd79366f"}}</script>
   <!-- /stamp:importmap -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>อันดับเหรียญรางวัล — กีฬาสาธิตสามัคคี</title>
   <meta name="description" content="ตารางอันดับเหรียญรางวัลของทุกโรงเรียนในกีฬาสาธิตสามัคคี" />
-  <link rel="stylesheet" href="css/app.css?v=9d0e4a7d25" />
+  <link rel="stylesheet" href="css/app.css?v=815f0d700f" />
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon/icon-192.png" />
   <link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png" />
@@ -17,11 +17,11 @@
        crossorigin เพราะ fetch ข้ามโดเมนไม่ส่งคุกกี้ ต้องเป็นการเชื่อมต่อแบบเดียวกันถึงจะหยิบไปใช้ได้ -->
   <link rel="preconnect" href="https://docs.google.com" crossorigin />
   <!-- โมดูลที่ถูก import ต่อกันเป็นทอด ๆ: สั่งโหลดพร้อมกันเลย ไม่ต้องรอ import ทีละชั้น -->
-  <link rel="modulepreload" href="js/common.js?v=cdfeb9f933" />
-  <link rel="modulepreload" href="js/sheets.js?v=557abe1213" />
-  <link rel="modulepreload" href="js/format.js?v=56b4ebc8d3" />
+  <link rel="modulepreload" href="js/common.js?v=135353dd54" />
+  <link rel="modulepreload" href="js/sheets.js?v=1a924c78e2" />
+  <link rel="modulepreload" href="js/format.js?v=795dfb7c51" />
   <link rel="modulepreload" href="js/config.js?v=fa7a30172d" />
-  <link rel="modulepreload" href="js/school-popup.js?v=154e761ac9" />
+  <link rel="modulepreload" href="js/school-popup.js?v=d6d5aac4a3" />
 </head>
 <body class="min-h-screen bg-paper font-body leading-[1.6] tracking-[.01em] text-fg antialiased selection:bg-brand-100 selection:text-brand-strong">
   <a class="absolute top-0 -left-[999px] z-[100] rounded-br-[8px] bg-ink px-4 py-2.5 text-on-ink focus:left-0" href="#main">ข้ามไปยังเนื้อหาหลัก</a>
@@ -36,11 +36,12 @@
         <img class="hidden h-auto w-full dark:block" src="assets/logo/satitpatumwan-dark.webp" alt="โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน" width="537" height="148" decoding="async" />
       </div>
       <nav class="flex flex-1 flex-col gap-[3px] overflow-y-auto px-3.5 py-2.5" aria-label="นำทางแดชบอร์ด">
-        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] text-[15px] text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="index.html" data-page="home"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="dashboard"></i><span>หน้าหลัก</span></a>
-        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] text-[15px] text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="schedule.html" data-page="schedule"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="calendar"></i><span>ตารางการแข่งขัน</span></a>
-        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] text-[15px] text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="matches.html" data-page="matches"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="results"></i><span>ผลการแข่งขัน</span></a>
-        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] text-[15px] text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="medals.html" data-page="medals"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="medal"></i><span>อันดับเหรียญรางวัล</span></a>
-        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] text-[15px] text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="sports.html" data-page="sports"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="sports"></i><span>ชนิดกีฬา</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="index.html" data-page="home"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="dashboard"></i><span>หน้าหลัก</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="schedule.html" data-page="schedule"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="calendar"></i><span>ตารางการแข่งขัน</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="matches.html" data-page="matches"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="results"></i><span>ผลการแข่งขัน</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="medals.html" data-page="medals"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="medal"></i><span>อันดับเหรียญรางวัล</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="sports.html" data-page="sports"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="sports"></i><span>ชนิดกีฬา</span></a>
+        <a class="group/nav flex items-center gap-3 rounded-md px-3.5 py-[11px] fs-15 text-fg-soft no-underline transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none" href="gallery.html" data-page="gallery"><i class="icon-mask size-[18px] opacity-80 group-aria-[current=page]/nav:opacity-100" data-ic="photo"></i><span>ประมวลภาพ</span></a>
       </nav>
     </aside>
     <div class="fixed inset-0 z-[39] border-0 bg-[oklch(24%_0.03_260/.45)]" id="scrim" hidden></div>
@@ -51,13 +52,13 @@
         <button class="btn btn-outline btn-icon relative size-[38px] rounded-[11px] text-fg-soft hover:text-fg hidden max-[860px]:inline-flex" id="menuBtn" type="button" aria-label="เปิด/ปิดเมนู"><i class="icon-mask size-[19px]" data-ic="menu"></i></button>
         <div class="flex-1"></div>
         <div class="flex items-center gap-3">
-          <span class="flex items-center gap-2 text-[14px] whitespace-nowrap text-fg-soft" role="status" aria-live="polite">
+          <span class="flex items-center gap-2 fs-14 whitespace-nowrap text-fg-soft" role="status" aria-live="polite">
             <span class="size-[7px] flex-none rounded-full bg-done" aria-hidden="true"></span>
             <span class="max-[560px]:hidden">อัปเดตล่าสุด </span><span class="hidden max-[560px]:inline">อัปเดต </span><b class="font-normal tabular-nums" id="syncTime">—</b> น.
           </span>
           <button class="btn btn-outline btn-icon relative size-[38px] rounded-[11px] text-fg-soft hover:text-fg" id="liveBell" type="button" aria-label="รายการที่กำลังแข่งสด">
             <i class="icon-mask size-[19px]" data-ic="live"></i>
-            <span class="absolute -top-1 -right-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-live px-1 font-mono text-[11px] text-on-ink" id="liveBadge" hidden>0</span>
+            <span class="absolute -top-1 -right-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-live px-1 font-mono fs-11 text-on-ink" id="liveBadge" hidden>0</span>
           </button>
           <button class="btn btn-outline btn-icon relative size-[38px] rounded-[11px] text-fg-soft hover:text-fg" id="themeToggle" type="button" aria-label="สลับโหมดสว่าง/มืด">
             <svg class="block dark:hidden" viewBox="0 0 24 24" width="18" height="18" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12h2.5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -68,8 +69,8 @@
 
       <main id="main" class="mx-auto flex w-full max-w-[1600px] flex-col gap-7 px-8 pt-8 pb-14 max-[560px]:px-3.5 max-[560px]:pt-4 max-[560px]:pb-10">
         <div>
-          <h1 class="m-0 font-display text-[26.5px] font-normal text-brand-strong">อันดับเหรียญรางวัล</h1>
-          <p class="mt-1.5 text-[15px] text-fg-soft">เรียงตามจำนวนเหรียญทองรวม จากตารางเหรียญล่าสุด · แตะโรงเรียนเพื่อดูรายละเอียด</p>
+          <h1 class="m-0 font-display fs-26.5 font-normal text-brand-strong">อันดับเหรียญรางวัล</h1>
+          <p class="mt-1.5 fs-15 text-fg-soft">เรียงตามจำนวนเหรียญทองรวม จากตารางเหรียญล่าสุด · แตะโรงเรียนเพื่อดูรายละเอียด</p>
         </div>
 
         <!-- โพเดียม 3 อันดับแรก: เรียง 2–1–3 แบบแท่นรับรางวัลจริง อันดับ 1 อยู่กลางและสูงสุด
@@ -78,14 +79,14 @@
 
         <div class="flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
           <div class="flex items-center gap-3 border-b border-line px-5 pt-4 pb-3 max-[560px]:flex-wrap max-[560px]:gap-y-[9px] max-[560px]:px-4">
-            <h2 class="m-0 font-display text-[21.5px] font-normal text-fg">อันดับเหรียญรางวัล</h2>
+            <h2 class="m-0 font-display fs-21.5 font-normal text-fg">อันดับเหรียญรางวัล</h2>
             <span class="flex-1 max-[560px]:h-0 max-[560px]:basis-full"></span>
-            <span class="text-[14px] whitespace-nowrap text-fg-mute" id="medalCount">—</span>
+            <span class="fs-14 whitespace-nowrap text-fg-mute" id="medalCount">—</span>
           </div>
           <div class="flex flex-col" id="medalList"></div>
         </div>
 
-        <footer class="flex items-center justify-between gap-3 pt-1 text-[13.5px] text-fg-mute max-[560px]:flex-col max-[560px]:items-start">
+        <footer class="flex items-center justify-between gap-3 pt-1 fs-13.5 text-fg-mute max-[560px]:flex-col max-[560px]:items-start">
           <span>ข้อมูลเชื่อมต่อจาก Google Sheets ของฝ่ายจัดการแข่งขัน · ผลอัปเดตทันทีเมื่อกรรมการบันทึกคะแนน</span>
           <span id="metaEdition"></span>
         </footer>
@@ -93,8 +94,8 @@
     </div>
   </div>
 
-  <script type="module" src="js/medals.js?v=e96a5f6b25"></script>
+  <script type="module" src="js/medals.js?v=e837286750"></script>
   <!-- CMS สำรอง: นับผู้เข้าชม + แบนเนอร์ประกาศ — ไม่ทำอะไรเลยจนกว่าจะกรอก admin/config.js -->
-  <script type="module" src="admin/site.js?v=e6790790ec"></script>
+  <script type="module" src="admin/site.js?v=40fd79366f"></script>
 </body>
 </html>

@@ -19,7 +19,10 @@ import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from './config.js';
 import { esc, sportIcon, UI_ICONS } from '../js/common.js';
 import { loadFromSheets } from '../js/sheets.js';
 import { MONTHS_TH, directImageUrl } from '../js/format.js';
-import { sheetRows } from './sheets-sync.js';
+import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from './sheets-sync.js';
+import { checkDriveFolder, driveFolderId } from '../js/drive-photos.js';
+import { GALLERY_KEYS, parseHiddenFolders } from '../js/gallery-settings.js';
+import { DRIVE_FOLDER, HIDDEN_FOLDERS } from '../js/gallery-config.js';
 
 /* =========================================================
    ไอคอนเพิ่มเติมของหน้านี้ — วาดบนกริดเดียวกับ UI_ICONS (viewBox 24 เส้น 1.7)
@@ -168,16 +171,20 @@ var VIEWS = [
   {
     id: 'photos', kind: 'table', table: 'photos', pk: 'id', icon: 'photo',
     title: 'ภาพบรรยากาศ',
-    hint: 'แถบสไลด์บนหน้าแรก — วางลิงก์แชร์จาก Google Drive ได้เลย ระบบแปลงเป็นลิงก์รูปให้เอง',
-    order: 'sort_order.asc',
+    hint: 'หน้า "ประมวลภาพ" แยกตามวัน — วางลิงก์แชร์จาก Google Drive ได้เลย ระบบแปลงเป็นลิงก์รูปให้เอง',
+    order: 'taken_on.asc,sort_order.asc',
     columns: [
       { key: 'url', label: 'รูป', type: 'thumb' },
+      { key: 'taken_on', label: 'วันที่', type: 'photoDate' },
+      { key: 'sport_id', label: 'กีฬา', type: 'sport' },
       { key: 'caption', label: 'คำบรรยาย' },
       { key: 'sort_order', label: 'ลำดับ', type: 'num' }
     ],
     fields: [
       { key: 'url', label: 'ลิงก์รูป', type: 'text', required: true,
         hint: 'ไฟล์ใน Drive ต้องตั้งค่าแชร์เป็น "ทุกคนที่มีลิงก์" ไม่งั้นรูปจะไม่ขึ้นบนเว็บ' },
+      { key: 'taken_on', label: 'วันที่', type: 'date', hint: 'เว้นว่าง = ไปอยู่กลุ่ม "ภาพอื่น ๆ"' },
+      { key: 'sport_id', label: 'กีฬา', type: 'select', options: 'sports' },
       { key: 'caption', label: 'คำบรรยาย', type: 'text' },
       { key: 'sort_order', label: 'ลำดับการแสดง', type: 'number' }
     ]
@@ -209,10 +216,16 @@ var VIEWS = [
     ]
   },
   {
+    id: 'gallery', kind: 'gallery', icon: 'photo',
+    title: 'ประมวลภาพ (Google Drive)',
+    hint: 'โฟลเดอร์ Drive ที่หน้า "ประมวลภาพ" ดึงรูปมาแสดง — บันทึกแล้วมีผลทันที ผู้ชมรีเฟรชหน้าก็เห็น ไม่ต้อง deploy เว็บใหม่'
+  },
+  {
     id: 'settings', kind: 'table', table: 'site_settings', pk: 'key', icon: 'settings',
     title: 'ตั้งค่าเว็บ',
     hint: 'ชื่อรายการและคำโปรยที่ขึ้นหัวหน้าเว็บ',
-    exclude: { key: 'last_sheet_sync' },   // ค่าภายในของระบบซิงก์ ไม่ใช่สิ่งที่ทีมงานต้องแก้
+    // ค่าที่มีหน้าจัดการของตัวเอง (ซิงก์ชีต / ประมวลภาพ) ไม่ให้ไปแก้ดิบ ๆ ในตารางนี้ซ้ำอีกทาง
+    excludeKeys: ['last_sheet_sync', GALLERY_KEYS.folder, GALLERY_KEYS.hidden],
     order: 'key.asc',
     columns: [
       { key: 'key', label: 'ค่า' },
@@ -243,7 +256,7 @@ var BACKUP_TABLES = [
 
 var PAGE_NAMES = {
   'index.html': 'หน้าหลัก', 'schedule.html': 'ตารางการแข่งขัน', 'matches.html': 'ผลการแข่งขัน',
-  'medals.html': 'อันดับเหรียญ', 'sports.html': 'ชนิดกีฬา', 'school.html': 'หน้าโรงเรียน'
+  'medals.html': 'อันดับเหรียญ', 'sports.html': 'ชนิดกีฬา', 'school.html': 'หน้าโรงเรียน', 'gallery.html': 'ประมวลภาพ'
 };
 
 /* =========================================================
@@ -262,10 +275,10 @@ var statsTimer = null;
 var $ = function (id) { return document.getElementById(id); };
 
 /* ชุดคลาสที่ใช้ซ้ำ — เขียนชื่อคลาสเต็มเสมอ Tailwind สแกนไฟล์นี้หาคลาสด้วย */
-var TH = 'border-b border-line px-4 py-3 text-left text-[13.5px] font-normal tracking-[.03em] text-fg-mute uppercase whitespace-nowrap';
+var TH = 'border-b border-line px-4 py-3 text-left fs-13.5 font-normal tracking-[.03em] text-fg-mute uppercase whitespace-nowrap';
 var TD = 'border-b border-line px-4 py-3 align-middle';
-var NAV_ITEM = 'group/nav flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent px-3.5 py-[10px] text-left text-[15px] text-fg-soft transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none';
-var NAV_GROUP = 'px-3.5 pt-4 pb-1 text-[12.5px] tracking-[.06em] text-fg-mute uppercase first:pt-1';
+var NAV_ITEM = 'group/nav flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent px-3.5 py-[10px] text-left fs-15 text-fg-soft transition-[background-color,color] duration-150 hover:bg-surface-soft hover:text-fg focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand aria-[current=page]:bg-brand aria-[current=page]:text-on-ink aria-[current=page]:shadow-card motion-reduce:transition-none';
+var NAV_GROUP = 'px-3.5 pt-4 pb-1 fs-12.5 tracking-[.06em] text-fg-mute uppercase first:pt-1';
 var PANEL = 'overflow-hidden rounded-lg border border-line bg-surface shadow-panel';
 var CARD = 'rounded-lg border border-line bg-surface px-6 py-5 shadow-panel';
 var STATUS_TONE = { live: 'badge-live', done: 'badge-done', upcoming: 'badge-upcoming' };
@@ -319,7 +332,8 @@ function bannerState(b) {
 function cellHtml(col, row) {
   if (col.type === 'date') return esc(thaiDate(row.match_date));
   if (col.type === 'time') return row.start_time ? esc(String(row.start_time).slice(0, 5)) : '—';
-  if (col.type === 'sport') return esc(sportNameOf(row.sport_id));
+  if (col.type === 'sport') return row.sport_id ? esc(sportNameOf(row.sport_id)) : '<span class="text-fg-mute">—</span>';
+  if (col.type === 'photoDate') return row.taken_on ? esc(thaiDate(row.taken_on)) : '<span class="text-fg-mute">ไม่ระบุ</span>';
   if (col.type === 'sportName') return '<span class="flex items-center gap-2.5">' +
     '<span class="text-fg-soft">' + sportIcon(row.id, 'size-[22px]') + '</span>' + esc(row.name) + '</span>';
   if (col.type === 'versus') {
@@ -350,7 +364,7 @@ function cellHtml(col, row) {
   if (col.type === 'placement') return esc(optionLabel(PLACEMENT_OPTIONS, row.placement));
   if (col.type === 'period') {
     if (!row.starts_at && !row.ends_at) return '<span class="text-fg-mute">ไม่จำกัด</span>';
-    return '<span class="text-[14px] whitespace-nowrap">' + esc(row.starts_at ? thaiDateTime(row.starts_at) : 'ทันที') +
+    return '<span class="fs-14 whitespace-nowrap">' + esc(row.starts_at ? thaiDateTime(row.starts_at) : 'ทันที') +
       ' → ' + esc(row.ends_at ? thaiDateTime(row.ends_at) : 'ไม่กำหนด') + '</span>';
   }
   if (col.type === 'bannerState') {
@@ -372,7 +386,7 @@ var SYNCED_FROM_SHEETS = ['results', 'plan', 'schools', 'sports', 'photos', 'set
 function renderTableView() {
   var synced = SYNCED_FROM_SHEETS.indexOf(current.id) > -1;
   $('viewBody').innerHTML =
-    (synced ? '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-4 py-3 text-[14.5px] text-gold-ink">' +
+    (synced ? '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-4 py-3 fs-14.5 text-gold-ink">' +
       'ข้อมูลหมวดนี้คัดลอกจาก Google Sheets อัตโนมัติทุก 15 นาที — <strong class="font-semibold">ให้แก้ที่ชีต</strong> ' +
       'ถ้าแก้ที่นี่จะถูกเขียนทับในรอบถัดไป และหน้าเว็บก็ยังแสดงตามชีตอยู่ดี</p>' : '') +
     '<div class="flex items-center gap-3 max-[560px]:flex-col max-[560px]:items-stretch">' +
@@ -381,9 +395,9 @@ function renderTableView() {
         '<i class="icon-mask pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-mute" data-ic="search"></i>' +
         '<input class="input pl-9" id="search" type="search" placeholder="ค้นหา เช่น ชื่อทีม กีฬา วันที่" value="' + esc(query) + '" />' +
       '</label>' +
-      '<span class="text-[14px] text-fg-mute" id="rowCount"></span>' +
+      '<span class="fs-14 text-fg-mute" id="rowCount"></span>' +
     '</div>' +
-    '<div class="' + PANEL + '"><div class="overflow-x-auto"><table class="w-full border-collapse text-[15px]" id="grid"></table></div></div>';
+    '<div class="' + PANEL + '"><div class="overflow-x-auto"><table class="w-full border-collapse fs-15" id="grid"></table></div></div>';
   paintIcons($('viewBody'));
   $('search').addEventListener('input', function (e) { query = e.target.value; renderGrid(); });
   renderGrid();
@@ -394,7 +408,7 @@ function renderGrid() {
   if (!grid) return;
   if (loading) {
     $('rowCount').textContent = '';
-    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center text-[14.5px] text-fg-mute">กำลังโหลด…</td></tr></tbody>';
+    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center fs-14.5 text-fg-mute">กำลังโหลด…</td></tr></tbody>';
     return;
   }
   var q = query.trim().toLowerCase();
@@ -404,7 +418,7 @@ function renderGrid() {
   $('rowCount').textContent = q ? 'พบ ' + fmtNum(shown.length) + ' จาก ' + fmtNum(rows.length) + ' รายการ' : fmtNum(rows.length) + ' รายการ';
 
   if (!shown.length) {
-    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center text-[14.5px] text-fg-mute">' +
+    grid.innerHTML = '<tbody><tr><td class="px-5 py-[34px] text-center fs-14.5 text-fg-mute">' +
       (rows.length ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีข้อมูลในหมวดนี้ — กด "เพิ่ม" เพื่อเริ่มกรอก') + '</td></tr></tbody>';
     return;
   }
@@ -431,7 +445,7 @@ async function refreshTable() {
   var view = current;
   var q = db.from(current.table).select('*');
   if (current.filter) Object.keys(current.filter).forEach(function (k) { q = q.eq(k, current.filter[k]); });
-  if (current.exclude) Object.keys(current.exclude).forEach(function (k) { q = q.neq(k, current.exclude[k]); });
+  if (current.excludeKeys) q = q.not(current.pk, 'in', '(' + current.excludeKeys.join(',') + ')');
   current.order.split(',').forEach(function (part) {
     var bits = part.split('.');
     q = q.order(bits[0], { ascending: bits[1] !== 'desc', nullsFirst: false });
@@ -457,7 +471,7 @@ function fieldHtml(f, value) {
   var id = 'f_' + f.key;
   var label = '<label class="label mb-2" for="' + id + '">' + esc(f.label) +
     (f.required ? ' <span class="-ml-1 text-destructive">*</span>' : '') + '</label>';
-  var hint = f.hint ? '<p class="mt-1.5 text-[13.5px] text-fg-mute">' + esc(f.hint) + '</p>' : '';
+  var hint = f.hint ? '<p class="mt-1.5 fs-13.5 text-fg-mute">' + esc(f.hint) + '</p>' : '';
   var input;
 
   if (f.type === 'select') {
@@ -468,7 +482,7 @@ function fieldHtml(f, value) {
         return '<option value="' + esc(o.value) + '"' + (String(value) === String(o.value) ? ' selected' : '') + '>' + esc(o.label) + '</option>';
       }).join('') + '</select>';
   } else if (f.type === 'checkbox') {
-    return '<div><label class="flex cursor-pointer items-center gap-2.5 text-[15px] text-fg">' +
+    return '<div><label class="flex cursor-pointer items-center gap-2.5 fs-15 text-fg">' +
       '<input class="size-[17px] flex-none accent-brand" id="' + id + '" name="' + f.key + '" type="checkbox"' + (value ? ' checked' : '') + ' />' +
       esc(f.label) + '</label>' + hint + '</div>';
   } else if (f.type === 'textarea') {
@@ -608,14 +622,14 @@ function missingSchemaHint(err) {
    ========================================================= */
 
 function renderStatsShell() {
-  $('viewBody').innerHTML = '<div class="' + CARD + ' text-[14.5px] text-fg-mute">กำลังโหลดสถิติ…</div>';
+  $('viewBody').innerHTML = '<div class="' + CARD + ' fs-14.5 text-fg-mute">กำลังโหลดสถิติ…</div>';
 }
 
 function kpi(label, value, sub) {
   return '<div class="' + CARD + '">' +
-    '<p class="m-0 text-[14px] text-fg-mute">' + esc(label) + '</p>' +
-    '<p class="mt-1 mb-0 font-display text-[32px] leading-none text-fg tabular-nums">' + esc(fmtNum(value)) + '</p>' +
-    (sub ? '<p class="mt-2 mb-0 text-[13.5px] text-fg-mute">' + esc(sub) + '</p>' : '') + '</div>';
+    '<p class="m-0 fs-14 text-fg-mute">' + esc(label) + '</p>' +
+    '<p class="mt-1 mb-0 font-display fs-32 leading-none text-fg tabular-nums">' + esc(fmtNum(value)) + '</p>' +
+    (sub ? '<p class="mt-2 mb-0 fs-13.5 text-fg-mute">' + esc(sub) + '</p>' : '') + '</div>';
 }
 
 function dailyChart(daily) {
@@ -626,12 +640,12 @@ function dailyChart(daily) {
     var hv = Math.round((d.visitors / max) * 100);
     var label = thaiDate(d.day);
     return '<div class="group/bar flex min-w-0 flex-1 flex-col items-center gap-1.5" title="' + esc(label + ' · เปิดหน้า ' + fmtNum(d.views) + ' ครั้ง · ผู้เข้าชม ' + fmtNum(d.visitors) + ' คน') + '">' +
-      '<span class="text-[12px] text-fg-mute tabular-nums opacity-0 group-hover/bar:opacity-100">' + esc(fmtNum(d.views)) + '</span>' +
+      '<span class="fs-12 text-fg-mute tabular-nums opacity-0 group-hover/bar:opacity-100">' + esc(fmtNum(d.views)) + '</span>' +
       '<div class="relative flex h-[180px] w-full max-w-[34px] items-end">' +
         '<div class="absolute bottom-0 w-full rounded-t-[4px] bg-brand-100" style="height:' + h + '%"></div>' +
         '<div class="absolute bottom-0 left-1/2 w-1/2 -translate-x-1/2 rounded-t-[3px] bg-brand" style="height:' + hv + '%"></div>' +
       '</div>' +
-      '<span class="h-4 text-[11.5px] whitespace-nowrap text-fg-mute">' + (i % every === 0 || i === daily.length - 1 ? esc(label) : '') + '</span>' +
+      '<span class="h-4 fs-11.5 whitespace-nowrap text-fg-mute">' + (i % every === 0 || i === daily.length - 1 ? esc(label) : '') + '</span>' +
     '</div>';
   }).join('');
 
@@ -642,22 +656,22 @@ function dailyChart(daily) {
 
   return '<div class="' + CARD + '">' +
     '<div class="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1.5">' +
-      '<h2 class="m-0 mr-auto text-[16px] font-semibold text-fg">ยอดเข้าชมรายวัน</h2>' +
-      '<span class="flex items-center gap-1.5 text-[13.5px] text-fg-soft"><span class="size-2.5 rounded-[3px] bg-brand-100"></span>เปิดหน้า (ครั้ง)</span>' +
-      '<span class="flex items-center gap-1.5 text-[13.5px] text-fg-soft"><span class="size-2.5 rounded-[3px] bg-brand"></span>ผู้เข้าชม (คน)</span>' +
+      '<h2 class="m-0 mr-auto fs-16 font-semibold text-fg">ยอดเข้าชมรายวัน</h2>' +
+      '<span class="flex items-center gap-1.5 fs-13.5 text-fg-soft"><span class="size-2.5 rounded-[3px] bg-brand-100"></span>เปิดหน้า (ครั้ง)</span>' +
+      '<span class="flex items-center gap-1.5 fs-13.5 text-fg-soft"><span class="size-2.5 rounded-[3px] bg-brand"></span>ผู้เข้าชม (คน)</span>' +
     '</div>' +
     '<div class="flex items-end gap-1.5 overflow-x-auto" aria-hidden="true">' + bars + '</div>' + table + '</div>';
 }
 
 function pagesTable(pages) {
-  if (!pages.length) return '<div class="' + CARD + ' text-[14.5px] text-fg-mute">ยังไม่มีการเข้าชมในช่วงนี้</div>';
+  if (!pages.length) return '<div class="' + CARD + ' fs-14.5 text-fg-mute">ยังไม่มีการเข้าชมในช่วงนี้</div>';
   var max = Math.max.apply(null, pages.map(function (p) { return p.views; }).concat([1]));
-  return '<div class="' + PANEL + '"><div class="border-b border-line px-5 py-4"><h2 class="m-0 text-[16px] font-semibold text-fg">หน้าที่เปิดมากที่สุด</h2></div>' +
-    '<div class="overflow-x-auto"><table class="w-full border-collapse text-[15px]"><thead><tr>' +
+  return '<div class="' + PANEL + '"><div class="border-b border-line px-5 py-4"><h2 class="m-0 fs-16 font-semibold text-fg">หน้าที่เปิดมากที่สุด</h2></div>' +
+    '<div class="overflow-x-auto"><table class="w-full border-collapse fs-15"><thead><tr>' +
       '<th class="' + TH + '" scope="col">หน้า</th><th class="' + TH + ' text-right" scope="col">เปิดหน้า</th><th class="' + TH + ' text-right" scope="col">ผู้เข้าชม</th>' +
     '</tr></thead><tbody>' + pages.map(function (p) {
       return '<tr><td class="' + TD + '"><div class="flex flex-col gap-1.5"><span>' + esc(PAGE_NAMES[p.path] || p.path || '—') +
-        ' <span class="text-[13px] text-fg-mute">' + esc(p.path) + '</span></span>' +
+        ' <span class="fs-13 text-fg-mute">' + esc(p.path) + '</span></span>' +
         '<span class="block h-1.5 rounded-full bg-brand/70" style="width:' + Math.max(2, Math.round(p.views / max * 100)) + '%"></span></div></td>' +
         '<td class="' + TD + ' text-right tabular-nums">' + esc(fmtNum(p.views)) + '</td>' +
         '<td class="' + TD + ' text-right tabular-nums">' + esc(fmtNum(p.visitors)) + '</td></tr>';
@@ -686,7 +700,7 @@ async function refreshStats() {
     '</div>' +
     dailyChart(daily) +
     pagesTable(s.pages || []) +
-    '<p class="m-0 text-[13.5px] text-fg-mute">อัปเดตเองทุก 1 นาที · ล่าสุด ' + esc(thaiDateTime(new Date())) +
+    '<p class="m-0 fs-13.5 text-fg-mute">อัปเดตเองทุก 1 นาที · ล่าสุด ' + esc(thaiDateTime(new Date())) +
       ' · "ผู้เข้าชม" นับจากรหัสสุ่มในเบราว์เซอร์ คนเดียวเปิดหลายเครื่องจะถูกนับหลายคน</p>';
 }
 
@@ -710,29 +724,29 @@ function renderBackupView() {
   $('viewBody').innerHTML =
     '<div class="grid grid-cols-3 gap-5 max-[1200px]:grid-cols-1">' +
       '<section class="' + CARD + ' flex flex-col gap-3">' +
-        '<h2 class="m-0 text-[17px] font-semibold text-fg">ดาวน์โหลดไฟล์สำรอง</h2>' +
-        '<p class="m-0 text-[14.5px] text-fg-soft">บันทึกข้อมูลทุกหมวด (ผล ตาราง เหรียญ กีฬา ภาพ แบนเนอร์ ตั้งค่า) เป็นไฟล์ .json เก็บไว้ในเครื่อง — ควรกดก่อนแก้ข้อมูลครั้งใหญ่ทุกครั้ง</p>' +
+        '<h2 class="m-0 fs-17 font-semibold text-fg">ดาวน์โหลดไฟล์สำรอง</h2>' +
+        '<p class="m-0 fs-14.5 text-fg-soft">บันทึกข้อมูลทุกหมวด (ผล ตาราง เหรียญ กีฬา ภาพ แบนเนอร์ ตั้งค่า) เป็นไฟล์ .json เก็บไว้ในเครื่อง — ควรกดก่อนแก้ข้อมูลครั้งใหญ่ทุกครั้ง</p>' +
         '<button class="btn mt-auto self-start" type="button" id="exportBtn">ดาวน์โหลดไฟล์สำรอง</button>' +
       '</section>' +
       '<section class="' + CARD + ' flex flex-col gap-3">' +
-        '<h2 class="m-0 text-[17px] font-semibold text-fg">กู้คืนจากไฟล์สำรอง</h2>' +
-        '<p class="m-0 text-[14.5px] text-fg-soft">เลือกไฟล์ .json ที่เคยดาวน์โหลดไว้ ระบบจะแสดงจำนวนรายการให้ตรวจก่อนเขียนจริง</p>' +
-        '<input class="input h-auto py-1.5 text-[14px]" id="restoreFile" type="file" accept="application/json,.json" />' +
-        '<label class="flex cursor-pointer items-start gap-2.5 text-[14.5px] text-fg"><input class="mt-1 size-[16px] flex-none accent-brand" id="restoreReplace" type="checkbox" checked />' +
+        '<h2 class="m-0 fs-17 font-semibold text-fg">กู้คืนจากไฟล์สำรอง</h2>' +
+        '<p class="m-0 fs-14.5 text-fg-soft">เลือกไฟล์ .json ที่เคยดาวน์โหลดไว้ ระบบจะแสดงจำนวนรายการให้ตรวจก่อนเขียนจริง</p>' +
+        '<input class="input h-auto py-1.5 fs-14" id="restoreFile" type="file" accept="application/json,.json" />' +
+        '<label class="flex cursor-pointer items-start gap-2.5 fs-14.5 text-fg"><input class="mt-1 size-[16px] flex-none accent-brand" id="restoreReplace" type="checkbox" checked />' +
           '<span>แทนที่ทั้งหมด — ลบรายการในฐานข้อมูลที่ไม่มีอยู่ในไฟล์ (ไม่ติ๊ก = เพิ่ม/ทับเฉพาะที่มีในไฟล์)</span></label>' +
-        '<div class="text-[14px] text-fg-soft" id="restoreSummary"></div>' +
+        '<div class="fs-14 text-fg-soft" id="restoreSummary"></div>' +
         '<button class="btn btn-destructive mt-auto self-start" type="button" id="restoreBtn" disabled>กู้คืนข้อมูล</button>' +
       '</section>' +
       '<section class="' + CARD + ' flex flex-col gap-3">' +
-        '<h2 class="m-0 text-[17px] font-semibold text-fg">ดึงข้อมูลล่าสุดจาก Google Sheets</h2>' +
-        '<p class="m-0 text-[14.5px] text-fg-soft">อ่านชีตตัวเดียวกับที่หน้าเว็บใช้อยู่ แล้วเขียนทับลงฐานข้อมูลนี้ ให้ระบบสำรองมีข้อมูลตรงกับหน้าเว็บจริงเสมอ</p>' +
-        '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 text-[14px] text-gold-ink">ข้อมูลการแข่งขันถูกเขียนทับจากชีตทุกรอบ — สิ่งที่แก้ในหน้านี้เอง (ยกเว้นแบนเนอร์) จะหายในรอบถัดไป ให้แก้ที่ชีตเท่านั้น</p>' +
-        '<p class="m-0 text-[14px] text-fg-soft" id="lastSync">ซิงก์ล่าสุด: กำลังตรวจ…</p>' +
+        '<h2 class="m-0 fs-17 font-semibold text-fg">ดึงข้อมูลล่าสุดจาก Google Sheets</h2>' +
+        '<p class="m-0 fs-14.5 text-fg-soft">อ่านชีตตัวเดียวกับที่หน้าเว็บใช้อยู่ แล้วเขียนทับลงฐานข้อมูลนี้ ให้ระบบสำรองมีข้อมูลตรงกับหน้าเว็บจริงเสมอ</p>' +
+        '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 fs-14 text-gold-ink">ข้อมูลการแข่งขันถูกเขียนทับจากชีตทุกรอบ — สิ่งที่แก้ในหน้านี้เอง (ยกเว้นแบนเนอร์) จะหายในรอบถัดไป ให้แก้ที่ชีตเท่านั้น</p>' +
+        '<p class="m-0 fs-14 text-fg-soft" id="lastSync">ซิงก์ล่าสุด: กำลังตรวจ…</p>' +
         '<button class="btn mt-auto self-start" type="button" id="syncBtn">ดึงจาก Google Sheets เดี๋ยวนี้</button>' +
       '</section>' +
     '</div>' +
-    '<section class="' + PANEL + '"><div class="border-b border-line px-5 py-3.5"><h2 class="m-0 text-[15px] font-semibold text-fg">บันทึกการทำงาน</h2></div>' +
-      '<ol class="m-0 flex max-h-[320px] list-none flex-col gap-1 overflow-y-auto px-5 py-4 font-mono text-[13.5px] text-fg-soft" id="log">' +
+    '<section class="' + PANEL + '"><div class="border-b border-line px-5 py-3.5"><h2 class="m-0 fs-15 font-semibold text-fg">บันทึกการทำงาน</h2></div>' +
+      '<ol class="m-0 flex max-h-[320px] list-none flex-col gap-1 overflow-y-auto px-5 py-4 font-mono fs-13.5 text-fg-soft" id="log">' +
         '<li class="text-fg-mute">ยังไม่มีการทำงาน</li></ol></section>';
 
   $('exportBtn').addEventListener('click', function () { runTask($('exportBtn'), exportBackup); });
@@ -754,7 +768,7 @@ async function showLastSync() {
   // ซิงก์อัตโนมัติทุก 15 นาที — เกินชั่วโมงแปลว่ารอบอัตโนมัติล้มหรือถูกปิด ให้เห็นเป็นสีเตือน
   var stale = mins > 60;
   n.innerHTML = 'ซิงก์ล่าสุด: <strong class="' + (stale ? 'text-destructive' : 'text-done') + '">' + esc(thaiDateTime(ts)) + '</strong> (' + esc(ago) + ')' +
-    '<br><span class="text-[13px] text-fg-mute">ระบบซิงก์ให้เองทุก 15 นาที' + (stale ? ' — ค้างเกิน 1 ชั่วโมง ตรวจแท็บ Actions ใน GitHub' : '') + '</span>';
+    '<br><span class="fs-13 text-fg-mute">ระบบซิงก์ให้เองทุก 15 นาที' + (stale ? ' — ค้างเกิน 1 ชั่วโมง ตรวจแท็บ Actions ใน GitHub' : '') + '</span>';
 }
 
 function log(text, tone) {
@@ -908,7 +922,14 @@ async function syncFromSheets() {
   // ชีตไม่มีแท็บภาพ/อ่านไม่ได้ = ได้ภาพ 0 รูป อย่าเอาไปล้างภาพที่มีอยู่ทิ้ง
   if (r.photos.length) {
     steps.push(['ล้างภาพเดิม', function () { return db.from('photos').delete().neq('id', '00000000-0000-0000-0000-000000000000'); }]);
-    steps.push(['ภาพ', function () { return db.from('photos').insert(r.photos); }]);
+    steps.push(['ภาพ', async function () {
+      var res = await db.from('photos').insert(r.photos);
+      if (res.error && isMissingPhotoColumns(res.error.message)) {
+        log('  ฐานข้อมูลยังไม่มีคอลัมน์วันที่ของภาพ — บันทึกภาพโดยไม่มีวันที่ไปก่อน', 'error');
+        res = await db.from('photos').insert(withoutPhotoDays(r.photos));
+      }
+      return res;
+    }]);
   }
 
   for (var i = 0; i < steps.length; i++) {
@@ -921,6 +942,109 @@ async function syncFromSheets() {
   await loadSports();
   log('ดึงข้อมูลจาก Google Sheets เสร็จแล้ว', 'ok');
   setSaveState('ซิงก์จากชีตแล้ว');
+}
+
+
+/* =========================================================
+   มุมมอง "ประมวลภาพ (Google Drive)" — แก้ลิงก์โฟลเดอร์ / โฟลเดอร์ที่ซ่อน
+   เก็บใน site_settings (GALLERY_KEYS) · หน้าประมวลภาพอ่านค่านี้ก่อนค่าในไฟล์ gallery-config.js
+   ========================================================= */
+
+async function renderGalleryView() {
+  $('viewBody').innerHTML = '<div class="' + CARD + ' text-[14.5px] text-fg-mute">กำลังโหลด…</div>';
+  var res = await db.from('site_settings').select('key,value').in('key', [GALLERY_KEYS.folder, GALLERY_KEYS.hidden]);
+  if (current.id !== 'gallery') return;
+  if (res.error) { setPanelError('โหลดค่าไม่สำเร็จ: ' + missingSchemaHint(res.error)); $('viewBody').innerHTML = ''; return; }
+
+  var saved = {};
+  (res.data || []).forEach(function (r) { saved[r.key] = r.value; });
+  var fromCms = GALLERY_KEYS.folder in saved && String(saved[GALLERY_KEYS.folder]).trim();
+  var folder = fromCms ? saved[GALLERY_KEYS.folder] : DRIVE_FOLDER;
+  var hiddenText = GALLERY_KEYS.hidden in saved ? saved[GALLERY_KEYS.hidden] : (HIDDEN_FOLDERS || []).join('\n');
+
+  $('viewBody').innerHTML =
+    '<form class="' + CARD + ' flex max-w-[820px] flex-col gap-5" id="galleryForm">' +
+      '<p class="m-0 rounded-sm border px-3.5 py-2.5 text-[14px] ' + (fromCms ? 'border-done/30 bg-done-bg text-done' : 'border-gold/40 bg-gold/15 text-gold-ink') + '">' +
+        (fromCms ? 'หน้าประมวลภาพใช้ค่าจาก CMS นี้อยู่' : 'ยังไม่เคยบันทึกใน CMS — ตอนนี้หน้าเว็บใช้ค่าในไฟล์ gallery-config.js (แสดงไว้ในช่องด้านล่าง) กดบันทึกเพื่อให้ CMS เป็นตัวกำหนด') +
+      '</p>' +
+      '<div>' +
+        '<label class="label mb-2" for="gFolder">ลิงก์โฟลเดอร์แม่ใน Google Drive <span class="-ml-1 text-destructive">*</span></label>' +
+        '<input class="input" id="gFolder" type="url" required placeholder="https://drive.google.com/drive/folders/…" value="' + esc(folder) + '" />' +
+        '<p class="mt-1.5 text-[13.5px] text-fg-mute">โฟลเดอร์ที่มีโฟลเดอร์กีฬาอยู่ข้างใน (กีฬา → วัน → รูป) · ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้" · คัดลอกจากปุ่ม "แชร์" ของโฟลเดอร์ใน Drive</p>' +
+      '</div>' +
+      '<div>' +
+        '<label class="label mb-2" for="gHidden">โฟลเดอร์ที่ไม่แสดงบนเว็บ</label>' +
+        '<textarea class="textarea min-h-[96px]" id="gHidden" rows="4" placeholder="เช่น การประชุมคณะกรรมการ">' + esc(hiddenText) + '</textarea>' +
+        '<p class="mt-1.5 text-[13.5px] text-fg-mute">บรรทัดละชื่อ สะกดตรงตามชื่อโฟลเดอร์ใน Drive · อีกทางหนึ่ง: ตั้งชื่อโฟลเดอร์ใน Drive ให้ขึ้นต้นด้วย _ ก็ซ่อนได้</p>' +
+      '</div>' +
+      '<div class="flex flex-wrap items-center gap-2.5">' +
+        '<button class="btn btn-outline" type="button" id="gCheck">ตรวจสอบลิงก์</button>' +
+        '<button class="btn" type="submit" id="gSave">บันทึก</button>' +
+        '<a class="btn btn-ghost ml-auto text-fg-soft" href="../gallery.html" target="_blank" rel="noopener">เปิดหน้าประมวลภาพ ↗</a>' +
+      '</div>' +
+      '<div id="gResult"></div>' +
+    '</form>';
+
+  $('gCheck').addEventListener('click', function () { runGalleryCheck(); });
+  $('galleryForm').addEventListener('submit', saveGallerySettings);
+}
+
+/** อ่านโฟลเดอร์จริงจาก Drive แล้วแสดงว่าเจออะไร — กันบันทึกลิงก์ผิด/ยังไม่แชร์ขึ้นเว็บ */
+async function runGalleryCheck() {
+  var out = $('gResult');
+  out.innerHTML = '<p class="m-0 text-[14px] text-fg-mute">กำลังอ่านโฟลเดอร์จาก Google Drive…</p>';
+  $('gCheck').disabled = true;
+  var r = await checkDriveFolder($('gFolder').value, parseHiddenFolders($('gHidden').value));
+  $('gCheck').disabled = false;
+
+  if (!r.ok) {
+    out.innerHTML = '<p class="m-0 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14px] text-destructive">อ่านโฟลเดอร์ไม่ได้: ' + esc(r.error) + '</p>';
+    return r;
+  }
+  if (!r.folders.length) {
+    out.innerHTML = '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 text-[14px] text-gold-ink">' +
+      'เปิดลิงก์ได้ แต่ไม่พบโฟลเดอร์ข้างใน — ตรวจว่าเป็นลิงก์ "โฟลเดอร์แม่" (ที่มีโฟลเดอร์กีฬาอยู่ข้างใน) และแชร์แบบ "ทุกคนที่มีลิงก์ดูได้"</p>';
+    r.ok = false;
+    return r;
+  }
+  var shown = r.folders.filter(function (f) { return !f.hidden; });
+  out.innerHTML =
+    '<p class="m-0 mb-2.5 rounded-sm border border-done/30 bg-done-bg px-3.5 py-2.5 text-[14px] text-done">อ่านได้ ✓ พบ ' + r.folders.length + ' โฟลเดอร์ · แสดงบนเว็บ ' + shown.length + ' โฟลเดอร์</p>' +
+    '<ul class="m-0 flex list-none flex-col divide-y divide-line rounded-sm border border-line p-0">' +
+      r.folders.map(function (f) {
+        var tag = f.hidden ? '<span class="badge badge-upcoming">ซ่อน</span>'
+          : f.days ? '<span class="badge badge-done">' + f.days + ' วัน</span>'
+          : '<span class="badge badge-secondary">แท็บของตัวเอง</span>';
+        return '<li class="flex items-center gap-3 px-3.5 py-2 text-[14.5px]' + (f.hidden ? ' text-fg-mute line-through' : '') + '">' +
+          '<span class="min-w-0 flex-1 truncate">' + esc(f.name) + '</span>' + tag + '</li>';
+      }).join('') +
+    '</ul>' +
+    '<p class="mt-2 mb-0 text-[13px] text-fg-mute">"N วัน" = มีโฟลเดอร์วันข้างใน (รวมเข้าแท็บวัน) · "แท็บของตัวเอง" = ไม่มีโฟลเดอร์วัน (เช่น พิธีเปิด) เป็นแท็บชื่อโฟลเดอร์</p>';
+  return r;
+}
+
+async function saveGallerySettings(event) {
+  event.preventDefault();
+  var link = $('gFolder').value.trim();
+  if (!driveFolderId(link)) {
+    $('gResult').innerHTML = '<p class="m-0 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14px] text-destructive">ไม่ใช่ลิงก์โฟลเดอร์ Google Drive — ลิงก์ต้องมี /drive/folders/ อยู่ข้างใน</p>';
+    return;
+  }
+  // ตรวจก่อนบันทึกเสมอ — บันทึกลิงก์ที่อ่านไม่ได้ = หน้าประมวลภาพของผู้ชมทุกคนไม่มีรูปทันที
+  $('gSave').disabled = true;
+  var check = await runGalleryCheck();
+  if (!check.ok && !confirm('ตรวจลิงก์ไม่ผ่าน — หน้าประมวลภาพจะไม่มีรูปจนกว่าจะแก้\nบันทึกต่อไปหรือไม่?')) {
+    $('gSave').disabled = false;
+    return;
+  }
+  var res = await db.from('site_settings').upsert([
+    { key: GALLERY_KEYS.folder, value: link },
+    { key: GALLERY_KEYS.hidden, value: parseHiddenFolders($('gHidden').value).join('\n') }
+  ], { onConflict: 'key' });
+  $('gSave').disabled = false;
+  if (res.error) { setPanelError('บันทึกไม่สำเร็จ: ' + friendlyError(res.error)); return; }
+  setSaveState('บันทึกแล้ว — ผู้ชมรีเฟรชหน้าก็เห็นผล');
+  renderGalleryView();
 }
 
 /* =========================================================
@@ -961,6 +1085,8 @@ function selectView(id) {
   } else if (current.kind === 'backup') {
     pendingRestore = null;
     renderBackupView();
+  } else if (current.kind === 'gallery') {
+    renderGalleryView();
   }
 }
 
@@ -1090,7 +1216,7 @@ function setForgotMsg(text, tone) {
   var n = $('forgotMsg');
   n.textContent = text;
   n.hidden = !text;
-  n.className = 'm-0 rounded-lg border px-3.5 py-2.5 text-[14px] ' + (tone === 'error'
+  n.className = 'm-0 rounded-lg border px-3.5 py-2.5 fs-14 ' + (tone === 'error'
     ? 'border-destructive/30 bg-destructive/10 text-destructive'
     : 'border-done/30 bg-done-bg text-done');
 }

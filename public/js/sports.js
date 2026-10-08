@@ -36,7 +36,7 @@ function renderSports(data) {
       ' motion-reduce:transition-none',
       artBlock(sp, 'h-[200px]', 'size-[104px]') +
       '<div class="px-[15px] pt-[13px] pb-3.5">' +
-        '<p class="m-0 font-display text-[17px]">' + esc(sp.name) + '</p>' +
+        '<p class="m-0 font-display fs-17">' + esc(sp.name) + '</p>' +
       '</div>');
     card.href = 'schedule.html?sport=' + encodeURIComponent(sp.id);
     card.setAttribute('aria-label', 'ตารางการแข่งขัน ' + sp.name);

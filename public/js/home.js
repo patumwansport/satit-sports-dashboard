@@ -131,11 +131,11 @@ function heroSlide(data, day, p, idx, total) {
       ? '<figcaption class="absolute inset-x-0 bottom-0 bg-linear-to-t from-[oklch(16%_0.02_260/.94)] via-[oklch(16%_0.02_260/.72)] via-42% to-[oklch(16%_0.02_260/0)] px-[22px] pt-[46px] pb-5 max-[560px]:px-4 max-[560px]:pt-10 max-[560px]:pb-4">' +
           '<span class="mb-[9px] flex flex-wrap items-center gap-2">' +
             statusChip(status) +
-            (sport ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[13px] text-white">' + esc(sport) + '</span>' : '') +
-            (dayLabel(day) ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 text-[13px] text-white">' + esc(dayLabel(day)) + '</span>' : '') +
+            (sport ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 fs-13 text-white">' + esc(sport) + '</span>' : '') +
+            (dayLabel(day) ? '<span class="rounded-full bg-white/[.18] px-[11px] py-1 fs-13 text-white">' + esc(dayLabel(day)) + '</span>' : '') +
           '</span>' +
-          '<p class="m-0 max-w-[34ch] font-display text-[22.5px] leading-[1.35] text-balance text-white max-[560px]:text-[20px]">' + esc(p.caption || sport) + '</p>' +
-          '<p class="mt-1.5 text-[14px] text-white/[.82]">' +
+          '<p class="m-0 max-w-[34ch] font-display fs-22.5 leading-[1.35] text-balance text-white max-[560px]:fs-20">' + esc(p.caption || sport) + '</p>' +
+          '<p class="mt-1.5 fs-14 text-white/[.82]">' +
             [p.time, p.venue, p.credit ? 'ภาพ: ' + p.credit : ''].filter(Boolean).map(esc).join(' · ') +
           '</p>' +
         '</figcaption>'
@@ -204,11 +204,11 @@ var CARD_WIDE = {
   icIcon: ' min-[700px]:size-[25px]',
   art: ' min-[700px]:min-h-[56px] min-[700px]:w-[46px]',
   mascot: ' min-[700px]:max-h-[60px]',
-  sport: ' min-[700px]:text-[21.5px]',
-  kind: ' min-[700px]:text-[15px]',
+  sport: ' min-[700px]:fs-21.5',
+  kind: ' min-[700px]:fs-15',
   body: ' min-[700px]:col-start-2 min-[700px]:row-span-2 min-[700px]:row-start-1 min-[700px]:border-l min-[700px]:border-line min-[700px]:py-1 min-[700px]:pl-[30px]',
-  score: ' min-[700px]:text-[40.5px]',
-  crest: ' min-[700px]:size-[52px] min-[700px]:text-[22.5px]',
+  score: ' min-[700px]:fs-40.5',
+  crest: ' min-[700px]:size-[52px] min-[700px]:fs-22.5',
   foot: ' min-[700px]:col-start-1 min-[700px]:row-start-2 min-[700px]:border-t-0 min-[700px]:pt-0.5'
 };
 
@@ -220,11 +220,11 @@ var CARD_REVERT = {
   icIcon: ' min-[1000px]:size-[22px]',
   art: ' min-[1000px]:min-h-[46px] min-[1000px]:w-[38px]',
   mascot: ' min-[1000px]:max-h-[50px]',
-  sport: ' min-[1000px]:text-[17.5px]',
-  kind: ' min-[1000px]:text-[14px]',
+  sport: ' min-[1000px]:fs-17.5',
+  kind: ' min-[1000px]:fs-14',
   body: ' min-[1000px]:border-l-0 min-[1000px]:py-0.5 min-[1000px]:pl-0',
-  score: ' min-[1000px]:text-[30.5px]',
-  crest: ' min-[1000px]:size-11 min-[1000px]:text-[20px]',
+  score: ' min-[1000px]:fs-30.5',
+  crest: ' min-[1000px]:size-11 min-[1000px]:fs-20',
   foot: ' min-[1000px]:border-t min-[1000px]:pt-[11px]'
 };
 
@@ -260,30 +260,33 @@ function matchCard(data, item, cores, mode) {
   }
   if (live) lead = ['text-live', 'text-live'];
 
-  var teamBox = 'flex min-w-0 flex-col items-center gap-2 text-center';
-  var crestSize = 'size-11 text-[20px]' + w.crest + r.crest;
+  var crestSize = 'size-11 fs-20' + w.crest + r.crest;
   // ไม่ย่อลงบนมือถือ: มือถือคือจอหลักของเว็บนี้ และชื่อโรงเรียนคือสิ่งที่ต้องอ่านออก
   // ตั้งแต่แวบแรกว่าคู่ไหนเป็นของเรา
-  var nameCls = 'text-[15px] leading-[1.35] ';
-  var scoreBox = '<div class="flex items-baseline gap-[7px] font-mono text-[30.5px] tabular-nums' + w.score + r.score + '">';
+  var nameCls = 'fs-15 leading-[1.35] ';
+  var scoreBox = '<div class="flex items-baseline gap-[7px] font-mono fs-30.5 tabular-nums' + w.score + r.score + '">';
   var bodyBox = '<div class="grid items-center gap-2.5 py-0.5' + w.body + r.body;
 
   var body;
   if (sides.length >= 2) {
     var selfA = matchScore(sides[0], cores) > 0, selfB = matchScore(sides[1], cores) > 0;
+    // แยกตรากับชื่อเป็นคนละแถว: ตราสองฝั่งและสกอร์อยู่แนวเดียวกันเสมอ ชื่อชิดบนใต้ตรา
+    // ชื่อยาวที่ตัดสองบรรทัดจึงไม่ดันตราฝั่งนั้นให้เยื้องขึ้นจากอีกฝั่ง · สองคอลัมน์ข้างกว้างเท่ากันเป๊ะ
+    var nameA = 'col-start-1 row-start-2 min-w-0 self-start text-center ' + nameCls + (selfA ? 'text-fg' : 'text-fg-soft');
+    var nameB = 'col-start-3 row-start-2 min-w-0 self-start text-center ' + nameCls + (selfB ? 'text-fg' : 'text-fg-soft');
     body =
-      bodyBox + ' grid-cols-[1fr_auto_1fr]">' +
-        '<div class="' + teamBox + '">' + crest(data, sides[0], crestSize, selfA) +
-          '<span class="' + nameCls + (selfA ? 'text-fg' : 'text-fg-soft') + '">' + esc(sides[0]) + '</span></div>' +
-        scoreBox +
+      bodyBox + ' grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-y-2">' +
+        '<div class="col-start-1 row-start-1 flex justify-center">' + crest(data, sides[0], crestSize, selfA) + '</div>' +
+        scoreBox.replace('class="', 'class="col-start-2 row-start-1 self-center ') +
           (score
             ? '<span class="' + lead[0] + '">' + esc(score[0]) + '</span>' +
-              '<span class="text-[21.5px] text-fg-mute" aria-hidden="true">–</span>' +
+              '<span class="fs-21.5 text-fg-mute" aria-hidden="true">–</span>' +
               '<span class="' + lead[1] + '">' + esc(score[1]) + '</span>'
-            : '<span class="font-body text-[15.5px] text-fg-soft">' + esc(item.time || 'รอเริ่ม') + '</span>') +
+            : '<span class="font-body fs-15.5 text-fg-soft">' + esc(item.time || 'รอเริ่ม') + '</span>') +
         '</div>' +
-        '<div class="' + teamBox + '">' + crest(data, sides[1], crestSize, selfB) +
-          '<span class="' + nameCls + (selfB ? 'text-fg' : 'text-fg-soft') + '">' + esc(sides[1]) + '</span></div>' +
+        '<div class="col-start-3 row-start-1 flex justify-center">' + crest(data, sides[1], crestSize, selfB) + '</div>' +
+        '<span class="' + nameA + '">' + esc(sides[0]) + '</span>' +
+        '<span class="' + nameB + '">' + esc(sides[1]) + '</span>' +
       '</div>';
   } else {
     // รายการที่ไม่ใช่การพบกันสองฝ่าย: ทีมเดียวเรียงแนวนอนชิดซ้าย ไม่ต้องมีคอลัมน์ว่างคู่กัน
@@ -291,7 +294,7 @@ function matchCard(data, item, cores, mode) {
       bodyBox + ' grid-cols-[1fr_auto]">' +
         '<div class="flex min-w-0 flex-row items-center gap-2 text-left">' + crest(data, sides[0] || sport, crestSize) +
           '<span class="' + nameCls + 'text-fg-soft">' + esc(sides[0] || 'รวมทุกโรงเรียน') + '</span></div>' +
-        scoreBox + '<span class="font-body text-[15.5px] text-fg-soft">' + esc(item.score || item.time || '') + '</span></div>' +
+        scoreBox + '<span class="font-body fs-15.5 text-fg-soft">' + esc(item.score || item.time || '') + '</span></div>' +
       '</div>';
   }
 
@@ -313,15 +316,15 @@ function matchCard(data, item, cores, mode) {
     '<div class="flex min-h-[46px] items-start gap-2.5' + w.top + r.top + '">' +
       badge +
       '<span class="flex min-w-0 flex-1 flex-col gap-0.5">' +
-        '<span class="font-display text-[17.5px] leading-[1.3] text-fg' + w.sport + r.sport + '">' + esc(head.sport) + '</span>' +
-        (head.kind ? '<span class="text-[14px] leading-[1.4] text-fg-mute' + w.kind + r.kind + '">' + esc(head.kind) + '</span>' : '') +
+        '<span class="font-display fs-17.5 leading-[1.3] text-fg' + w.sport + r.sport + '">' + esc(head.sport) + '</span>' +
+        (head.kind ? '<span class="fs-14 leading-[1.4] text-fg-mute' + w.kind + r.kind + '">' + esc(head.kind) + '</span>' : '') +
       '</span>' +
       // สีสถานะเหลือไว้เฉพาะ "สด" ที่เป็นข้อมูลจริง ๆ ของแมตช์ที่กำลังเกิดขึ้น
       (live ? '<span class="mt-[3px] flex-none">' + statusChip('live') + '</span>' : '') +
     '</div>' +
     body +
     // ชีตกรอกว่า "ไม่เป็นทางการ" = กรรมการยังไม่รับรองผล ต้องบอกไว้ ไม่ปล่อยให้อ่านเป็นผลรับรองแล้ว
-    (foot ? '<p class="m-0 border-t border-line pt-[11px] text-[14px] text-fg-mute' + w.foot + r.foot + '">' + foot + '</p>' : ''));
+    (foot ? '<p class="m-0 border-t border-line pt-[11px] fs-14 text-fg-mute' + w.foot + r.foot + '">' + foot + '</p>' : ''));
 }
 
 /**
@@ -409,8 +412,8 @@ function renderLive(data, day) {
    ========================================================= */
 var MEDAL_KINDS = [['gold', 'ทอง', 'bg-gold', 1], ['silver', 'เงิน', 'bg-silver-ink', 2], ['bronze', 'ทองแดง', 'bg-bronze', 3]];
 
-var RB_MEDAL = 'inline-flex items-center gap-[6px] text-[15px] whitespace-nowrap text-fg-soft';
-var RB_NUM = 'font-mono text-[21px] font-normal text-fg tabular-nums max-[860px]:text-[20px]';
+var RB_MEDAL = 'inline-flex items-center gap-[6px] fs-15 whitespace-nowrap text-fg-soft';
+var RB_NUM = 'font-mono fs-21 font-normal text-fg tabular-nums max-[860px]:fs-20';
 /** จุดคั่นระหว่างวลีในแถบเลื่อน ให้อ่านเป็นประโยคเดียวต่อเนื่อง */
 // เป็นวงกลมที่วาดเอง ไม่ใช่ตัว "·" — จุดกลางของฟอนต์ Srinakharinwirot เล็กมากและจมต่ำกว่ากลางบรรทัด
 var RB_SEP = '<span class="mx-4 size-[5px] flex-none rounded-full bg-line-strong max-[560px]:mx-3" aria-hidden="true"></span>';
@@ -460,9 +463,9 @@ function renderRankBar(data) {
     ท้ายรอบมีเครื่องหมายเหรียญคั่นกว้าง ๆ รอบถัดไปจะได้ไม่อ่านติดกันเป็น "…129 เหรียญ อันดับ 1" */
 function rankTickerItem(all, self) {
   return '<p class="m-0 flex flex-none items-baseline gap-2 pl-6 whitespace-nowrap max-[560px]:pl-4">' +
-      '<span class="text-[15px] text-fg-soft">อันดับ</span>' +
-      '<b class="font-mono text-[44px] leading-[.9] font-normal text-brand-strong tabular-nums max-[860px]:text-[38px]">' + self.rank + '</b>' +
-      '<span class="text-[15px] text-fg-soft">จาก ' + all.length + ' โรงเรียน</span></p>' +
+      '<span class="fs-15 text-fg-soft">อันดับ</span>' +
+      '<b class="font-mono fs-44 leading-[.9] font-normal text-brand-strong tabular-nums max-[860px]:fs-38">' + self.rank + '</b>' +
+      '<span class="fs-15 text-fg-soft">จาก ' + all.length + ' โรงเรียน</span></p>' +
     RB_SEP +
     // โลโก้โรงเรียนฉบับเต็ม (ตรา + ชื่อในรูป) ชุดเดียวกับแถบเมนูซ้าย — โหมดมืดใช้ฉบับตัวขาว
     // สองไฟล์สัดส่วนเท่ากัน (3.63) สลับธีมแล้วความกว้างแถบไม่เปลี่ยน รอบเลื่อนจึงยังต่อกันพอดี
@@ -525,9 +528,39 @@ function rowArt(sportId, tone) {
    แถวเป็นตัวอักษรล้วน ไม่มีไอคอน — เวลาอยู่หน้าสุดเพราะคือสิ่งที่คนมองหาในกำหนดการ */
 var PLAN_TOP = 8;
 
+/** ป้าย LIVE เคลื่อนไหว กดแล้วเปิดลิงก์ถ่ายทอดสดในแท็บใหม่ (ลิงก์ผ่าน webLink() ใน sheets.js มาแล้ว = http/https เท่านั้น) */
+function liveLink(url) {
+  return '<a class="inline-flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-live" href="' + esc(url) +
+    '" target="_blank" rel="noopener noreferrer" title="ดูถ่ายทอดสด">' +
+    '<img class="block h-[26px] w-auto" src="assets/icons/live.svg" alt="ดูถ่ายทอดสด" width="84" height="30" /></a>';
+}
+
+/** แถวเดียวกันในแท็บผลการแข่งขัน (กีฬา/ประเภท/เวลา/คู่แข่งตรงกัน) — ใช้หยิบผลและสถานะมาใส่กำหนดการ */
+function sameMatch(a, b) {
+  return a.sportId === b.sportId && a.event === b.event && a.time === b.time && a.teams === b.teams;
+}
+
+/**
+ * รายการของวันนี้: ยึดแท็บ "ตารางการแข่งขัน" (ผังทั้งรายการ มีลิงก์ Live) เป็นหลัก
+ * แท็บนั้นไม่มีช่องผล/สถานะ จึงเติมผลจากแท็บ "ผลการแข่งขัน" ของแถวที่ตรงกัน
+ * ผังไม่มีวันนี้แต่แท็บผลมี = ใช้แท็บผลแทน (เหมือนก่อนแยกสองแท็บ)
+ */
+function todayPlan(data) {
+  var plan = (data.schedule || []).filter(isToday)[0];
+  var results = (data.days || []).filter(isToday)[0];
+  if (!plan) return results;
+  var done = (results && results.items) || [];
+  return Object.assign({}, plan, {
+    items: plan.items.map(function (i) {
+      var r = done.filter(function (x) { return sameMatch(i, x); })[0];
+      return r ? Object.assign({}, i, r, { liveUrl: i.liveUrl || r.liveUrl }) : i;
+    })
+  });
+}
+
 function renderPlan(data) {
   var host = document.getElementById('plan'); host.innerHTML = '';
-  var today = (data.days || []).filter(isToday)[0];
+  var today = todayPlan(data);
   document.getElementById('planDay').textContent = dayLabel(today || todayLabel());
   var items = ((today && today.items) || []).slice()
     .sort(function (a, b) { return String(a.time || '99').localeCompare(String(b.time || '99')); });
@@ -541,20 +574,22 @@ function renderPlan(data) {
     var tail = i.status === 'live'
       ? statusChip('live')
       : done
-        ? '<span class="font-mono text-[15.5px] whitespace-nowrap text-fg-mute tabular-nums">' + esc(i.score || 'จบแล้ว') + '</span>'
+        ? '<span class="font-mono fs-15.5 whitespace-nowrap text-fg-mute tabular-nums">' + esc(i.score || 'จบแล้ว') + '</span>'
         : '';
+    // มีลิงก์ถ่ายทอดสดและยังไม่จบ = ป้าย LIVE แทนป้ายสถานะ (จบแล้วโชว์ผลตามเดิม)
+    if (i.liveUrl && !done) tail = liveLink(i.liveUrl);
     host.appendChild(el('div', 'grid grid-cols-[52px_1fr_auto] items-center gap-[13px] border-t border-line py-3 first:border-t-0 max-[560px]:grid-cols-[44px_1fr_auto]' + (done ? ' text-fg-mute' : ''),
-      '<span class="font-mono text-[15.5px] tabular-nums ' + (i.status === 'live' ? 'text-live' : done ? 'text-fg-mute' : 'text-fg') + '">' + esc(i.time || '—') + '</span>' +
+      '<span class="font-mono fs-15.5 tabular-nums ' + (i.status === 'live' ? 'text-live' : done ? 'text-fg-mute' : 'text-fg') + '">' + esc(i.time || '—') + '</span>' +
       '<span class="min-w-0">' +
-        '<p class="mb-[3px] text-[17px]' + (done ? ' text-fg-soft' : '') + '">' + esc(head.sport) +
-          (head.kind ? ' <span class="text-[14.5px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
-        '<p class="m-0 text-[14.5px] ' + (done ? 'text-fg-mute' : 'text-fg-soft') + '">' + esc(i.teams || where || '') +
+        '<p class="mb-[3px] fs-17' + (done ? ' text-fg-soft' : '') + '">' + esc(head.sport) +
+          (head.kind ? ' <span class="fs-14.5 text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
+        '<p class="m-0 fs-14.5 ' + (done ? 'text-fg-mute' : 'text-fg-soft') + '">' + esc(i.teams || where || '') +
           (i.teams && where ? ' <span class="text-fg-mute">· ' + esc(where) + '</span>' : '') + '</p>' +
       '</span>' +
       '<span>' + tail + '</span>'));
   });
   if (items.length > PLAN_TOP) {
-    host.appendChild(el('p', 'm-0 border-t border-line pt-3 text-[14px] text-fg-mute',
+    host.appendChild(el('p', 'm-0 border-t border-line pt-3 fs-14 text-fg-mute',
       'และอีก ' + (items.length - PLAN_TOP) + ' รายการ'));
   }
 }
@@ -566,26 +601,42 @@ function todayLabel() {
 }
 
 /* ===================== ประกาศผลล่าสุด ===================== */
+/** สกอร์ในแผงผลล่าสุด: แต้มของโรงเรียนเราเป็นสีน้ำเงิน แต้มของโรงเรียนอื่นเป็นสีเทา
+    สกอร์ที่แยกฝั่งไม่ได้ (ไม่ใช่ "ตัวเลข-ตัวเลข" หรือไม่ใช่การพบกันสองฝ่าย) ใช้สีเดียวทั้งก้อนตามว่ามีเราอยู่ในคู่ไหม */
+function timelineScore(item, cores) {
+  var sides = teamSides(item.teams);
+  var score = splitScore(item.score);
+  var tone = function (name) { return matchScore(name, cores) > 0 ? 'text-brand-strong' : 'text-fg-mute'; };
+  if (!score || sides.length < 2) {
+    return '<span class="' + tone(item.teams || '') + '">' + esc(item.score) + '</span>';
+  }
+  return '<span class="' + tone(sides[0]) + '">' + esc(score[0]) + '</span>' +
+    '<span class="text-fg-mute">-</span>' +
+    '<span class="' + tone(sides[1]) + '">' + esc(score[1]) + '</span>';
+}
+
 function renderTimeline(data) {
   var host = document.getElementById('timeline'); host.innerHTML = '';
   var items = allDayItems(data).filter(function (i) { return i.status !== 'upcoming'; })
     .sort(function (a, b) { return a.status === 'live' ? -1 : 1; }).slice(0, 6);
   if (!items.length) { host.appendChild(el('div', EMPTY_TEXT, 'ยังไม่มีผลการแข่งขันประกาศ')); return; }
+  var self = data.medalTable.filter(function (m) { return m.isSelf; })[0];
+  var cores = self ? schoolCores(self) : [];
   items.forEach(function (i) {
     var head = eventParts(sportName(data, i.sportId), i.event);
     host.appendChild(el('div', 'grid grid-cols-[auto_1fr_auto] items-center gap-[13px] border-t border-line py-3 first:border-t-0',
       // ผลที่ประกาศแล้วใช้สีเน้นเดียวกับไอคอนบนการ์ดแมตช์ เหลือสีสถานะไว้ให้ "สด" ใบเดียว
       rowArt(i.sportId, i.status === 'live' ? 'bg-live-bg text-live' : 'bg-brand-100 text-brand-strong') +
       '<span>' +
-        '<p class="mb-[3px] text-[17px]">' + esc(head.sport) +
-          (head.kind ? ' <span class="text-[14.5px] text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
-        '<p class="m-0 text-[14.5px] text-fg-soft">' + esc(i.teams || i.score || '') + '</p>' +
+        '<p class="mb-[3px] fs-17">' + esc(head.sport) +
+          (head.kind ? ' <span class="fs-14.5 text-fg-mute">' + esc(head.kind) + '</span>' : '') + '</p>' +
+        '<p class="m-0 fs-14.5 text-fg-soft">' + esc(i.teams || i.score || '') + '</p>' +
       '</span>' +
       // ทั้งแผงคือผลที่ประกาศแล้ว ป้ายจึงเหลือไว้เฉพาะรายการที่ยังแข่งอยู่ ที่เหลือแสดงสกอร์แทน
       (i.status === 'live'
         ? statusChip('live')
         : (i.score
-            ? '<span class="font-mono text-[19px] whitespace-nowrap text-brand-strong tabular-nums">' + esc(i.score) + '</span>'
+            ? '<span class="font-mono fs-19 whitespace-nowrap tabular-nums">' + timelineScore(i, cores) + '</span>'
             : ''))));
   });
   paintUiIcons(host);

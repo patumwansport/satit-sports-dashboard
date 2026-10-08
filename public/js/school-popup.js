@@ -46,21 +46,21 @@ function matchRow(i, live) {
       (live ? 'border-[color-mix(in_oklch,var(--color-live)_25%,transparent)] bg-surface text-live' : 'border-line bg-surface-soft text-fg-soft') + '">' +
       sportIcon(i.sportId, 'size-[18px]') + '</span>' +
     '<span class="min-w-0">' +
-      '<span class="block text-[15px] leading-[1.35]">' + esc(i.event) + '</span>' +
-      '<span class="block text-[13px] leading-[1.35] text-fg-soft">' + esc(i.teams || '') + '</span>' +
+      '<span class="block fs-15 leading-[1.35]">' + esc(i.event) + '</span>' +
+      '<span class="block fs-13 leading-[1.35] text-fg-soft">' + esc(i.teams || '') + '</span>' +
     '</span>' +
     '<span class="flex flex-col items-end gap-0.5 text-right">' +
-      '<span class="font-mono text-[12.5px] whitespace-nowrap text-fg-mute">' + esc(i.dayLabel) + ' · ' + esc(i.time) + '</span>' +
+      '<span class="font-mono fs-12.5 whitespace-nowrap text-fg-mute">' + esc(i.dayLabel) + ' · ' + esc(i.time) + '</span>' +
       // สกอร์แสดงเฉพาะรายการที่แข่งแล้ว: ชีตบางแถวมีตัวเลขค้างไว้ก่อนเริ่มแข่ง
       (i.score && i.status !== 'upcoming'
-        ? '<span class="font-mono text-[17px] tabular-nums' + (live ? ' text-live' : '') + '">' + esc(i.score) + '</span>' : '') +
+        ? '<span class="font-mono fs-17 tabular-nums' + (live ? ' text-live' : '') + '">' + esc(i.score) + '</span>' : '') +
     '</span>' +
   '</li>';
 }
 
 function sectionHead(text, count) {
-  return '<p class="m-0 mt-4 mb-1 flex items-center gap-2 text-[13.5px] text-fg-mute">' + text +
-    (count != null ? ' <span class="rounded-full bg-surface-soft px-2 font-mono text-[12.5px] tabular-nums">' + count + '</span>' : '') + '</p>';
+  return '<p class="m-0 mt-4 mb-1 flex items-center gap-2 fs-13.5 text-fg-mute">' + text +
+    (count != null ? ' <span class="rounded-full bg-surface-soft px-2 font-mono fs-12.5 tabular-nums">' + count + '</span>' : '') + '</p>';
 }
 
 function paint(opening) {
@@ -89,7 +89,7 @@ function paint(opening) {
   var nowHtml;
   if (live.length) {
     nowHtml = '<div class="mt-4 rounded-md border border-[color-mix(in_oklch,var(--color-live)_32%,transparent)] bg-live-bg px-3.5 py-2.5">' +
-      '<p class="m-0 flex items-center gap-2 text-[14px] text-live">' +
+      '<p class="m-0 flex items-center gap-2 fs-14 text-live">' +
         '<span class="size-2 flex-none rounded-full bg-current motion-safe:animate-blink" aria-hidden="true"></span>' +
         'กำลังแข่งอยู่ตอนนี้ ' + live.length + ' รายการ</p>' +
       '<ul class="m-0 list-none p-0">' + live.map(function (i) { return matchRow(i, true); }).join('') + '</ul></div>';
@@ -98,21 +98,21 @@ function paint(opening) {
     nowHtml = sectionHead('รายการถัดไป', upcoming.length) +
       '<div class="flex items-center gap-3 rounded-md border border-line bg-surface-soft p-2.5">' +
         '<span class="flex flex-none flex-col items-center rounded-[9px] bg-brand-100 px-3 py-1.5 text-brand-strong">' +
-          '<span class="text-[12px]">' + esc(next.dayLabel) + '</span>' +
-          '<span class="font-mono text-[20px] leading-[1.1] tabular-nums">' + esc(next.time) + '</span></span>' +
+          '<span class="fs-12">' + esc(next.dayLabel) + '</span>' +
+          '<span class="font-mono fs-20 leading-[1.1] tabular-nums">' + esc(next.time) + '</span></span>' +
         '<span class="min-w-0">' +
-          '<span class="flex items-center gap-1.5 text-[15px] leading-[1.35]"><span class="text-brand-strong">' + sportIcon(next.sportId, 'size-4') + '</span>' + esc(next.event) + '</span>' +
-          '<span class="block text-[13px] text-fg-soft">' + esc(next.teams || '') + '</span></span>' +
+          '<span class="flex items-center gap-1.5 fs-15 leading-[1.35]"><span class="text-brand-strong">' + sportIcon(next.sportId, 'size-4') + '</span>' + esc(next.event) + '</span>' +
+          '<span class="block fs-13 text-fg-soft">' + esc(next.teams || '') + '</span></span>' +
       '</div>';
   } else {
-    nowHtml = '<p class="m-0 mt-4 rounded-md border border-line bg-surface-soft px-3.5 py-2.5 text-[14px] text-fg-soft">' +
+    nowHtml = '<p class="m-0 mt-4 rounded-md border border-line bg-surface-soft px-3.5 py-2.5 fs-14 text-fg-soft">' +
       (rows.length ? 'ไม่มีรายการที่ยังไม่แข่งเหลืออยู่' : 'ยังไม่มีรายการของโรงเรียนนี้ในตารางแข่งขัน') + '</p>';
   }
 
   var doneHtml = done.length
     ? sectionHead('ประกาศผลแล้ว', done.length) +
       '<ul class="m-0 list-none p-0">' + done.slice(0, RESULTS_PREVIEW).map(function (i) { return matchRow(i, false); }).join('') + '</ul>' +
-      (done.length > RESULTS_PREVIEW ? '<p class="m-0 mt-1 text-[13px] text-fg-mute">และอีก ' + (done.length - RESULTS_PREVIEW) + ' รายการ ดูได้ที่หน้าผลการแข่งขัน</p>' : '')
+      (done.length > RESULTS_PREVIEW ? '<p class="m-0 mt-1 fs-13 text-fg-mute">และอีก ' + (done.length - RESULTS_PREVIEW) + ' รายการ ดูได้ที่หน้าผลการแข่งขัน</p>' : '')
     : '';
 
   modal.innerHTML =
@@ -121,10 +121,10 @@ function paint(opening) {
 
       // หัวกล่อง: ตรา + ชื่อ + ปุ่มปิด — ค้างอยู่บนเสมอ ส่วนเนื้อหาข้างล่างเลื่อนได้
       '<div class="flex items-center gap-3 border-b border-line bg-linear-[165deg,var(--color-brand-100),var(--color-surface-soft)] py-3.5 pr-14 pl-4">' +
-        schoolCrest(m, 'size-12 text-[18px]') +
+        schoolCrest(m, 'size-12 fs-18') +
         '<div class="min-w-0">' +
-          (m.isSelf ? '<span class="mb-1 inline-block rounded-full bg-surface px-2.5 py-px text-[12.5px] text-brand-strong">โรงเรียนเรา</span>' : '') +
-          '<h2 class="m-0 font-display text-[18px] leading-[1.3] font-normal text-balance" id="schoolModalTitle">' + esc(m.fullName || m.school) + '</h2>' +
+          (m.isSelf ? '<span class="mb-1 inline-block rounded-full bg-surface px-2.5 py-px fs-12.5 text-brand-strong">โรงเรียนเรา</span>' : '') +
+          '<h2 class="m-0 font-display fs-18 leading-[1.3] font-normal text-balance" id="schoolModalTitle">' + esc(m.fullName || m.school) + '</h2>' +
         '</div>' +
         '<button class="btn btn-outline btn-icon absolute top-3 right-3 size-[38px] rounded-full bg-surface/85 text-fg-soft hover:text-fg" type="button" data-close aria-label="ปิดหน้าต่างรายละเอียด">' +
           '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>' +
@@ -135,17 +135,17 @@ function paint(opening) {
         // อันดับ + เหรียญ: สองตัวเลขที่คนเปิดมาดูก่อนอย่างอื่น
         '<div class="grid grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-line bg-surface-soft px-4 py-3">' +
           '<div class="border-r border-line pr-4 text-center">' +
-            '<p class="m-0 text-[12.5px] text-fg-mute">อันดับ</p>' +
-            '<p class="m-0 font-mono text-[34px] leading-[1.05] text-brand-strong tabular-nums">' + m.rank + '</p>' +
-            '<p class="m-0 text-[12px] text-fg-mute">จาก ' + list.length + '</p>' +
+            '<p class="m-0 fs-12.5 text-fg-mute">อันดับ</p>' +
+            '<p class="m-0 font-mono fs-34 leading-[1.05] text-brand-strong tabular-nums">' + m.rank + '</p>' +
+            '<p class="m-0 fs-12 text-fg-mute">จาก ' + list.length + '</p>' +
           '</div>' +
           '<div class="grid grid-cols-4 gap-1 text-center">' +
             MEDALS.map(function (k) {
               return '<div class="flex flex-col items-center gap-1">' + coin(k[1], 'size-6', k[2]) +
-                '<span class="font-mono text-[19px] leading-none tabular-nums' + (m[k[0]] ? '' : ' opacity-35') + '">' + m[k[0]] + '</span></div>';
+                '<span class="font-mono fs-19 leading-none tabular-nums' + (m[k[0]] ? '' : ' opacity-35') + '">' + m[k[0]] + '</span></div>';
             }).join('') +
-            '<div class="flex flex-col items-center gap-1"><span class="flex h-6 items-center text-[12.5px] text-fg-mute">รวม</span>' +
-              '<span class="font-mono text-[19px] leading-none text-brand-strong tabular-nums">' + total + '</span></div>' +
+            '<div class="flex flex-col items-center gap-1"><span class="flex h-6 items-center fs-12.5 text-fg-mute">รวม</span>' +
+              '<span class="font-mono fs-19 leading-none text-brand-strong tabular-nums">' + total + '</span></div>' +
           '</div>' +
         '</div>' +
         nowHtml + doneHtml +

@@ -12,11 +12,11 @@ import { hasSupabase } from './config.js';
 import { MONTHS_TH, isoDate } from './format.js';
 
 /** ป้ายสถานะ (สด / ประกาศแล้ว / รอเริ่ม) — โครงเดียว เปลี่ยนแค่คู่สีตามสถานะ */
-export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 text-[13px]';
+export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 fs-13';
 /** จุดกะพริบหน้าป้าย "กำลังแข่ง" — ย้อมตามสีข้อความของป้ายที่ครอบอยู่ */
 export var LIVE_DOT = '<span class="size-1.5 flex-none rounded-full bg-current motion-safe:animate-blink" aria-hidden="true"></span>';
 /** ข้อความบอกว่าไม่มีรายการ ใช้ตรงกลางพื้นที่ที่ควรมีตาราง/การ์ด */
-export var EMPTY_TEXT = 'p-[26px] text-center text-[14.5px] text-fg-mute';
+export var EMPTY_TEXT = 'p-[26px] text-center fs-14.5 text-fg-mute';
 
 /* ไอคอน UI ทั้งชุดวาดบนกริดเดียวกัน: viewBox 24, เส้นหนา 1.7, ปลายเส้นมน
    และรูปกินพื้นที่ราว 3.5–20.5 ทุกตัว เพื่อให้น้ำหนักสายตาเท่ากันเวลาเรียงในเมนู */
@@ -30,7 +30,8 @@ export var UI_ICONS = {
   live: "<circle cx='12' cy='12' r='2.4' fill='%23000'/><path d='M7.5 7.5a7 7 0 000 9M16.5 7.5a7 7 0 010 9M4.8 4.8a11 11 0 000 14.4M19.2 4.8a11 11 0 010 14.4' stroke='%23000' stroke-width='1.7' fill='none' stroke-linecap='round'/>",
   rank: "<path d='M3.5 20.5h17' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/><rect x='9.3' y='7.5' width='5.4' height='13' rx='1.2' stroke='%23000' stroke-width='1.7'/><rect x='3.6' y='12' width='5.4' height='8.5' rx='1.2' stroke='%23000' stroke-width='1.7'/><rect x='15' y='10' width='5.4' height='10.5' rx='1.2' stroke='%23000' stroke-width='1.7'/>",
   search: "<circle cx='11' cy='11' r='6.6' stroke='%23000' stroke-width='1.7'/><path d='M16.2 16.2l4.3 4.3' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/>",
-  table: "<rect x='3.5' y='4.5' width='17' height='15.5' rx='2.5' stroke='%23000' stroke-width='1.7'/><path d='M3.5 9.5h17M9.5 9.5V20' stroke='%23000' stroke-width='1.7'/>"
+  table: "<rect x='3.5' y='4.5' width='17' height='15.5' rx='2.5' stroke='%23000' stroke-width='1.7'/><path d='M3.5 9.5h17M9.5 9.5V20' stroke='%23000' stroke-width='1.7'/>",
+  photo: "<rect x='3.5' y='4.5' width='17' height='15' rx='2.5' stroke='%23000' stroke-width='1.7'/><circle cx='9' cy='10' r='1.8' stroke='%23000' stroke-width='1.7'/><path d='M4 17l4.5-4 3.5 3 3-2.5 5 4' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/>"
 };
 function uiIconUrl(name) {
   var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'>" + (UI_ICONS[name] || '') + "</svg>";
@@ -213,6 +214,9 @@ function fetchFresh() {
     .catch(function (err) {
       console.error('โหลดข้อมูลจากแหล่งภายนอกไม่สำเร็จ:', err);
       if (lastGood) return lastGood;
+      // บนเว็บจริงห้ามถอยไปข้อมูลตัวอย่าง: คนที่เข้าครั้งแรกตอนชีตล่มจะเห็นผลปลอมโดยไม่รู้ตัว
+      // ขึ้นกล่อง "โหลดไม่สำเร็จ · ลองอีกครั้ง" (showLoadError) แทน · mock.json เหลือไว้ใช้บนเครื่องตัวเองตอนออฟไลน์
+      if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) throw err;
       console.warn('กำลังแสดงข้อมูลตัวอย่างจาก data/mock.json ไม่ใช่ผลจริง');
       return fetch('data/mock.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw 0; return r.json(); });
     })
@@ -240,7 +244,8 @@ export function showLoadError(err) {
   document.getElementById('main').innerHTML =
     '<div class="rounded-lg border border-line bg-surface px-6 py-[22px] shadow-panel">' +
       '<p class="mt-0 mb-1.5 text-live">โหลดข้อมูลการแข่งขันไม่สำเร็จ</p>' +
-      '<p class="m-0 text-[15px] text-fg-soft">ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต และเปิดหน้าเว็บผ่าน http(s):// ไม่ใช่เปิดไฟล์ตรง ๆ แล้วลองรีเฟรชอีกครั้ง</p>' +
+      '<p class="m-0 fs-15 text-fg-soft">อาจมีผู้เข้าชมจำนวนมากในขณะนี้ หรือการเชื่อมต่ออินเทอร์เน็ตขัดข้อง กรุณารอสักครู่แล้วลองอีกครั้ง</p>' +
+      '<button type="button" onclick="location.reload()" class="mt-3 rounded-md border border-line bg-surface px-4 py-2 fs-15 text-fg">ลองอีกครั้ง</button>' +
     '</div>';
 }
 
@@ -500,13 +505,13 @@ export function schoolMatches(data, m) {
    ยอดรวมเป็นสีเน้นและตัวโตสุด เพราะเป็นตัวเลขที่คนมองหาเป็นอันดับแรก
    เงินใช้เฉดเข้มกับไอคอนด้วย (ไม่ใช่ bg-silver) เพราะสีเงินสดเกือบขาว ไอคอน 14px จะจมหายไปกับพื้น */
 var MEDAL_COLS = [
-  { key: 'gold', coin: 1, num: 'text-gold-ink text-[18px] max-[720px]:text-[20px]', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
-  { key: 'silver', coin: 2, num: 'text-silver-ink text-[18px] max-[720px]:text-[20px]', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
-  { key: 'bronze', coin: 3, num: 'text-bronze-ink text-[18px] max-[720px]:text-[20px]', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
+  { key: 'gold', coin: 1, num: 'text-gold-ink fs-18 max-[720px]:fs-20', label: 'ทอง', pos: 'max-[720px]:col-start-2 max-[720px]:row-start-2' },
+  { key: 'silver', coin: 2, num: 'text-silver-ink fs-18 max-[720px]:fs-20', label: 'เงิน', pos: 'max-[720px]:col-start-3 max-[720px]:row-start-2' },
+  { key: 'bronze', coin: 3, num: 'text-bronze-ink fs-18 max-[720px]:fs-20', label: 'ทองแดง', pos: 'max-[720px]:col-start-4 max-[720px]:row-start-2' }
 ];
 // "รวม" ไม่ใช่ชนิดเหรียญ จึงไม่มีไอคอนเหรียญ — เป็นผลบวก ไม่ใช่ของอีกอย่างหนึ่ง
 var TOTAL_COL = {
-  num: 'text-brand-strong text-[19.5px] max-[720px]:text-[21px]', label: 'รวม', plain: true,
+  num: 'text-brand-strong fs-19.5 max-[720px]:fs-21', label: 'รวม', plain: true,
   pos: 'max-[720px]:col-start-5 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:justify-end'
 };
 
@@ -533,7 +538,7 @@ function medalTag(col, micSize) {
    ไม่ใช่ผลรวมของป้ายบวกตัวเลข เหลือที่ให้ขยายตัวเลขเป็น 18px ได้โดยไม่ดันอะไรหลุดขอบ */
 function medalCell(col, value) {
   return '<span class="min-w-0 text-right max-[720px]:flex max-[720px]:flex-col max-[720px]:items-start max-[720px]:gap-px max-[720px]:text-left max-[720px]:whitespace-nowrap ' + col.pos + '">' +
-    '<span class="hidden text-[13.5px] text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[4px]">' +
+    '<span class="hidden fs-13.5 text-fg-mute max-[720px]:flex max-[720px]:items-center max-[720px]:gap-[4px]">' +
       medalTag(col, 'size-[20px]') +
     '</span>' +
     // ศูนย์ใช้สีจาง ตัวเลขที่มีเหรียญจริงจึงเด่นขึ้นมาเอง ไม่ต้องไล่อ่านทีละช่อง
@@ -550,7 +555,7 @@ export function renderMedalTable(host, rows, opts) {
 
   host.innerHTML = '';
   // จอแคบไม่มีหัวตาราง (ตัวเลขพกป้ายกำกับของตัวเองแทน) — หัวคอลัมน์ตัวเลขชิดขวาเหมือนตัวเลขที่อยู่ใต้มัน
-  host.appendChild(el('div', MT_GRID + ' border-b border-line py-3 text-[15px] text-fg-soft max-[720px]:hidden',
+  host.appendChild(el('div', MT_GRID + ' border-b border-line py-3 fs-15 text-fg-soft max-[720px]:hidden',
     '<span class="flex items-center">อันดับ</span><span class="flex items-center">โรงเรียน</span>' +
     MEDAL_COLS.concat(TOTAL_COL).map(function (c) {
       return '<span class="flex items-center justify-end gap-1.5 whitespace-nowrap">' + medalTag(c, 'size-[26px]') + '</span>';
@@ -574,17 +579,17 @@ export function renderMedalTable(host, rows, opts) {
     // opts.onPick: แตะแถวแล้วเปิดป๊อปอัปรายละเอียด (ไม่ได้พาไปหน้าใหม่) — ไม่ส่งมา แถวเป็นข้อมูลเฉย ๆ
     var pick = typeof opts.onPick === 'function';
     var row = el(pick ? 'button' : 'div',
-      MT_GRID + ' border-b border-line py-3 text-[17px] text-fg last:border-b-0' +
+      MT_GRID + ' border-b border-line py-3 fs-17 text-fg last:border-b-0' +
       (pick ? ' w-full cursor-pointer text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand active:bg-surface-soft motion-reduce:transition-none' +
         (m.isSelf ? '' : ' hover:bg-surface-soft') : '') +
       /* จอแคบ: ตัวเลขเหรียญย้ายลงบรรทัดที่สอง ชื่อโรงเรียนกับยอดรวมอยู่บรรทัดแรก */
       ' max-[720px]:grid-cols-[28px_repeat(3,minmax(0,1fr))_minmax(38px,auto)] max-[720px]:gap-x-1.5 max-[720px]:gap-y-2 max-[720px]:px-3.5 max-[720px]:py-3' +
       (m.isSelf ? ' bg-brand-100' : ''),
-      '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono text-[17px] max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
+      '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono fs-17 max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
         (RANK_TONE[m.rank] || 'text-fg-mute') + '">' + m.rank + '</span>' +
       '<span class="flex min-w-0 items-center gap-3 max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1">' +
         schoolCrest(m, 'size-9 max-[720px]:hidden') +
-        '<span class="min-w-0 text-[17px] leading-[1.35] break-words max-[720px]:text-[17.5px]">' + esc(name) + '</span>' +
+        '<span class="min-w-0 fs-17 leading-[1.35] break-words max-[720px]:fs-17.5">' + esc(name) + '</span>' +
       '</span>' +
       MEDAL_COLS.map(function (c) { return medalCell(c, m[c.key]); }).join('') +
       medalCell(TOTAL_COL, total));
@@ -605,7 +610,7 @@ export function renderMedalTable(host, rows, opts) {
   rows.forEach(addRow);
   if (opts.pinned) {
     // ช่องว่างเมื่อโรงเรียนเราหลุดจากอันดับต้น ๆ แต่ยังถูกตรึงไว้ท้ายตาราง
-    host.appendChild(el('div', 'border-b border-line py-1.5 text-center text-[14.5px] tracking-[.35em] text-fg-mute', '⋯'));
+    host.appendChild(el('div', 'border-b border-line py-1.5 text-center fs-14.5 tracking-[.35em] text-fg-mute', '⋯'));
     addRow(opts.pinned);
   }
 }
@@ -627,6 +632,10 @@ export function initChrome(activePage) {
   var root = document.documentElement, app = document.getElementById('app');
   var saved = null; try { saved = localStorage.getItem('dash-theme'); } catch (e) {}
   if (saved) root.setAttribute('data-theme', saved);
+
+  // Safari บน iPhone ไม่ใช้สไตล์ active: ตอนนิ้วแตะลิงก์/ปุ่ม จนกว่าหน้าจะมีตัวฟัง touchstart สักตัว
+  // ใส่ตัวเปล่าไว้ ปุ่ม "ดูทั้งหมด" ฯลฯ จึงเปลี่ยนสีทันทีที่แตะเหมือนตอนชี้เมาส์บนคอม
+  document.addEventListener('touchstart', function () {}, { passive: true });
 
   document.getElementById('themeToggle').addEventListener('click', function () {
     var isDark = root.getAttribute('data-theme') === 'dark' ||
@@ -671,7 +680,7 @@ export function initChrome(activePage) {
   var newBtn = document.createElement('button');
   newBtn.type = 'button';
   newBtn.hidden = true;
-  newBtn.className = 'btn h-[38px] rounded-full px-4 text-[13.5px]';
+  newBtn.className = 'btn h-[38px] rounded-full px-4 fs-13.5';
   newBtn.innerHTML = '<span class="max-[560px]:hidden">มีผลใหม่ · </span>อัปเดต';
   newBtn.setAttribute('aria-label', 'มีผลการแข่งขันใหม่ กดเพื่ออัปเดตหน้า');
   newBtn.addEventListener('click', applyPending);

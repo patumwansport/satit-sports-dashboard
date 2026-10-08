@@ -20,12 +20,12 @@ var COLS = 'flex flex-col gap-7 min-[1180px]:grid min-[1180px]:grid-cols-[1fr_1.
    ไม่ใช่ตัวที่เขียนทีหลังใน class จึงห้ามใส่ค่าตั้งต้นไว้แล้วทับ */
 var ASIDE = 'flex min-w-0 flex-col min-[1180px]:sticky min-[1180px]:top-[92px]';
 var BODY = 'flex min-w-0 flex-col';
-var SEC_HEAD = 'm-0 mb-1.5 flex items-baseline gap-[9px] font-display text-[19px] font-normal';
-var NOTE = 'mt-2 text-[15.5px] text-fg-soft';
+var SEC_HEAD = 'm-0 mb-1.5 flex items-baseline gap-[9px] font-display fs-19 font-normal';
+var NOTE = 'mt-2 fs-15.5 text-fg-soft';
 var MATCH_LIST = 'm-0 mt-1 flex list-none flex-col p-0';
 var QUIET_BOX = 'rounded-lg border border-line bg-surface px-[22px] py-[18px] max-[560px]:mx-[-2px] max-[560px]:px-4 max-[560px]:pt-4 max-[560px]:pb-[18px]';
-var QUIET_HEAD = 'm-0 mb-1.5 font-display text-[18px] font-normal';
-var QUIET_TEXT = 'm-0 text-[15.5px] text-fg-soft';
+var QUIET_HEAD = 'm-0 mb-1.5 font-display fs-18 font-normal';
+var QUIET_TEXT = 'm-0 fs-15.5 text-fg-soft';
 /* การ์ดหลัก (อันดับ + เหรียญ): ไล่สีแบรนด์อ่อน ๆ ให้เป็นจุดสายตาแรกของหน้า */
 var HERO_CARD = 'rounded-lg border border-line bg-linear-[165deg,var(--color-brand-100),var(--color-surface-soft)] px-[26px] py-[22px] shadow-panel max-[560px]:mx-[-2px] max-[560px]:px-4 max-[560px]:py-[18px]';
 var DONE_PREVIEW = 4; // ผลที่ประกาศแล้วแสดงก่อน 4 รายการ ที่เหลือพับไว้
@@ -74,14 +74,14 @@ function schoolSkeleton() {
 function schoolNotFound() {
   return '<div class="' + TOP_ROW + '">' + backButtonHtml() + '</div>' +
     '<div class="py-2">' +
-    '<h1 class="m-0 mb-2 font-display text-[23.5px] font-normal">ไม่พบโรงเรียนนี้ในตารางเหรียญ</h1>' +
-    '<p class="m-0 mb-[18px] max-w-[52ch] text-[16px] text-fg-soft">ลิงก์อาจเก่า หรือชื่อโรงเรียนในชีตถูกแก้ไขไปแล้ว เลือกใหม่จากหน้าอันดับเหรียญได้เลย</p>' +
-    '<a class="inline-flex min-h-[44px] items-center rounded-full bg-brand px-5 py-[11px] text-[15.5px] text-on-ink no-underline hover:bg-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="medals.html">ไปที่อันดับเหรียญรางวัล</a>' +
+    '<h1 class="m-0 mb-2 font-display fs-23.5 font-normal">ไม่พบโรงเรียนนี้ในตารางเหรียญ</h1>' +
+    '<p class="m-0 mb-[18px] max-w-[52ch] fs-16 text-fg-soft">ลิงก์อาจเก่า หรือชื่อโรงเรียนในชีตถูกแก้ไขไปแล้ว เลือกใหม่จากหน้าอันดับเหรียญได้เลย</p>' +
+    '<a class="inline-flex min-h-[44px] items-center rounded-full bg-brand px-5 py-[11px] fs-15.5 text-on-ink no-underline hover:bg-brand-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="medals.html">ไปที่อันดับเหรียญรางวัล</a>' +
     '</div>';
 }
 
 function backButtonHtml() {
-  return '<a class="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface py-2.5 pr-[18px] pl-3 text-[15.5px] text-fg-soft no-underline transition-[border-color,color] duration-150 hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none" href="medals.html">' +
+  return '<a class="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line bg-surface py-2.5 pr-[18px] pl-3 fs-15.5 text-fg-soft no-underline transition-[border-color,color] duration-150 hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none" href="medals.html">' +
     glyph('back', 'size-[18px]') + 'อันดับเหรียญรางวัล</a>';
 }
 
@@ -102,13 +102,13 @@ function medalStatHtml(m, total) {
   function line(k) {
     var n = m[k[0]];
     return '<div class="' + MEDAL_LINE + '">' + coin(k[1], 'size-7') +
-      '<span class="text-[16px] text-fg-soft">' + k[2] + '</span>' +
-      '<span class="font-mono text-[23.5px] tabular-nums' + (n ? '' : ' opacity-35') + '">' + n + '</span></div>';
+      '<span class="fs-16 text-fg-soft">' + k[2] + '</span>' +
+      '<span class="font-mono fs-23.5 tabular-nums' + (n ? '' : ' opacity-35') + '">' + n + '</span></div>';
   }
   return medalBarHtml(m, total) + MEDALS.map(line).join('') +
     '<div class="col-span-full mt-1.5 grid grid-cols-[1fr_auto] items-center gap-3 border-t border-line pt-2.5">' +
-      '<span class="text-[16px] text-fg">รวม</span>' +
-      '<span class="font-mono text-[27.5px] tabular-nums">' + total + '</span></div>';
+      '<span class="fs-16 text-fg">รวม</span>' +
+      '<span class="font-mono fs-27.5 tabular-nums">' + total + '</span></div>';
 }
 
 // opts.hideChip: ในกล่อง "กำลังแข่งอยู่ตอนนี้" หัวข้อบอกสถานะอยู่แล้ว ไม่ต้องติดป้ายซ้ำทุกแถว
@@ -125,15 +125,15 @@ function matchRowHtml(i, opts) {
         : 'border-line bg-surface-soft text-fg-soft') + '">' +
       sportIcon(i.sportId, 'size-[21px]') + '</span>' +
     '<span class="min-w-0">' +
-      '<p class="m-0 mb-[3px] text-[17px]">' + esc(i.event) + '</p>' +
-      '<p class="m-0 text-[14.5px] text-fg-soft">' + esc(i.teams || '') + '</p>' +
+      '<p class="m-0 mb-[3px] fs-17">' + esc(i.event) + '</p>' +
+      '<p class="m-0 fs-14.5 text-fg-soft">' + esc(i.teams || '') + '</p>' +
     '</span>' +
     '<span class="flex flex-col items-end gap-[5px] text-right max-[560px]:col-start-2 max-[560px]:flex-row max-[560px]:flex-wrap max-[560px]:items-center max-[560px]:justify-start max-[560px]:gap-2.5 max-[560px]:text-left">' +
-      '<span class="font-mono text-[14px] whitespace-nowrap text-fg-soft">' +
+      '<span class="font-mono fs-14 whitespace-nowrap text-fg-soft">' +
         (opts.hideDay ? '' : esc(i.dayLabel) + ' · ') + esc(i.time) + ' น.</span>' +
       // สกอร์แสดงเฉพาะรายการที่แข่งแล้ว: ชีตบางแถวมีตัวเลขค้างไว้ก่อนเริ่มแข่ง
       (i.score && i.status !== 'upcoming'
-        ? '<span class="font-mono text-[21.5px] tabular-nums ' + (liveBox ? 'text-live' : '') + '">' + esc(i.score) + '</span>'
+        ? '<span class="font-mono fs-21.5 tabular-nums ' + (liveBox ? 'text-live' : '') + '">' + esc(i.score) + '</span>'
         : '') +
       (opts.hideChip ? '' : statusChip(i.status)) +
     '</span>' +
@@ -149,7 +149,7 @@ function groupedByDayHtml(items) {
     g.items.push(i);
   });
   return groups.map(function (g, n) {
-    return '<h3 class="m-0 ' + (n ? 'mt-5' : 'mt-2') + ' flex items-center gap-2.5 text-[14.5px] tracking-[.03em] text-fg-mute">' +
+    return '<h3 class="m-0 ' + (n ? 'mt-5' : 'mt-2') + ' flex items-center gap-2.5 fs-14.5 tracking-[.03em] text-fg-mute">' +
         '<span>' + esc(g.day) + '</span><span class="h-px flex-1 bg-line" aria-hidden="true"></span>' +
         '<span class="font-mono tabular-nums">' + g.items.length + ' รายการ</span></h3>' +
       '<ul class="' + MATCH_LIST + '">' + g.items.map(function (i) { return matchRowHtml(i, { hideDay: true, hideChip: true }); }).join('') + '</ul>';
@@ -163,7 +163,7 @@ function doneListHtml(items) {
   return '<ul class="' + MATCH_LIST + '">' + rowsOf(head) + '</ul>' +
     (rest.length
       ? '<details class="group/more" id="schDoneMore">' +
-          '<summary class="mt-2 inline-flex min-h-[44px] cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-surface px-[18px] text-[15.5px] text-fg-soft hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">' +
+          '<summary class="mt-2 inline-flex min-h-[44px] cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-surface px-[18px] fs-15.5 text-fg-soft hover:border-line-strong hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">' +
             '<span class="group-open/more:hidden">ดูผลอีก ' + rest.length + ' รายการ</span>' +
             '<span class="hidden group-open/more:inline">ย่อรายการ</span>' +
             glyph('down', 'size-[18px] transition-transform group-open/more:rotate-180 motion-reduce:transition-none') +
@@ -226,7 +226,7 @@ function renderSchool(data) {
   } else if (live.length) {
     // สถานะสด — จุดเดียวในหน้าที่ได้ใช้สีเต็ม
     liveHtml = '<section class="rounded-lg border border-[color-mix(in_oklch,var(--color-live)_32%,transparent)] bg-live-bg px-[22px] py-5 max-[560px]:mx-[-2px] max-[560px]:px-4 max-[560px]:pt-4 max-[560px]:pb-[18px]" aria-labelledby="schLiveHead">' +
-      '<h2 class="m-0 mb-1 flex items-center gap-2.5 font-display text-[19px] font-normal text-live" id="schLiveHead">' +
+      '<h2 class="m-0 mb-1 flex items-center gap-2.5 font-display fs-19 font-normal text-live" id="schLiveHead">' +
         '<span class="relative flex size-2.5 flex-none" aria-hidden="true">' +
           '<span class="absolute inset-0 rounded-full bg-current opacity-45 motion-safe:animate-ping"></span>' +
           '<span class="relative size-2.5 rounded-full bg-current"></span></span>' +
@@ -238,15 +238,15 @@ function renderSchool(data) {
     var next = upcoming[0];
     liveHtml = next
       ? '<section class="' + QUIET_BOX + '" aria-labelledby="schLiveHead">' +
-          '<p class="m-0 mb-1 text-[14px] tracking-[.04em] text-fg-mute">ตอนนี้ไม่มีรายการที่กำลังแข่ง</p>' +
-          '<h2 class="m-0 font-display text-[18px] font-normal" id="schLiveHead">รายการถัดไปของโรงเรียน</h2>' +
+          '<p class="m-0 mb-1 fs-14 tracking-[.04em] text-fg-mute">ตอนนี้ไม่มีรายการที่กำลังแข่ง</p>' +
+          '<h2 class="m-0 font-display fs-18 font-normal" id="schLiveHead">รายการถัดไปของโรงเรียน</h2>' +
           '<div class="mt-3 flex items-center gap-4">' +
             '<div class="flex flex-none flex-col items-center justify-center rounded-md bg-brand-100 px-4 py-2.5 text-brand-strong">' +
-              '<span class="text-[13px]">' + esc(next.dayLabel) + '</span>' +
-              '<span class="font-mono text-[26.5px] leading-[1.1] tabular-nums">' + esc(next.time) + '</span></div>' +
-            '<div class="min-w-0"><p class="m-0 mb-0.5 flex items-center gap-2 text-[17.5px] text-fg">' +
+              '<span class="fs-13">' + esc(next.dayLabel) + '</span>' +
+              '<span class="font-mono fs-26.5 leading-[1.1] tabular-nums">' + esc(next.time) + '</span></div>' +
+            '<div class="min-w-0"><p class="m-0 mb-0.5 flex items-center gap-2 fs-17.5 text-fg">' +
                 '<span class="text-brand-strong">' + sportIcon(next.sportId, 'size-5') + '</span>' + esc(next.event) + '</p>' +
-              '<p class="m-0 text-[14.5px] text-fg-soft">' + esc(next.teams || '') + '</p></div>' +
+              '<p class="m-0 fs-14.5 text-fg-soft">' + esc(next.teams || '') + '</p></div>' +
           '</div></section>'
       : '<section class="' + QUIET_BOX + '" aria-labelledby="schLiveHead">' +
           '<h2 class="' + QUIET_HEAD + '" id="schLiveHead">ตอนนี้ไม่มีรายการที่กำลังแข่ง</h2>' +
@@ -266,8 +266,8 @@ function renderSchool(data) {
             return '<div class="flex items-center gap-[11px] rounded-md border border-line bg-surface-soft px-3 py-2.5">' +
               '<span class="flex size-8 flex-none items-center justify-center rounded-[9px] border border-line bg-surface text-fg-soft">' +
                 sportIcon(sp.id, 'size-[22px]') + '</span>' +
-              '<div><p class="m-0 mb-0.5 text-[15.5px]">' + esc(sp.name) + '</p>' +
-              '<p class="m-0 flex gap-2.5 font-mono text-[13.5px] tabular-nums text-fg-soft">' +
+              '<div><p class="m-0 mb-0.5 fs-15.5">' + esc(sp.name) + '</p>' +
+              '<p class="m-0 flex gap-2.5 font-mono fs-13.5 tabular-nums text-fg-soft">' +
                 coinCounts(sp, 'size-4', 'gap-1') +
               '</p></div></div>';
           }).join('') + '</div>'
@@ -281,7 +281,7 @@ function renderSchool(data) {
   function section(id, title, count, bodyHtml, emptyText) {
     return '<section aria-labelledby="' + id + '">' +
       '<h2 class="' + SEC_HEAD + '" id="' + id + '">' + title +
-        ' <span class="rounded-full bg-surface-soft px-2.5 py-0.5 font-mono text-[14px] text-fg-soft tabular-nums">' + count + '</span></h2>' +
+        ' <span class="rounded-full bg-surface-soft px-2.5 py-0.5 font-mono fs-14 text-fg-soft tabular-nums">' + count + '</span></h2>' +
       (count ? bodyHtml : '<p class="' + NOTE + '">' + emptyText + '</p>') +
       '</section>';
   }
@@ -299,15 +299,15 @@ function renderSchool(data) {
 
   host.innerHTML =
     '<div class="' + TOP_ROW + '">' + backButtonHtml() +
-      '<span class="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_oklch,var(--color-gold)_45%,transparent)] bg-[color-mix(in_oklch,var(--color-gold)_14%,transparent)] px-3.5 py-1.5 text-[14px] text-gold-ink tabular-nums" id="schSync" hidden></span></div>' +
+      '<span class="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_oklch,var(--color-gold)_45%,transparent)] bg-[color-mix(in_oklch,var(--color-gold)_14%,transparent)] px-3.5 py-1.5 fs-14 text-gold-ink tabular-nums" id="schSync" hidden></span></div>' +
 
     '<div class="' + COLS + '"><div class="' + ASIDE + ' gap-6">' +
 
     '<header class="flex items-center gap-5 max-[560px]:gap-3.5">' +
-      schoolCrest(m, 'size-[60px] text-[22.5px] max-[560px]:size-12') +
+      schoolCrest(m, 'size-[60px] fs-22.5 max-[560px]:size-12') +
       '<div class="flex min-w-0 flex-col items-start gap-2">' +
-        (m.isSelf ? '<span class="rounded-full bg-brand-100 px-3 py-0.5 text-[13.5px] text-brand-strong">โรงเรียนเรา</span>' : '') +
-        '<h1 class="m-0 font-display text-[26px] leading-[1.3] font-normal text-balance text-fg max-[560px]:text-[22px]">' +
+        (m.isSelf ? '<span class="rounded-full bg-brand-100 px-3 py-0.5 fs-13.5 text-brand-strong">โรงเรียนเรา</span>' : '') +
+        '<h1 class="m-0 font-display fs-26 leading-[1.3] font-normal text-balance text-fg max-[560px]:fs-22">' +
           esc(m.fullName || m.school) + '</h1>' +
       '</div>' +
     '</header>' +
@@ -316,12 +316,12 @@ function renderSchool(data) {
     '<div class="' + HERO_CARD + ' grid grid-cols-[minmax(120px,200px)_1fr] items-center gap-7' +
       ' min-[1180px]:grid-cols-1 min-[1180px]:gap-5 max-[560px]:grid-cols-1 max-[560px]:gap-5">' +
       '<div class="max-[560px]:flex max-[560px]:flex-wrap max-[560px]:items-baseline max-[560px]:gap-3">' +
-        '<p class="m-0 text-[14px] tracking-[.08em] text-fg-soft max-[560px]:order-1">อันดับ</p>' +
-        '<p class="mt-1 mb-1.5 font-mono text-[63.5px] leading-[.95] text-brand-strong tabular-nums max-[560px]:order-2 max-[560px]:m-0 max-[560px]:text-[55px]">' + m.rank + '</p>' +
-        '<p class="m-0 text-[15px] text-fg-soft max-[560px]:order-3">จาก ' + list.length + ' โรงเรียน</p>' +
+        '<p class="m-0 fs-14 tracking-[.08em] text-fg-soft max-[560px]:order-1">อันดับ</p>' +
+        '<p class="mt-1 mb-1.5 font-mono fs-63.5 leading-[.95] text-brand-strong tabular-nums max-[560px]:order-2 max-[560px]:m-0 max-[560px]:fs-55">' + m.rank + '</p>' +
+        '<p class="m-0 fs-15 text-fg-soft max-[560px]:order-3">จาก ' + list.length + ' โรงเรียน</p>' +
       '</div>' +
       '<div class="flex max-w-[300px] flex-col gap-2 min-[1180px]:max-w-none max-[560px]:max-w-none">' +
-        (total ? medalStatHtml(m, total) : '<p class="m-0 text-[17px] text-fg-soft">ยังไม่ได้เหรียญ</p>') +
+        (total ? medalStatHtml(m, total) : '<p class="m-0 fs-17 text-fg-soft">ยังไม่ได้เหรียญ</p>') +
       '</div>' +
     '</div>' +
 
@@ -336,7 +336,7 @@ function renderSchool(data) {
 
     sportsHtml +
 
-    '<p class="m-0 text-[14px] leading-[1.6] text-fg-mute">รายการแข่งขันแสดงเฉพาะรายการที่ระบุชื่อโรงเรียนนี้ไว้ในตารางแข่งขันหรือในผลการแข่งขัน</p>' +
+    '<p class="m-0 fs-14 leading-[1.6] text-fg-mute">รายการแข่งขันแสดงเฉพาะรายการที่ระบุชื่อโรงเรียนนี้ไว้ในตารางแข่งขันหรือในผลการแข่งขัน</p>' +
 
     '</div></div>';
 

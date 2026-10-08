@@ -120,7 +120,7 @@ export async function loadFromSupabase() {
     // ถ้าไม่มีตัวตัดสินต่อท้าย Postgres จะคืนลำดับของคู่ที่เวลาชนกันไม่เหมือนกันทุกครั้ง
     // แล้วตารางบนหน้าเว็บจะสลับแถวไปมาเองทุกครั้งที่ดึงข้อมูลใหม่ทุก 30 วินาที
     select('matches', 'select=*&order=match_date.asc,start_time.asc,sport_id.asc,event_type.asc,id.asc'),
-    select('photos', 'select=*&order=sort_order.asc')
+    select('photos', 'select=*&order=taken_on.asc.nullslast,sort_order.asc')
   ]);
   var settingRows = results[0], schoolRows = results[1], sportRows = results[2],
       matchRows = results[3], photoRows = results[4];
@@ -158,7 +158,12 @@ export async function loadFromSupabase() {
     sports: buildSports(entered),
     days: buildDays(matchRows.filter(function (m) { return m.kind === 'result'; }), sportById),
     schedule: buildDays(matchRows.filter(function (m) { return m.kind === 'plan'; }), sportById),
-    photos: photoRows.map(function (p, i) { return { id: p.id || ('p' + i), src: directImageUrl(p.url), caption: p.caption || '' }; }),
+    photos: photoRows.map(function (p, i) {
+      return {
+        id: p.id || ('p' + i), src: directImageUrl(p.url), link: p.url, caption: p.caption || '',
+        iso: p.taken_on || '', sportId: p.sport_id || '', sportText: ''
+      };
+    }),
     syncedAt: new Date().toISOString(),
     source: 'supabase'
   };

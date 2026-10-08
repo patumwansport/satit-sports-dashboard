@@ -23,7 +23,7 @@
 
 import { loadFromSheets } from '../public/js/sheets.js';
 // กฎแปลงชีต → แถวตาราง ใช้ร่วมกับปุ่ม "ดึงจาก Google Sheets" ในหน้า admin/
-import { sheetRows } from '../public/admin/sheets-sync.js';
+import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from '../public/admin/sheets-sync.js';
 
 // --dry-run: อ่านชีตและแปลงข้อมูลให้ดูว่าจะได้อะไร แต่ไม่เขียนลงฐานข้อมูล
 // ใช้ตรวจว่าวันที่/คู่แข่งขันถูกแปลงถูกต้องก่อนจะไปแตะของจริง
@@ -102,7 +102,13 @@ async function main() {
   // เก็บลงฐานข้อมูลได้ตามนั้น — supabase-data.js ปล่อยผ่าน URL ที่ไม่ใช่ลิงก์แชร์ Drive
   if (data.photos.length) {
     await rest('DELETE', 'photos?id=neq.00000000-0000-0000-0000-000000000000');
-    await rest('POST', 'photos', rows.photos);
+    try {
+      await rest('POST', 'photos', rows.photos);
+    } catch (err) {
+      if (!isMissingPhotoColumns(err.message)) throw err;
+      console.warn('  ฐานข้อมูลยังไม่มีคอลัมน์วันที่ของภาพ — บันทึกภาพโดยไม่มีวันที่ไปก่อน (รัน migration photo_days เพื่อแก้)');
+      await rest('POST', 'photos', withoutPhotoDays(rows.photos));
+    }
   }
   console.log('✓ ภาพ ' + data.photos.length + ' แถว');
 

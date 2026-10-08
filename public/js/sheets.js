@@ -9,19 +9,18 @@
    ใช้กับชีตที่แชร์แบบ "ทุกคนที่มีลิงก์ดูได้" เท่านั้น
    ========================================================= */
 
-import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl } from './format.js';
+import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl, parseThaiDate } from './format.js';
 
-const SHEET_ID = '1-gVKoQrOLBcv5fufZzOMrdrRuG9pB__vpb84SDrfeXE';
+const SHEET_ID = '1BVnQOOoihXIPncU0JWPLL1YcR_Sk3bJTMwtoRDSqQzM';
 /**
  * แท็บ "สถิติเหรียญรางวัล" — ตารางเหรียญรายโรงเรียน: โรงเรียน / ทอง / เงิน / ทองแดง / รวม
- * อ้างด้วย "ชื่อแท็บ" ไม่ใช่ gid เพราะ gid=0 (แท็บแรกของไฟล์) เคยชี้มาที่ตารางนี้
- * แล้วต่อมากลายเป็นแท็บเหรียญรายกีฬา จนชื่อโรงเรียนออกมาเป็นตัวเลข
- * ระวัง: ถ้าแท็บถูกเปลี่ยนชื่อ gviz จะเงียบ ๆ ส่งแท็บแรกกลับมาแทน ไม่ได้แจ้ง error
- * buildMedalTable() จึงตรวจหัวคอลัมน์ก่อนใช้ทุกครั้ง
+ * อ้างด้วย gid ไม่ใช่ชื่อแท็บ: ชื่อแท็บในไฟล์นี้ขึ้นต้นด้วย "🔒 " (ตั้งชื่อให้รู้ว่าเป็นแท็บล็อกไว้)
+ * ชื่อแบบนี้แก้กันพลาดง่าย และถ้าชื่อไม่ตรง gviz จะเงียบ ๆ ส่งแท็บแรกกลับมาแทน ไม่ได้แจ้ง error
+ * gid ของแท็บไม่เปลี่ยนตามชื่อหรือลำดับแท็บ — buildMedalTable() ยังตรวจหัวคอลัมน์ก่อนใช้ทุกครั้งกันพลาด
  */
-const SHEET_MEDAL_TABLE = 'สถิติเหรียญรางวัล';
-const GID_SPORT_MEDALS = '771077705'; // แท็บ: ทอง / เงิน / ทองแดง / รวมเหรียญ / ชนิดกีฬา
-const GID_SCHEDULE = '266724596';     // แท็บ "ผลการแข่งขันประจำวัน": วันที่ / กีฬา / ประเภท / เวลา / ระหว่าง / ผลการแข่งขัน / สถานะ
+const SHEET_MEDAL_TABLE = '1195929060';
+const GID_SPORT_MEDALS = '1253612074'; // แท็บ "รวมเหรียญ": ประเภทกีฬา / ทอง / เงิน / ทองแดง / รวม (หาคอลัมน์จากหัว ดู sportMedalColumns)
+const GID_SCHEDULE = '2119468784';     // แท็บ "ผลการแข่งขัน": วันที่ / กีฬา / ประเภท / เวลา / ระหว่าง / ผลการแข่งขัน / สถานะ / รายชื่อนักกีฬา
 /**
  * แท็บ "ตารางการแข่งขัน" — ผังกำหนดการทั้งรายการ:
  *   วันที่ / รายการแข่งขัน (ชนิดกีฬา) / ประเภท / รอบ / สาย / เวลา / ระหว่าง (ทีม A · VS · ทีม B สามช่อง)
@@ -29,11 +28,13 @@ const GID_SCHEDULE = '266724596';     // แท็บ "ผลการแข่�
  * ไม่ใช่ตำแหน่งตายตัว — ย้ายคอลัมน์ในชีตทีหลังหน้าเว็บก็ยังอ่านถูก ดู planColumns()
  * แท็บนี้ไม่มีช่องผล/สถานะ — ทุกรายการจึงออกมาเป็น "รอเริ่ม" ตามความจริงของผัง
  */
-const GID_SCHEDULE_PLAN = '103481153';
+const GID_SCHEDULE_PLAN = '1146003336';
 /**
- * แท็บภาพบรรยากาศ (ไม่บังคับ) — อ้างด้วย "ชื่อแท็บ" ไม่ใช่ gid เพราะแท็บนี้สร้าง/ลบบ่อยกว่าแท็บอื่น
- * รูปแบบ: แถวละ 1 รูป ใส่ลิงก์ไว้ช่องไหนก็ได้ (Google Drive แบบแชร์ลิงก์ หรือ URL รูปตรง ๆ)
- * แถวหัวตารางกับช่องว่างระบบข้ามให้เอง · เว้นค่านี้เป็น '' = ปิดแถบภาพบนหน้าหลัก
+ * แท็บภาพบรรยากาศ (หน้า "ประมวลภาพ") — อ้างด้วย "ชื่อแท็บ" ไม่ใช่ gid เพราะแท็บนี้สร้าง/ลบบ่อยกว่าแท็บอื่น
+ * แถวละ 1 รูป แถวแรกเป็นหัวตาราง คอลัมน์หาจากชื่อหัว (สลับลำดับได้ ไม่มีคอลัมน์ไหนก็ได้):
+ *   วันที่ | ลิงก์รูป | คำบรรยาย | กีฬา
+ * ลิงก์รูปอยู่ช่องไหนก็ได้ในแถว (Google Drive แบบแชร์ลิงก์ หรือ URL รูปตรง ๆ)
+ * ไม่มีวันที่ = ไปอยู่กลุ่ม "ภาพอื่น ๆ" · เว้นค่านี้เป็น '' = ปิดระบบภาพทั้งหมด
  */
 const SHEET_PHOTOS = 'img';
 
@@ -57,7 +58,7 @@ const SPORT_IDS_NORM = Object.keys(SPORT_IDS).reduce(function (map, name) {
 function normSportName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
-function sportIdOf(name) {
+export function sportIdOf(name) {
   return SPORT_IDS_NORM[normSportName(name)] || '';
 }
 
@@ -84,7 +85,7 @@ function cellNum(cell) {
 /**
  * ดึงและแปลง JSON จาก Google Visualization API (gviz)
  * รับได้ทั้ง gid (ตัวเลข) และชื่อแท็บ — ระวังว่า gviz ตอบชีตแรกกลับมาเงียบ ๆ เมื่อชื่อแท็บไม่มีจริง
- * cache: 'no-store' เพราะเราโพลซ้ำทุกครึ่งนาทีเพื่อเอาคะแนนล่าสุด ไม่ใช่ของที่เบราว์เซอร์แคชไว้
+ * cache: 'no-store' เพื่อเอาคะแนนล่าสุด ไม่ใช่ของที่เบราว์เซอร์แคชไว้ (แคชที่ตั้งใจมีชั้นเดียวคือ CDN ของตัวกลาง)
  * @param {number} [headers] - จำนวนแถวหัวตาราง ส่งให้ gviz ตรง ๆ แทนให้มันเดาเอง
  *   gviz เดาหัวตารางจาก "ชนิดข้อมูลต่างจากแถวล่าง" แท็บที่ยังเป็นข้อความล้วน
  *   (เช่นตารางเหรียญก่อนเริ่มแข่ง ช่องตัวเลขยังว่างทั้งหมด) จะเดาไม่ออก แล้วคืนหัวตารางมาเป็นแถวข้อมูลแถวแรก
@@ -93,22 +94,44 @@ function cellNum(cell) {
    ถ้าไม่ตัด หน้าเว็บจะรอไม่มีวันจบ — เกินเวลานี้ถือว่าล้มเหลว แล้ว common.js จะใช้ข้อมูลชุดล่าสุดแทน */
 const FETCH_TIMEOUT_MS = 8000;
 
-async function fetchGvizTable(source, headers) {
-  const key = /^\d+$/.test(String(source)) ? 'gid' : 'sheet';
-  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' + key + '=' + encodeURIComponent(source) +
-    (headers != null ? '&headers=' + headers : '');
+/* ตัวกลางแคชบน Vercel (api/gviz.js): ผู้ชมทุกคนได้สำเนาเดียวกันจาก CDN แทนต่างคนต่างยิง Google
+   คนดูเยอะพร้อมกันเท่าไรก็ไม่ไปถึงชีต · ตัวกลางล่ม/ยังไม่ได้ deploy = ถอยไปยิง Google ตรงแบบเดิม
+   บนเครื่องตัวเองกับบน Vercel ใช้ /api/gviz ของโดเมนเดียวกัน (server.js เสิร์ฟให้) ที่อื่น (GitHub Pages) ข้ามไป Vercel
+   สคริปต์ Node (import-sheets.mjs) ไม่มี location → ยิง Google ตรง */
+const GVIZ_PROXY = typeof location === 'undefined' ? '' :
+  (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /\.vercel\.app$/.test(location.hostname))
+    ? location.origin + '/api/gviz'
+    : 'https://satit-sports-dashboard-one.vercel.app/api/gviz';
+
+async function fetchText(url, label) {
   const ctrl = new AbortController();
   const timer = setTimeout(function () { ctrl.abort(); }, FETCH_TIMEOUT_MS);
-  let raw;
   try {
     const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
-    if (!res.ok) throw new Error('gviz ' + key + '=' + source + ' ตอบกลับ ' + res.status);
-    raw = await res.text();
+    if (!res.ok) throw new Error(label + ' ตอบกลับ ' + res.status);
+    return await res.text();
   } catch (err) {
-    if (err.name === 'AbortError') throw new Error('gviz ' + key + '=' + source + ' ไม่ตอบภายใน ' + (FETCH_TIMEOUT_MS / 1000) + ' วินาที');
+    if (err.name === 'AbortError') throw new Error(label + ' ไม่ตอบภายใน ' + (FETCH_TIMEOUT_MS / 1000) + ' วินาที');
     throw err;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function fetchGvizTable(source, headers) {
+  const key = /^\d+$/.test(String(source)) ? 'gid' : 'sheet';
+  const query = key + '=' + encodeURIComponent(source) + (headers != null ? '&headers=' + headers : '');
+  const label = 'gviz ' + key + '=' + source;
+  let raw;
+  if (GVIZ_PROXY) {
+    try {
+      raw = await fetchText(GVIZ_PROXY + '?' + query, label + ' (ตัวกลาง)');
+    } catch (err) {
+      console.warn(err.message + ' — ดึงจาก Google ตรงแทน');
+    }
+  }
+  if (raw == null) {
+    raw = await fetchText('https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' + query, label);
   }
   const match = raw.match(/setResponse\(([\s\S]*)\);?\s*$/);
   if (!match) throw new Error('gviz ' + key + '=' + source + ' รูปแบบข้อมูลไม่ถูกต้อง');
@@ -169,8 +192,8 @@ function buildMedalTable(table) {
   const head = ((table.cols || [])[0] || {}).label || '';
   if (!/โรงเรียน/.test(head)) {
     throw new Error(
-      'แท็บ "' + SHEET_MEDAL_TABLE + '" ไม่ใช่ตารางเหรียญรายโรงเรียน ' +
-      '(คอลัมน์แรกคือ "' + head + '" ไม่ใช่ "โรงเรียน") — ตรวจว่าแท็บถูกเปลี่ยนชื่อหรือลบไปหรือไม่');
+      'แท็บสถิติเหรียญรางวัล (gid ' + SHEET_MEDAL_TABLE + ') ไม่ใช่ตารางเหรียญรายโรงเรียน ' +
+      '(คอลัมน์แรกคือ "' + head + '" ไม่ใช่ "โรงเรียน") — ตรวจว่าแท็บถูกลบ หรือคอลัมน์ถูกย้ายหรือไม่');
   }
 
   const rows = (table.rows || [])
@@ -193,13 +216,43 @@ function buildMedalTable(table) {
 }
 
 /* ---------- เหรียญแยกตามชนิดกีฬา ---------- */
+
+/**
+ * ตำแหน่งคอลัมน์ของแท็บ "รวมเหรียญ" หาจากแถวหัวตาราง (แถวที่มีคำว่า ทอง / เงิน / ทองแดง)
+ * ผังเปลี่ยนมาแล้วครั้งหนึ่ง: ชีตเก่า ทอง·เงิน·ทองแดง·รวม·ชนิดกีฬา → ชีตปัจจุบัน ประเภทกีฬา·ทอง·เงิน·ทองแดง·รวม
+ * และหัวตารางไม่ได้อยู่แถวแรก (มีแถวสรุปยอดรวมอยู่ข้างบน) จึงไล่หาทุกแถว ไม่ยึดตำแหน่งตายตัว
+ * ระวัง: gviz ทิ้งข้อความในคอลัมน์ที่มันถือเป็นตัวเลข หัว "ทอง/เงิน/ทองแดง" จึงมักหายไปทั้งแถว
+ * หาหัวไม่เจอ → ดูจากคอลัมน์ที่มีชื่อกีฬา: อยู่ซ้ายสุด = เหรียญตามมาทางขวา (ผังปัจจุบัน)
+ * อยู่ที่อื่น = เหรียญอยู่สามช่องแรก (ผังชีตเก่า)
+ */
+function sportMedalColumns(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const labels = (rows[i].c || []).map(cellText);
+    const at = function (re) { return labels.findIndex(function (l) { return re.test(l); }); };
+    const cols = { name: at(/กีฬา/), gold: at(/ทอง(?!แดง)/), silver: at(/เงิน/), bronze: at(/ทองแดง/) };
+    if (cols.name > -1 && cols.gold > -1 && cols.silver > -1 && cols.bronze > -1) return cols;
+  }
+  for (let i = 0; i < rows.length; i++) {
+    const name = (rows[i].c || []).map(cellText).findIndex(sportIdOf);
+    if (name === 0) return { name: 0, gold: 1, silver: 2, bronze: 3 };
+    if (name > 0) return { name: name, gold: 0, silver: 1, bronze: 2 };
+  }
+  return { name: 4, gold: 0, silver: 1, bronze: 2 };
+}
+
 function buildSports(table) {
-  return (table.rows || [])
+  // อ่านด้วย headers=0 — ทุกแถวรวมแถวหัวตารางมาเป็นข้อมูล ให้ sportMedalColumns() หาหัวเอง
+  const rows = (table.cols || []).some(function (c) { return c.label; })
+    ? [{ c: table.cols.map(function (c) { return { v: c.label }; }) }].concat(table.rows || [])
+    : (table.rows || []);
+  const cols = sportMedalColumns(rows);
+  return rows
     .map(function (r) {
       const c = r.c || [];
-      const name = cellText(c[4]);
+      const name = cellText(c[cols.name]);
+      // แถวหัวตาราง แถวยอด "รวมทั้งหมด" และแถวว่าง ไม่ใช่ชื่อกีฬาที่รู้จัก — ตกไปเองตรงนี้
       if (!name || isSportNotEntered(name) || !sportIdOf(name)) return null;
-      const gold = cellNum(c[0]), silver = cellNum(c[1]), bronze = cellNum(c[2]);
+      const gold = cellNum(c[cols.gold]), silver = cellNum(c[cols.silver]), bronze = cellNum(c[cols.bronze]);
       return {
         id: sportIdOf(name), name: name,
         status: (gold + silver + bronze) > 0 ? 'done' : 'upcoming',
@@ -209,11 +262,35 @@ function buildSports(table) {
     .filter(Boolean);
 }
 
+/**
+ * แท็บ "รวมเหรียญ" ยังว่าง (ช่วงก่อนเริ่มแข่ง ชีตยังไม่ได้กรอกเหรียญรายกีฬา) — ถ้าคืนลิสต์ว่างไปตรง ๆ
+ * หน้าชนิดกีฬาจะหายทั้งหน้า ทั้งที่ตารางแข่งมีกีฬาครบแล้ว จึงสร้างลิสต์จากกีฬาที่อยู่ในตาราง/ผลการแข่งขันแทน
+ * เหรียญเป็น 0 ทั้งหมดจนกว่าแท็บจะกรอก · เรียงตามลำดับใน SPORT_IDS ให้ตรงกับลำดับเดิมของชีต
+ */
+function sportsFromDays(dayLists) {
+  const seen = {};
+  dayLists.forEach(function (days) {
+    days.forEach(function (d) { d.items.forEach(function (it) { if (it.sportId) seen[it.sportId] = 1; }); });
+  });
+  return Object.keys(SPORT_IDS)
+    .filter(function (name) { return seen[SPORT_IDS[name]]; })
+    .map(function (name) {
+      return { id: SPORT_IDS[name], name: name, status: 'upcoming', gold: 0, silver: 0, bronze: 0 };
+    });
+}
+
 /* ---------- ตารางแข่งขัน/ผลการแข่งขัน จัดกลุ่มตามวัน ---------- */
 
-/* ตำแหน่งคอลัมน์ของแท็บ "ผลการแข่งขันประจำวัน":
+/* ตำแหน่งคอลัมน์ของแท็บ "ผลการแข่งขัน":
    วันที่ / กีฬา / ประเภท / เวลา / ทีม A / VS / ทีม B / ผล / สถานะ */
 const RESULT_COLUMNS = { date: 0, sport: 1, kind: 2, time: 3, teamA: 4, teamB: 6, score: 7, status: 8, round: -1, pool: -1 };
+
+/** คอลัมน์ลิงก์ถ่ายทอดสด (หัว "Live") — มีลิงก์ = หน้าเว็บขึ้นป้าย LIVE ที่กดไปดูได้ */
+const LIVE_HEADER = /^live$|ถ่ายทอด|ไลฟ์/i;
+/** รับเฉพาะลิงก์เว็บจริง (http/https) — ข้อความอื่นที่พิมพ์ไว้ในช่อง เช่น "รอลิงก์" หรือ javascript: ไม่เอามาทำเป็นลิงก์ */
+function webLink(text) {
+  return /^https?:\/\/\S+$/i.test(text) ? text : '';
+}
 
 /** ตำแหน่งคอลัมน์ที่ไม่บังคับ หาจากชื่อหัวตาราง — ไม่มีหัวนั้นในแท็บ = -1 (ช่องนั้นว่างทุกแถว) */
 function headerIndex(table, pattern) {
@@ -221,11 +298,11 @@ function headerIndex(table, pattern) {
 }
 
 /**
- * แท็บผลการแข่งขันประจำวัน: คอลัมน์หลักอยู่ตำแหน่งตายตัวตามผังชีต
+ * แท็บผลการแข่งขัน: คอลัมน์หลักอยู่ตำแหน่งตายตัวตามผังชีต
  * ส่วน "นักกีฬา" เป็นคอลัมน์เสริม เพิ่มไว้ตรงไหนของแท็บก็ได้ ขอแค่หัวคอลัมน์มีคำว่า "นักกีฬา"
  */
 function resultColumns(table) {
-  return Object.assign({}, RESULT_COLUMNS, { athletes: headerIndex(table, /นักกีฬา/) });
+  return Object.assign({}, RESULT_COLUMNS, { athletes: headerIndex(table, /นักกีฬา/), live: headerIndex(table, LIVE_HEADER) });
 }
 
 /**
@@ -244,7 +321,8 @@ function planColumns(table) {
     date: at(/วันที่/, 0), sport: at(/รายการ|กีฬา/, 1), kind: at(/ประเภท/, 2),
     round: at(/รอบ/, 3), pool: at(/สาย/, 4), time: at(/เวลา/, 5),
     teamA: teamA, teamB: teamA + 2, score: -1, status: -1,
-    athletes: headerIndex(table, /นักกีฬา/)
+    athletes: headerIndex(table, /นักกีฬา/),
+    live: headerIndex(table, LIVE_HEADER)
   };
 }
 
@@ -287,7 +365,8 @@ function buildDays(table, cols) {
       unofficial: isUnofficial(statusText),
       score: score,
       // ชื่อนักกีฬาตามที่พิมพ์ในชีต หลายคนคั่นด้วยจุลภาคหรือขึ้นบรรทัดใหม่ในช่องเดียวกันก็ได้
-      athletes: cellText(cell(c, cols.athletes))
+      athletes: cellText(cell(c, cols.athletes)),
+      liveUrl: webLink(cellText(cell(c, cols.live)))
     });
   });
 
@@ -300,24 +379,53 @@ function buildDays(table, cols) {
     });
 }
 
-/* ---------- ภาพบรรยากาศ (แถบสไลด์บนหน้าหลัก) ---------- */
+/* ---------- ภาพบรรยากาศ (หน้าประมวลภาพ + แถบสไลด์บนหน้าหลัก) ---------- */
 
-function buildPhotos(table) {
-  return (table.rows || [])
+export function buildPhotos(table) {
+  const labels = (table.cols || []).map(function (c) { return String(c.label || '').trim(); });
+  const rows = (table.rows || []).slice();
+
+  // ขอ headers=1 แล้ว แต่แท็บที่ไม่มีแถวหัว (ลิงก์ตั้งแต่แถวแรก) รูปแรกจะกลายเป็นชื่อหัวคอลัมน์ไป
+  // — เอากลับมาเป็นแถวข้อมูล ไม่ให้รูปแรกหายเงียบ ๆ
+  if (labels.some(function (l) { return /^https?:\/\//i.test(l); })) {
+    rows.unshift({ c: labels.map(function (l) { return { v: l }; }) });
+  }
+  function col(pattern) { return labels.findIndex(function (l) { return pattern.test(l); }); }
+  const iDate = col(/วัน/);
+  const iCaption = col(/คำบรรยาย|คำอธิบาย|รายละเอียด|หัวข้อ|caption/i);
+  const iSport = col(/กีฬา/);
+
+  return rows
     .map(function (r, idx) {
-      // หยิบ URL จากช่องไหนก็ได้ในแถว — แถวหัวตาราง ("img link") กับช่องว่างจะไม่ผ่านเงื่อนไขนี้เอง
-      const src = (r.c || []).map(cellText).filter(function (t) { return /^https?:\/\//i.test(t); })[0];
-      if (!src) return null;
-      return { id: 'p' + idx, src: directImageUrl(src) };
+      const c = r.c || [];
+      // หยิบ URL จากช่องไหนก็ได้ในแถว — แถวหัวตารางกับช่องว่างจะไม่ผ่านเงื่อนไขนี้เอง
+      const link = c.map(cellText).filter(function (t) { return /^https?:\/\//i.test(t); })[0];
+      if (!link) return null;
+
+      // วันที่: ช่องที่ตั้งรูปแบบเป็นวันที่ gviz ส่ง Date(…) มา · ช่องข้อความพิมพ์ได้หลายแบบ (ดู parseThaiDate)
+      const dateCell = iDate > -1 ? c[iDate] : null;
+      const asDate = parseSheetDate(dateCell);
+      const iso = asDate ? isoDate(asDate) : parseThaiDate(cellText(dateCell));
+      const sportText = iSport > -1 ? cellText(c[iSport]) : '';
+
+      return {
+        id: 'p' + idx,
+        src: directImageUrl(link),
+        link: link,
+        iso: iso,
+        caption: iCaption > -1 ? cellText(c[iCaption]) : '',
+        sportId: sportIdOf(sportText),
+        sportText: sportText
+      };
     })
     .filter(Boolean);
 }
 
 /** อ่านแท็บภาพแยกจากแท็บหลัก: แท็บนี้พังไม่ควรทำให้ทั้งแดชบอร์ดตกไปใช้ข้อมูลตัวอย่าง */
-async function loadPhotos() {
+export async function loadPhotos() {
   if (!SHEET_PHOTOS) return [];
   try {
-    return buildPhotos(await fetchGvizTable(SHEET_PHOTOS));
+    return buildPhotos(await fetchGvizTable(SHEET_PHOTOS, 1));
   } catch (err) {
     console.error('อ่านแท็บภาพ (' + SHEET_PHOTOS + ') ไม่สำเร็จ:', err.message);
     return [];
@@ -341,7 +449,7 @@ export async function loadFromSheets(opts) {
 
   const [medalTable, sportTable, scheduleTable, planTable] = await Promise.all([
     fetchGvizTable(SHEET_MEDAL_TABLE, 1),
-    fetchGvizTable(GID_SPORT_MEDALS),
+    fetchGvizTable(GID_SPORT_MEDALS, 0),
     fetchGvizTable(GID_SCHEDULE),
     fetchGvizTable(GID_SCHEDULE_PLAN)
   ]);
@@ -351,6 +459,9 @@ export async function loadFromSheets(opts) {
   const medals = buildMedalTable(medalTable);
   const self = medals.filter(function (m) { return m.isSelf; })[0] || null;
   const leader = medals[0] || null;
+  const days = buildDays(scheduleTable, resultColumns(scheduleTable));
+  const schedule = buildDays(planTable, planColumns(planTable));
+  const sportsWithMedals = buildSports(sportTable);
 
   return {
     meta: {
@@ -363,9 +474,9 @@ export async function loadFromSheets(opts) {
     } : { name: shortSchoolName(SELF_SCHOOL_NAME), fullName: SELF_SCHOOL_NAME, rank: 0, totalSchools: medals.length, gold: 0, silver: 0, bronze: 0, keyword: SELF_SCHOOL_KEYWORD },
     leaderName: leader ? leader.school : '',
     medalTable: medals,
-    sports: buildSports(sportTable),
-    days: buildDays(scheduleTable, resultColumns(scheduleTable)),
-    schedule: buildDays(planTable, planColumns(planTable)),
+    sports: sportsWithMedals.length ? sportsWithMedals : sportsFromDays([schedule, days]),
+    days: days,
+    schedule: schedule,
     photos: photos,
     syncedAt: new Date().toISOString(),
     source: 'sheets'

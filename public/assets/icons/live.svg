@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="84" height="30" viewBox="0 0 84 30">
+  <!-- ป้าย LIVE เคลื่อนไหว (ใช้แทน GIF): จุดขาวกะพริบ + วงคลื่นกระจายออก · ใช้ใน <img> ได้เลย ไม่ต้องมี JS/CSS
+       ตัวหนังสือเป็นอักษรละตินล้วน — ภาพใน <img> ใช้ฟอนต์ของเว็บไม่ได้ ภาษาไทยจะไปพึ่งฟอนต์เครื่องซึ่งแต่ละเครื่องไม่เหมือนกัน -->
+  <rect width="84" height="30" rx="15" fill="#e11d48"/>
+  <circle cx="17" cy="15" r="4.5" fill="none" stroke="#fff" stroke-width="1.6">
+    <animate attributeName="r" values="4.5;10" dur="1.4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values=".9;0" dur="1.4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="17" cy="15" r="4.5" fill="#fff">
+    <animate attributeName="opacity" values="1;.35;1" dur="1.4s" repeatCount="indefinite"/>
+  </circle>
+  <text x="30" y="20" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.2">LIVE</text>
+</svg>
