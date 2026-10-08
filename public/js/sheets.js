@@ -126,6 +126,8 @@ async function fetchGvizTable(source, headers) {
   if (GVIZ_PROXY) {
     try {
       raw = await fetchText(GVIZ_PROXY + '?' + query, label + ' (ตัวกลาง)');
+      // Vercel ที่ยังไม่มีฟังก์ชันนี้ตอบหน้า index.html กลับมาพร้อม 200 — ไม่ใช่คำตอบของ gviz ก็ถือว่าตัวกลางใช้ไม่ได้
+      if (!/setResponse\(/.test(raw)) { raw = null; throw new Error(label + ' (ตัวกลาง) ไม่ได้ตอบเป็นข้อมูลชีต'); }
     } catch (err) {
       console.warn(err.message + ' — ดึงจาก Google ตรงแทน');
     }
