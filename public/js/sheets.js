@@ -10,8 +10,11 @@
    ========================================================= */
 
 import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl, parseThaiDate } from './format.js';
+import { PROXY_ORIGIN } from './proxy.js';
 
 const SHEET_ID = '1BVnQOOoihXIPncU0JWPLL1YcR_Sk3bJTMwtoRDSqQzM';
+/* แท็บทั้งหมดข้างล่าง (gid/ชื่อ) ต้องตรงกับ ALLOWED ใน api/gviz.js — ตัวกลางปฏิเสธแท็บที่ไม่อยู่ในรายการ
+   (แท็บไหนไม่ตรง หน้าเว็บยังทำงาน แต่แท็บนั้นจะยิง Google ตรงทุกครั้ง ไม่ได้ใช้แคช) */
 /**
  * แท็บ "สถิติเหรียญรางวัล" — ตารางเหรียญรายโรงเรียน: โรงเรียน / ทอง / เงิน / ทองแดง / รวม
  * อ้างด้วย gid ไม่ใช่ชื่อแท็บ: ชื่อแท็บในไฟล์นี้ขึ้นต้นด้วย "🔒 " (ตั้งชื่อให้รู้ว่าเป็นแท็บล็อกไว้)
@@ -96,12 +99,8 @@ const FETCH_TIMEOUT_MS = 8000;
 
 /* ตัวกลางแคชบน Vercel (api/gviz.js): ผู้ชมทุกคนได้สำเนาเดียวกันจาก CDN แทนต่างคนต่างยิง Google
    คนดูเยอะพร้อมกันเท่าไรก็ไม่ไปถึงชีต · ตัวกลางล่ม/ยังไม่ได้ deploy = ถอยไปยิง Google ตรงแบบเดิม
-   บนเครื่องตัวเองกับบน Vercel ใช้ /api/gviz ของโดเมนเดียวกัน (server.js เสิร์ฟให้) ที่อื่น (GitHub Pages) ข้ามไป Vercel
-   สคริปต์ Node (import-sheets.mjs) ไม่มี location → ยิง Google ตรง */
-const GVIZ_PROXY = typeof location === 'undefined' ? '' :
-  (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /\.vercel\.app$/.test(location.hostname))
-    ? location.origin + '/api/gviz'
-    : 'https://satit-sports-dashboard-one.vercel.app/api/gviz';
+   ตัวกลางรับเฉพาะแท็บที่ประกาศไว้ใน ALLOWED ของ api/gviz.js — เพิ่ม/เปลี่ยนแท็บข้างบน ต้องแก้ที่นั่นด้วย */
+const GVIZ_PROXY = PROXY_ORIGIN ? PROXY_ORIGIN + '/api/gviz' : '';
 
 async function fetchText(url, label) {
   const ctrl = new AbortController();

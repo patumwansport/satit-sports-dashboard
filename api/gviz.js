@@ -8,11 +8,18 @@
  *
  * ส่งข้อความดิบของ gviz กลับไปตรง ๆ — ตัวแปลงยังอยู่ที่ public/js/sheets.js ที่เดียว
  * GitHub Pages เรียกข้ามโดเมนมาที่นี่ (CORS *) · บนเครื่องตัวเอง server.js เสิร์ฟไฟล์นี้ที่ /api/gviz ด้วย
- * ใช้ได้กับ SHEET_ID ของเราเท่านั้น จะเอาไปเป็นพร็อกซีชีตอื่นไม่ได้
+ * ใช้ได้กับ SHEET_ID ของเราและแท็บใน ALLOWED เท่านั้น จะเอาไปเป็นพร็อกซีชีตอื่นไม่ได้
  */
 
 const SHEET_ID = '1BVnQOOoihXIPncU0JWPLL1YcR_Sk3bJTMwtoRDSqQzM';
 const TIMEOUT_MS = 8000;
+
+/* แท็บที่ยอมให้ถาม (ตรงกับค่าคงที่บนหัว public/js/sheets.js) — ถ้ารับ gid อะไรก็ได้
+   คนที่ยิงเลขสุ่มจะข้ามแคชไปถึง Google ได้ทุกครั้ง · แท็บที่ไม่อยู่ในรายการได้ 400 แล้วหน้าเว็บยิง Google ตรงเอง */
+const ALLOWED = {
+  gid: ['1195929060', '1253612074', '2119468784', '1146003336'],
+  sheet: ['img']
+};
 
 /* CDN: สดได้ 30 วินาที เลยจากนั้นยังตอบชุดเดิมไปก่อน (สูงสุด 5 นาที) ระหว่างไปดึงชุดใหม่เบื้องหลัง
    ผู้ชมจึงไม่ต้องรอ Google เลย ยกเว้นคนแรกของภูมิภาคหลังเงียบไปนานเกิน 5 นาที
@@ -27,8 +34,8 @@ module.exports = async function handler(req, res) {
   const gid = typeof q.gid === 'string' ? q.gid : '';
   const sheet = typeof q.sheet === 'string' ? q.sheet : '';
   const headers = typeof q.headers === 'string' ? q.headers : '';
-  if ((gid ? !/^\d{1,12}$/.test(gid) : !sheet || sheet.length > 60) || (headers && !/^\d$/.test(headers))) {
-    return res.status(400).send('ต้องระบุ gid (ตัวเลข) หรือ sheet (ชื่อแท็บ) อย่างใดอย่างหนึ่ง');
+  if ((gid ? ALLOWED.gid.indexOf(gid) < 0 : ALLOWED.sheet.indexOf(sheet) < 0) || (headers && !/^[01]$/.test(headers))) {
+    return res.status(400).send('แท็บนี้ไม่อยู่ในรายการที่ตัวกลางให้บริการ (ALLOWED ใน api/gviz.js)');
   }
 
   const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json&' +

@@ -14,12 +14,14 @@
    รูปมีหลายพันรูป จึงโหลดสองจังหวะ:
      1) loadDriveTree()  — อ่านโฟลเดอร์แม่ + โฟลเดอร์กีฬา (~20 คำขอพร้อมกัน) → รู้ว่ามีวันไหน กีฬาไหน
      2) loadUnitPhotos() — อ่านรูปเฉพาะวันที่ผู้ชมเปิดดู (โฟลเดอร์วันของทุกกีฬา ~10–20 คำขอพร้อมกัน)
-   โควตา Drive API 12,000 คำขอ/นาที/โปรเจกต์ ≈ ผู้ชมหน้าประมวลภาพ ~300 คน/นาที
+   ทุกคำขอผ่านตัวกลางแคช api/drive.js (CDN เก็บ 60 วินาที) — โควตา Drive API 12,000 คำขอ/นาที/โปรเจกต์
+   จึงไม่ผูกกับจำนวนผู้ชมแล้ว · ตัวกลางใช้ไม่ได้เมื่อไร ถอยไปถามตรง ซึ่งรับได้ ~300 คน/นาที
    ใช้ Drive API v3 ด้วย API key ล้วน ๆ ไม่ต้องล็อกอิน — อ่านได้เพราะโฟลเดอร์แชร์แบบ "ทุกคนที่มีลิงก์"
    ========================================================= */
 
 import { DRIVE_FOLDER, GOOGLE_API_KEY, HIDDEN_FOLDERS } from './gallery-config.js';
 import { parseThaiDate } from './format.js';
+import { PROXY_ORIGIN } from './proxy.js';
 
 var API = 'https://www.googleapis.com/drive/v3/files';
 var FOLDER = 'application/vnd.google-apps.folder';
@@ -82,8 +84,28 @@ async function listAll(q, fields) {
 
 /** ทุกอย่างในโฟลเดอร์เดียว — API key (ผู้ชมไม่ได้ล็อกอิน) ถาม "a in parents or b in parents" ไม่ได้
     Google ตอบ 403 ทันที จึงต้องถามทีละโฟลเดอร์ แล้วยิงพร้อมกันแทน */
-function listChildren(id) {
-  return listAll("'" + id + "' in parents and trashed = false", 'id,name,mimeType');
+async function listChildren(id) {
+  var cached = await viaProxy(id);
+  return cached || listAll("'" + id + "' in parents and trashed = false", 'id,name,mimeType');
+}
+
+/* ถามผ่านตัวกลางแคชบน Vercel (api/drive.js) ก่อน — ผู้ชมทุกคนได้คำตอบชุดเดียวกันจาก CDN ไม่กินโควตา Drive
+   ตัวกลางล่ม / ยังไม่ได้ deploy (Vercel ตอบหน้า HTML) / Google ตอบ error → null แล้วถาม Drive ตรงแบบเดิม
+   error ของ Google จึงไปโผล่ที่ listAll ซึ่งแปลข้อความไว้แล้ว (เช่นโฟลเดอร์ไม่ได้แชร์) */
+async function viaProxy(id) {
+  if (!PROXY_ORIGIN) return null;
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
+  try {
+    var res = await fetch(PROXY_ORIGIN + '/api/drive?parent=' + encodeURIComponent(id), { cache: 'no-store', signal: ctrl.signal });
+    var json = res.ok ? await res.json() : null;
+    return json && Array.isArray(json.files) ? json.files : null;
+  } catch (err) {
+    console.warn('ตัวกลาง Drive ใช้ไม่ได้ (' + (err.name === 'AbortError' ? 'หมดเวลา' : err.message) + ') — ถาม Drive ตรงแทน');
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 function isFolder(f) { return f.mimeType === FOLDER; }
 function isImage(f) { return /^image\//.test(f.mimeType); }

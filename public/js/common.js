@@ -377,8 +377,11 @@ export function schoolAbbr(m) {
 export function schoolLogo(m) {
   if (m && m.logo) return encodeURI(m.logo);
   var abbr = schoolAbbr(m);
-  return abbr ? 'assets/school/' + encodeURIComponent(abbr.replace(/\.$/, '')) + '.png' : '';
+  return abbr ? 'assets/school/' + encodeURIComponent(abbr.replace(/\.$/, '')) + '.webp' : '';
 }
+/* โลโก้ใช้ .webp (เล็กกว่า .png ราว 5 เท่า — หน้าเหรียญโหลดตราทุกโรงเรียน บนเน็ตมือถือข้างสนาม)
+   ไฟล์ใหม่ที่มีแต่ .png (ยังไม่ได้แปลง: cwebp -q 88 -alpha_q 100 x.png -o x.webp) ก็ยังขึ้น เพราะถอยไปหา .png เอง */
+var LOGO_FALLBACK = ' onerror="this.onerror=null;this.src=this.src.replace(/\\.webp$/,\'.png\')"';
 /** ตราโรงเรียน: ใช้โลโก้จริงถ้ามีไฟล์ ไม่มีก็วงกลมตัวอักษรแรกเหมือนเดิม
     โลโก้จริงเป็นตราพื้นโปร่ง — ใส่พื้นขาวไว้เสมอเพื่อให้อ่านออกทั้งธีมสว่างและมืด
     @param {string} [extraCls] - คลาสขนาด (เช่น 'size-11') ผู้เรียกกำหนดเองทุกที่ ไม่มีขนาดตั้งต้น
@@ -389,7 +392,7 @@ export function schoolCrest(m, extraCls, letterTone) {
   var src = schoolLogo(m);
   if (src) {
     return '<img class="flex-none rounded-full border border-line bg-white object-contain p-[3px]' + extra + '"' +
-      ' src="' + esc(src) + '" alt="" loading="lazy" decoding="async" />';
+      ' src="' + esc(src) + '" alt="" loading="lazy" decoding="async"' + LOGO_FALLBACK + ' />';
   }
   var label = (m && (m.abbr || m.school || m.fullName || m.name)) || '?';
   return '<span class="flex flex-none items-center justify-center rounded-full border ' +
