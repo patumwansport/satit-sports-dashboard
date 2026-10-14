@@ -120,7 +120,7 @@ function paint(opening) {
       (opening ? ' motion-safe:animate-pop-in' : '') + '">' +
 
       // หัวกล่อง: ตรา + ชื่อ + ปุ่มปิด — ค้างอยู่บนเสมอ ส่วนเนื้อหาข้างล่างเลื่อนได้
-      '<div class="flex items-center gap-3 border-b border-line bg-linear-[165deg,var(--color-brand-100),var(--color-surface-soft)] py-3.5 pr-14 pl-4">' +
+      '<div class="flex items-center gap-3 border-b border-line bg-brand-100 py-3.5 pr-14 pl-4">' +
         schoolCrest(m, 'size-12 fs-18') +
         '<div class="min-w-0">' +
           (m.isSelf ? '<span class="mb-1 inline-block rounded-full bg-surface px-2.5 py-px fs-12.5 text-brand-strong">โรงเรียนเรา</span>' : '') +

@@ -20,6 +20,50 @@ export function isoDate(d) {
   return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 }
 
+/**
+ * วันที่ควรโชว์ภาพตอนนี้: วันนี้ (ถ้ามีภาพแล้ว) → วันล่าสุดก่อนวันนี้ที่มีภาพ → วันแรกที่มี
+ * ไม่หยิบ "วันล่าสุดในคลัง" ตรง ๆ — โฟลเดอร์วันข้างหน้า (ทีมงานสร้างรอไว้) จะแย่งที่วันนี้
+ * @param {string[]} dates - 'YYYY-MM-DD' ที่มีภาพ เรียงเก่า → ใหม่ (photoDates ใน day-photos.js)
+ */
+export function photoDayNow(dates) {
+  var today = isoDate(new Date());
+  var past = dates.filter(function (iso) { return iso <= today; });
+  return past.length ? past[past.length - 1] : (dates[0] || '');
+}
+
+/** สำเนาของ list ที่สลับลำดับแบบสุ่ม (Fisher–Yates) — ไม่แตะ list เดิม */
+export function shuffled(list) {
+  var out = list.slice();
+  for (var i = out.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1)), t = out[i];
+    out[i] = out[j]; out[j] = t;
+  }
+  return out;
+}
+
+/**
+ * สุ่มภาพไม่เกิน max รูป โดยยังกระจายทุกกีฬา: สุ่มลำดับกีฬา สุ่มรูปในแต่ละกีฬา แล้ววนหยิบกีฬาละรูป
+ * (สุ่มจากกองรวมตรง ๆ วันที่กีฬาหนึ่งมี 500 รูป จะได้แต่กีฬานั้นเกือบทั้งแถว) · เปิดหน้าใหม่ได้ชุดใหม่ทุกครั้ง
+ * @param {function(object): string} keyOf - กีฬาของรูป
+ */
+export function pickRandom(list, max, keyOf) {
+  var groups = {}, keys = [];
+  list.forEach(function (p) {
+    var k = keyOf(p) || '';
+    if (!groups[k]) { groups[k] = []; keys.push(k); }
+    groups[k].push(p);
+  });
+  var piles = shuffled(keys).map(function (k) { return shuffled(groups[k]); }), picks = [];
+  for (var round = 0; picks.length < max; round++) {
+    var took = false;
+    piles.forEach(function (pile) {
+      if (picks.length < max && round < pile.length) { picks.push(pile[round]); took = true; }
+    });
+    if (!took) break;
+  }
+  return picks;
+}
+
 /** ชื่อยาวเต็มบรรทัดในตารางเหรียญอ่านยาก — ย่อส่วนที่ทุกโรงเรียนมีเหมือนกันทิ้ง */
 export function shortSchoolName(name) {
   return String(name || '').trim()
@@ -43,10 +87,18 @@ export function directImageUrl(url) {
   return imageUrlAt(url, 1600);
 }
 /** ลิงก์รูปขนาดกว้าง width px — รูปจาก Drive ขอขนาดเล็กได้ (หน้าประมวลภาพใช้ 640 กับรูปย่อในกริด
-    โหลดเร็วกว่ารูปเต็มหลายเท่า) · URL ที่ไม่ใช่ Drive ย่อเองไม่ได้ ปล่อยผ่านตามเดิม */
+    โหลดเร็วกว่ารูปเต็มหลายเท่า) · URL ที่ไม่ใช่ Drive ย่อเองไม่ได้ ปล่อยผ่านตามเดิม
+    เรียก lh3.googleusercontent.com/d/<id> ตรง ๆ — เดิมใช้ drive.google.com/thumbnail ซึ่งแค่ส่งต่อ (302) มาที่นี่
+    ขั้นส่งต่อนั้นวิ่งผ่านคุกกี้บัญชี Google ของผู้ชม เบราว์เซอร์ที่ล็อกอิน Google ไว้ (โดยเฉพาะหลายบัญชี)
+    จึงค้างโหลดไม่จบ · เรียกตรงยังเร็วกว่าด้วยเพราะไม่ต้องรอส่งต่อ ถ้าตรงนี้ล้มค่อยถอยไป imageFallbackAt() */
 export function imageUrlAt(url, width) {
   var id = driveFileId(url);
-  return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w' + width : url;
+  return id ? 'https://lh3.googleusercontent.com/d/' + id + '=w' + width : url;
+}
+/** ทางสำรองเมื่อ lh3 โหลดไม่ได้: endpoint รูปย่อของ Drive แบบเดิม ('' = ไม่ใช่รูปจาก Drive ไม่มีทางสำรอง) */
+export function imageFallbackAt(url, width) {
+  var id = driveFileId(url);
+  return id ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w' + width : '';
 }
 /** ลิงก์ดาวน์โหลดไฟล์ต้นฉบับความละเอียดเต็ม — Drive ตอบ Content-Disposition: attachment
     เบราว์เซอร์จึงบันทึกไฟล์เลย ไม่เปิดหน้า Drive (ไฟล์ต้องแชร์แบบ "ทุกคนที่มีลิงก์") · ไม่ใช่ Drive คืน URL เดิม */

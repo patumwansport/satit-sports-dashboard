@@ -8,11 +8,11 @@ var chrome = initChrome('sports');
 /* ภาพประจำกีฬา — มาสคอตเป็นภาพหลัก กีฬาที่ยังไม่มีมาสคอตถอยไปใช้ไอคอนกีฬาขนาดใหญ่แทน
    ความสูงของกรอบส่งมาตอนเรียก จึงแยกออกจากคลาสชุดนี้ */
 var ART = 'relative flex items-end justify-center px-3 pt-3.5';
-var ART_TONE_LIVE = ' bg-linear-[165deg,var(--color-live-bg),var(--color-surface-soft)]';
-var ART_TONE = ' bg-linear-[165deg,var(--color-brand-100),var(--color-surface-soft)]';
+var ART_TONE_LIVE = ' bg-live-bg';
+var ART_TONE = ' bg-brand-100';
 
 function sportArt(sp, iconSize) {
-  return sportMascotImg(sp.id, 'max-h-full max-w-full object-contain object-bottom drop-shadow-[0_6px_10px_oklch(30%_0.05_260/.18)]') ||
+  return sportMascotImg(sp.id, 'max-h-full max-w-full object-contain object-bottom drop-') ||
     '<span class="flex h-full w-full items-center justify-center text-brand-strong">' + sportIcon(sp.id, iconSize) + '</span>';
 }
 
@@ -26,7 +26,6 @@ function artBlock(sp, height, iconSize) {
 
 function renderSports(data) {
   var host = document.getElementById('sportGrid'); host.innerHTML = '';
-  document.getElementById('sportsCount').textContent = data.sports.length + ' ชนิด · แตะการ์ดเพื่อดูตารางการแข่งขันของกีฬานั้น';
   data.sports.forEach(function (sp) {
     // การ์ดพาไปหน้าตารางการแข่งขันที่กรองเฉพาะกีฬานี้ไว้แล้ว (fixture-table.js อ่าน ?sport=)
     var card = el('a',

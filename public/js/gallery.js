@@ -15,7 +15,7 @@ import { loadPhotos, sportIdOf } from './sheets.js';
 import { hasSupabase } from './config.js';
 import { hasDrive, loadDriveTree, loadUnitPhotos, setDriveConfig } from './drive-photos.js';
 import { loadGallerySettings } from './gallery-settings.js';
-import { WEEKDAYS_TH, MONTHS_TH, isoDate, imageUrlAt, originalImageUrl, downloadImageUrl, parseThaiDate } from './format.js';
+import { WEEKDAYS_TH, MONTHS_TH, photoDayNow, shuffled, pickRandom, imageUrlAt, imageFallbackAt, originalImageUrl, downloadImageUrl, parseThaiDate } from './format.js';
 
 var chrome = initChrome('gallery');
 
@@ -30,7 +30,8 @@ var state = {
   photos: [],       // ภาพทั้งหมดหลังแปลงรูปแบบแล้ว
   groups: [],       // [{ key, photos, units }] เรียงตามวัน — photos = null คือยังไม่ได้โหลด (โหมด Drive)
   day: null,        // key ของวันที่เลือกอยู่
-  sport: ALL_SPORTS,
+  // ?sport=<id> (ลิงก์จากหน้าผลการแข่งขัน) เปิดมาก็กรองกีฬานั้นไว้เลย — วันนั้นไม่มีภาพกีฬานี้ renderSportFilter คืนเป็นทุกกีฬาเอง
+  sport: (typeof location !== 'undefined' && new URLSearchParams(location.search).get('sport')) || ALL_SPORTS,
   shown: [],        // ภาพที่อยู่ในกริดตอนนี้ (หลังกรองกีฬา) — ลำดับเดียวกับที่ปุ่มก่อนหน้า/ถัดไปใช้
   page: 0,          // หน้าของกริดในโหมดดูทั้งหมด (วันหนึ่งเป็นพันรูป — แบ่งหน้าละ GRID_PAGE)
   viewing: -1
@@ -147,23 +148,13 @@ function groupTitle(key) {
   return isFolderKey(key) ? key.slice(FOLDER_KEY.length) : shortLabel(key);
 }
 
-/** "วันที่ N" ของรายการแข่ง — นับจากวันในตารางการแข่งขัน ไม่ใช่วันในปฏิทิน */
-function competitionDayNo(iso) {
-  var d = state.data;
-  if (!d) return 0;
-  return competitionDays(d).indexOf(iso) + 1;
-}
-
-/** วันที่เปิดมาเจอ: ?day= ในลิงก์ → วันนี้ (ถ้ามีภาพ) → วันล่าสุดที่มีภาพ */
+/** วันที่เปิดมาเจอ: ?day= ในลิงก์ → วันนี้ / วันล่าสุดก่อนวันนี้ที่มีภาพ (กติกาเดียวกับแถบภาพหน้าหลัก) */
 function initialDay() {
   var want = new URLSearchParams(location.search).get('day');
   var keys = state.groups.map(function (g) { return g.key; });
   if (want && keys.indexOf(want) > -1) return want;
-  var today = isoDate(new Date());
-  if (keys.indexOf(today) > -1) return today;
-  // วันล่าสุดที่มีภาพ (กลุ่มวันที่เรียงอยู่หน้าสุด) · ไม่มีกลุ่มไหนเป็นวันที่เลย = กลุ่มแรก
-  var dated = keys.filter(function (k) { return groupRank(k) === 0; });
-  return dated.length ? dated[dated.length - 1] : keys[0];
+  // กลุ่มวันที่เรียงอยู่หน้าสุด · ไม่มีกลุ่มไหนเป็นวันที่เลย = กลุ่มแรก
+  return photoDayNow(keys.filter(function (k) { return groupRank(k) === 0; })) || keys[0];
 }
 
 /* ---------- แสดงผล ---------- */
@@ -191,15 +182,11 @@ function renderTabs() {
   host.hidden = !dated.length;
   if (!dated.length) return;
 
-  var today = isoDate(new Date());
+  // แท็บมีแค่ชื่อวัน/ชื่อโฟลเดอร์บรรทัดเดียว — บรรทัดล่าง "วันที่ N" / "วันนี้" ผู้ดูแลขอให้ตัดออก
   host.innerHTML = state.groups.map(function (g) {
-    var title = groupTitle(g.key);
-    var no = groupRank(g.key) === 0 ? competitionDayNo(g.key) : 0;
-    var sub = g.key === today ? 'วันนี้' : no ? 'วันที่ ' + no : '';
     return '<button class="' + TAB + '" type="button" role="tab" data-day="' + esc(g.key) + '" aria-selected="' + (g.key === state.day) + '"' +
       ' tabindex="' + (g.key === state.day ? '0' : '-1') + '">' +
-      '<span class="fs-15.5 font-semibold whitespace-nowrap">' + esc(title) + '</span>' +
-      (sub ? '<span class="fs-13 whitespace-nowrap opacity-80">' + esc(sub) + '</span>' : '') + '</button>';
+      '<span class="fs-15.5 font-semibold whitespace-nowrap">' + esc(groupTitle(g.key)) + '</span></button>';
   }).join('');
 
   host.querySelectorAll('[data-day]').forEach(function (b) {
@@ -249,39 +236,34 @@ function renderSportFilter(group) {
 }
 
 /** @param {boolean} [inSection] - อยู่ใต้หัวข้อกีฬาแล้ว ไม่ต้องติดป้ายชื่อกีฬาซ้ำทุกรูป */
+/* ---------- รูปสำรองเมื่อโหลดจาก lh3 ไม่ได้ ----------
+   ทุก <img> ของ Drive พก data-fb (ลิงก์ drive.google.com/thumbnail แบบเดิม) ไว้
+   โหลดไม่ได้ครั้งแรก → สลับไปลิงก์สำรองหนึ่งครั้ง แล้วลบ data-fb ทิ้งกันวนไม่จบ
+   event "error" ของรูปไม่ bubble จึงดักแบบ capture ที่ document ตัวเดียว ไม่ต้องผูกทีละรูป */
+function fallbackAttr(link, width) {
+  var fb = imageFallbackAt(link, width);
+  return fb ? ' data-fb="' + esc(fb) + '"' : '';
+}
+document.addEventListener('error', function (e) {
+  var img = e.target;
+  if (!img || img.tagName !== 'IMG' || !img.dataset.fb) return;
+  var fb = img.dataset.fb;
+  delete img.dataset.fb;
+  img.src = fb;
+}, true);
+
 function tileHtml(p, i, inSection) {
   var label = [p.caption, p.sport].filter(Boolean).join(' · ') || 'ภาพบรรยากาศ ภาพที่ ' + (i + 1);
   return '<button class="group/tile relative block aspect-[4/3] cursor-zoom-in overflow-hidden rounded-lg border-0 bg-surface-soft p-0 shadow-panel' +
       ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-label="ดูภาพเต็มจอ: ' + esc(label) + '">' +
     // no-referrer: Drive ตอบ 429 แทนรูปเมื่อเห็น Referer ข้ามโดเมน
     '<img class="block h-full w-full object-cover transition-transform duration-300 group-hover/tile:scale-[1.04] motion-reduce:transition-none"' +
-      ' src="' + esc(imageUrlAt(p.link, 640)) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />' +
-    (p.sport && !inSection ? '<span class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-[oklch(16%_0.02_260/.62)] px-2.5 py-1 fs-12.5 text-white backdrop-blur-sm">' +
+      ' src="' + esc(imageUrlAt(p.link, 640)) + '"' + fallbackAttr(p.link, 640) + ' alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />' +
+    (p.sport && !inSection ? '<span class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-[oklch(16%_0.02_260/.62)] px-2.5 py-1 fs-12.5 text-white">' +
       esc(p.sport) + '</span>' : '') +
     (p.caption ? '<span class="absolute inset-x-0 bottom-0 bg-linear-to-t from-[oklch(16%_0.02_260/.85)] to-[oklch(16%_0.02_260/0)] px-3 pt-8 pb-2.5 text-left fs-14 leading-[1.4] text-white line-clamp-2">' +
       esc(p.caption) + '</span>' : '') +
   '</button>';
-}
-
-/** เลือกภาพเด่นใส่สไลด์: วนหยิบจากทุกกีฬาทีละรูป (ไม่ใช่ 12 รูปแรกที่เป็นกีฬาเดียวกันหมด)
-    หยิบห่าง ๆ กันในแต่ละกีฬา — รูปติดกันในโฟลเดอร์มักเป็นช็อตต่อเนื่องที่หน้าตาแทบเหมือนกัน */
-function pickHighlights(list, max) {
-  var bySport = [], idx = {};
-  list.forEach(function (p) {
-    var k = p.sport || '';
-    if (!(k in idx)) { idx[k] = bySport.length; bySport.push([]); }
-    bySport[idx[k]].push(p);
-  });
-  var picks = [];
-  for (var round = 0; picks.length < max && round < max; round++) {
-    bySport.forEach(function (arr) {
-      if (picks.length >= max) return;
-      var step = Math.max(1, Math.floor(arr.length / Math.ceil(max / bySport.length)));
-      var p = arr[round * step];
-      if (p && picks.indexOf(p) < 0) picks.push(p);
-    });
-  }
-  return picks;
 }
 
 function gridHtml(from, to) {
@@ -342,7 +324,8 @@ function renderBody() {
     return;
   }
 
-  var highlights = pickHighlights(state.shown, HIGHLIGHTS);
+  // ภาพเด่นบนสไลด์และตัวอย่างใต้หัวข้อกีฬาสุ่มใหม่ทุกครั้งที่วาด (เปิดหน้า/สลับวัน/เลือกกีฬา) — กริด "ดูเพิ่มเติม" ยังเรียงตามไฟล์
+  var highlights = pickRandom(state.shown, HIGHLIGHTS, function (p) { return p.sportId || p.sport; });
   var sports = sportSections(state.shown);
   // "ทุกกีฬา" และวันนั้นมีหลายกีฬา → แสดงตัวอย่างกีฬาละไม่กี่รูป + ปุ่มดูเพิ่มเติม
   // เลือกกีฬาแล้ว (หรือวันนั้นมีกีฬาเดียว) → กริดเต็มของกีฬานั้น แบ่งหน้าทีละ GRID_PAGE
@@ -384,14 +367,6 @@ function sportSections(list) {
   return out;
 }
 
-/** ตัวอย่างกระจายทั่วทั้งกีฬา — รูปติดกันในโฟลเดอร์มักเป็นช็อตต่อเนื่องที่แทบเหมือนกัน */
-function spread(arr, n) {
-  if (arr.length <= n) return arr;
-  var step = arr.length / n, out = [];
-  for (var k = 0; k < n; k++) out.push(arr[Math.floor(k * step)]);
-  return out;
-}
-
 function sectionHtml(sec) {
   var more = sec.photos.length > SAMPLES;
   return '<section class="mt-9 first-of-type:mt-9">' +
@@ -405,13 +380,13 @@ function sectionHtml(sec) {
         '<span class="sr-only"> ภาพ' + esc(sec.name) + '</span></button>' : '') +
     '</div>' +
     '<div class="grid grid-cols-4 gap-3 max-[1100px]:grid-cols-3 max-[700px]:grid-cols-2 max-[560px]:gap-2">' +
-      spread(sec.photos, SAMPLES).map(function (x) { return tileHtml(x.p, x.i, true); }).join('') +
+      shuffled(sec.photos).slice(0, SAMPLES).map(function (x) { return tileHtml(x.p, x.i, true); }).join('') +
     '</div>' +
   '</section>';
 }
 
 function fullGridHtml(dated) {
-  return '<h3 class="mt-9 mb-3.5 scroll-mt-24 fs-15.5 font-semibold text-fg-soft" id="gridTop">' + (dated ? 'ภาพทั้งหมดของวันนี้' : 'ภาพทั้งหมด') + '</h3>' +
+  return '<h3 class="mt-9 mb-3.5 scroll-mt-6 fs-15.5 font-semibold text-fg-soft" id="gridTop">' + (dated ? 'ภาพทั้งหมดของวันนี้' : 'ภาพทั้งหมด') + '</h3>' +
     '<div class="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 max-[560px]:grid-cols-2 max-[560px]:gap-2" id="photoGrid"></div>' +
     '<nav class="mt-8 flex items-center justify-center gap-2 max-[560px]:gap-1" id="pager" aria-label="เลือกหน้าภาพ"></nav>';
 }
@@ -500,7 +475,6 @@ function devHint() {
 function renderEmpty() {
   $('dayTabs').hidden = true;
   $('sportFilter').hidden = true;
-  $('galleryCount').textContent = 'ภาพบรรยากาศการแข่งขัน';
   $('galleryBody').innerHTML =
     '<div class="rounded-lg border border-line bg-surface px-6 py-12 text-center shadow-panel">' +
       '<i class="icon-mask mx-auto mb-3 block size-10 text-fg-mute" data-ic="photo"></i>' +
@@ -516,9 +490,6 @@ function renderGallery() {
     if (!state.photos.length) { renderEmpty(); return; }
     state.groups = buildGroups(state.photos);
   }
-  // ไม่บอกจำนวนภาพ (ผู้ใช้ไม่ต้องการ) — บอกแค่ว่าแบ่งตามวัน เมื่อมีวันให้แบ่งจริง
-  var days = state.groups.some(function (g) { return g.key !== NO_DATE; });
-  $('galleryCount').textContent = 'ภาพบรรยากาศการแข่งขัน' + (days ? ' แยกตามวัน' : '');
   state.day = state.groups.some(function (g) { return g.key === state.day; }) ? state.day : initialDay();
   renderTabs();
   renderBody();
@@ -557,9 +528,9 @@ function slideHtml(p, i, n, k) {
   var title = p.caption || p.sport || 'ภาพบรรยากาศการแข่งขัน';
   var date = p.iso ? (function () { var d = isoToDate(p.iso); return d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ' ' + (d.getFullYear() + 543); })() : '';
   return '<div class="motion-ok relative aspect-[16/9] w-[86%] flex-none cursor-pointer overflow-hidden rounded-2xl bg-surface-soft shadow-panel' +
-      ' transition-[filter,opacity] duration-500 data-[on=false]:opacity-50 data-[on=false]:blur-[3px] motion-reduce:transition-none' +
+      ' transition-opacity duration-500 data-[on=false]:opacity-50 motion-reduce:transition-none' +
       ' min-[700px]:w-[62%] min-[1100px]:w-[40%]" data-k="' + k + '" data-on="false" role="group" aria-roledescription="สไลด์" aria-label="' + (i + 1) + ' จาก ' + n + '">' +
-    '<img class="absolute inset-0 h-full w-full object-cover" src="' + esc(imageUrlAt(p.link, 1200)) + '" alt="' + esc(p.caption || 'ภาพบรรยากาศการแข่งขัน') + '"' +
+    '<img class="absolute inset-0 h-full w-full object-cover" src="' + esc(imageUrlAt(p.link, 1200)) + '"' + fallbackAttr(p.link, 1200) + ' alt="' + esc(p.caption || 'ภาพบรรยากาศการแข่งขัน') + '"' +
       ' loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false" />' +
     '<div class="absolute inset-x-0 bottom-0 flex items-end gap-4 bg-linear-to-t from-[oklch(14%_0.02_260/.88)] via-[oklch(14%_0.02_260/.5)] to-[oklch(14%_0.02_260/0)] px-6 pt-20 pb-5 max-[560px]:gap-3 max-[560px]:px-4 max-[560px]:pt-14 max-[560px]:pb-4">' +
       '<div class="min-w-0 flex-1 text-white">' +
@@ -786,8 +757,19 @@ function showPhoto(i) {
 
   $('viewerSpin').hidden = false;
   img.style.opacity = '0';
-  img.onload = function () { $('viewerSpin').hidden = true; img.style.opacity = '1'; };
-  img.onerror = function () { $('viewerSpin').hidden = true; $('viewerCaption').textContent = 'โหลดภาพนี้ไม่ได้ — ไฟล์อาจยังไม่ได้แชร์แบบ "ทุกคนที่มีลิงก์"'; };
+  // lh3 ล้ม → ลองลิงก์สำรองของ Drive หนึ่งครั้ง · ล้มทั้งคู่ค่อยบอกผู้ชม
+  // โหลดนานเกิน 15 วินาที (เน็ตช้า) บอกในคำบรรยาย แทนที่จะปล่อยวงหมุนเงียบ ๆ ให้คิดว่าเว็บค้าง
+  var fallback = imageFallbackAt(p.link, 2000);
+  clearTimeout(state.slowTimer);
+  state.slowTimer = setTimeout(function () {
+    if (!$('viewerSpin').hidden) $('viewerCaption').textContent = 'ภาพกำลังโหลดช้า — อาจเป็นเพราะอินเทอร์เน็ตช้า รอสักครู่หรือกดเปิดไฟล์ต้นฉบับ';
+  }, 15000);
+  img.onload = function () { clearTimeout(state.slowTimer); $('viewerSpin').hidden = true; img.style.opacity = '1'; };
+  img.onerror = function () {
+    if (fallback && img.src !== fallback) { img.src = fallback; return; }
+    clearTimeout(state.slowTimer);
+    $('viewerSpin').hidden = true; $('viewerCaption').textContent = 'โหลดภาพนี้ไม่ได้ — ไฟล์อาจยังไม่ได้แชร์แบบ "ทุกคนที่มีลิงก์"';
+  };
   img.src = imageUrlAt(p.link, 2000);
   img.alt = p.caption || 'ภาพบรรยากาศการแข่งขัน';
 

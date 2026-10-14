@@ -1,85 +1,131 @@
-import { loadData, onFreshData, initChrome, renderMedalTable, showLoadError, el, esc, schoolCrest } from './common.js';
+/* =========================================================
+   medals.js — ตารางอันดับเหรียญรางวัล
+   ซ้าย: ตารางเต็ม (renderMedalTable ใน common.js) สลับแท็บไปดูเหรียญแยกประเภทกีฬาได้
+   ขวา: กราฟ 5 อันดับแรก · สัดส่วนเหรียญของโรงเรียนเรา · เปรียบเทียบสองโรงเรียน
+   ========================================================= */
+import {
+  loadData, onFreshData, initChrome, renderMedalTable, showLoadError, esc, schoolCrest,
+  schoolId, schoolKey, paintUiIcons
+} from './common.js';
+import { MEDALS, total, emptyBox, stackedMedalChart, medalShareChart } from './charts.js';
 import { openSchoolPopup, refreshSchoolPopup } from './school-popup.js';
 
 var chrome = initChrome('medals');
 var current = null; // ข้อมูลชุดล่าสุด ให้ป๊อปอัปโรงเรียนอ่านตอนแตะ
+var cmp = { a: null, b: null }; // โรงเรียนที่เลือกเปรียบเทียบ (id) — คงไว้ข้ามรอบข้อมูลใหม่
 
-/* ---------- โพเดียม 3 อันดับแรก ----------
-   ลำดับบนจอเป็น 2–1–3 เหมือนแท่นรับรางวัลจริง แต่ลำดับใน DOM เป็น 1–2–3
-   (ใช้ order ของ grid สลับตำแหน่ง) โปรแกรมอ่านหน้าจอจึงอ่านอันดับ 1 ก่อนเสมอ
-   ความสูงแท่นบอกอันดับ ตัวเลขบนแท่นซ้ำอีกชั้นเพื่อไม่ต้องพึ่งความสูงอย่างเดียว */
-var PODIUM = {
-  1: { order: 'order-2', crest: 'size-[120px] fs-44 max-[560px]:size-[72px] max-[560px]:fs-28', base: 'h-[132px] max-[560px]:h-[92px]', edge: 'border-t-gold', num: 'text-gold-ink' },
-  2: { order: 'order-1', crest: 'size-[92px] fs-34 max-[560px]:size-[56px] max-[560px]:fs-22', base: 'h-[96px] max-[560px]:h-[66px]', edge: 'border-t-silver', num: 'text-silver-ink' },
-  3: { order: 'order-3', crest: 'size-[92px] fs-34 max-[560px]:size-[56px] max-[560px]:fs-22', base: 'h-[70px] max-[560px]:h-[48px]', edge: 'border-t-bronze', num: 'text-bronze-ink' }
-};
-var COINS = [['gold', 1, 'ทอง'], ['silver', 2, 'เงิน'], ['bronze', 3, 'ทองแดง']];
-
-function renderPodium(rows) {
-  var host = document.getElementById('medalPodium');
-  host.innerHTML = '';
-  // ตำแหน่งบนแท่นมาจากลำดับในตาราง (อันดับที่เสมอกันยังได้แท่นคนละขั้น) ส่วนตัวเลขแสดงอันดับจริง
-  var top = rows.slice(0, 3);
-  host.hidden = !top.length;
-
-  top.forEach(function (m, i) {
-    var p = PODIUM[i + 1];
-    var name = m.fullName || m.school;
-    var total = m.gold + m.silver + m.bronze;
-    // แท่นตอบสนองแค่ตอนชี้/แตะ (ตราลอยขึ้น ชื่อเปลี่ยนสี) — ไม่ใช่ปุ่ม กดแล้วไม่เปิดอะไร
-    var col = el('div',
-      'group/pod flex min-w-0 flex-col items-center text-center text-fg ' + p.order,
-      // ตราโรงเรียนเป็นตัวเอกของแท่น (อันดับ 1 ใหญ่สุด) — สีอันดับบอกอยู่แล้วที่ขอบแท่นกับตัวเลข
-      schoolCrest(m, p.crest + ' shadow-panel transition-transform duration-200 group-hover/pod:-translate-y-1 group-active/pod:scale-95 motion-reduce:transition-none') +
-      '<span class="mt-3 flex w-full min-w-0 flex-col items-center gap-2 px-1 max-[560px]:mt-2 max-[560px]:gap-1.5">' +
-        // มือถือแท่นกว้างแค่ ~110px ชื่อเต็ม ("โรงเรียนสาธิตมหาวิทยาลัย…") ยาว 4–5 บรรทัดจนสามแท่นสูงไม่เท่ากัน
-        // จึงใช้ชื่อย่อ (สาธิตปทุมวัน) บนจอแคบ ชื่อเต็มยังอยู่ใน aria-label และบนจอกว้าง
-        '<span class="w-full fs-16.5 leading-[1.3] break-words group-hover/pod:text-brand-strong max-[560px]:fs-14">' +
-          '<span class="max-[560px]:hidden">' + esc(name) + '</span>' +
-          '<span class="hidden max-[560px]:inline">' + esc(m.school || name) + '</span></span>' +
-        '<span class="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 max-[560px]:gap-x-1.5">' +
-          COINS.map(function (c) {
-            return '<span class="flex items-center gap-1" title="' + c[2] + '">' +
-              '<img class="size-[20px] flex-none max-[560px]:size-[15px]" src="assets/medals/coin-' + c[1] + '.webp" alt="" width="64" height="64" decoding="async" />' +
-              '<b class="font-mono fs-16 font-normal tabular-nums max-[560px]:fs-13.5' + (m[c[0]] ? '' : ' opacity-35') + '">' + m[c[0]] + '</b>' +
-            '</span>';
-          }).join('') +
-        '</span>' +
-      '</span>' +
-      // แท่น: พื้นอ่อน ขอบบนเป็นสีเหรียญ ตัวเลขอันดับตัวโตกลางแท่น
-      '<span class="mt-3 flex w-full flex-none flex-col items-center justify-start rounded-t-lg border border-b-0 border-line border-t-[5px] bg-surface pt-2.5 shadow-panel ' +
-        p.base + ' ' + p.edge + ' max-[560px]:mt-2 max-[560px]:pt-1.5">' +
-        '<span class="font-display fs-34 leading-none max-[560px]:fs-24 ' + p.num + '">' + m.rank + '</span>' +
-        '<span class="mt-1 fs-13.5 text-fg-mute max-[560px]:fs-12">รวม ' + total + ' เหรียญ</span>' +
-      '</span>');
-    col.setAttribute('role', 'group');
-    col.setAttribute('aria-label',
-      'อันดับ ' + m.rank + ' ' + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') +
-      ' ทอง ' + m.gold + ' เงิน ' + m.silver + ' ทองแดง ' + m.bronze + ' รวม ' + total);
-    host.appendChild(col);
+/* ---------- แท็บ ภาพรวม / แยกประเภทกีฬา ---------- */
+function bindTabs() {
+  var tabs = [['tabAll', 'medalList'], ['tabSport', 'sportTable']];
+  tabs.forEach(function (t) {
+    document.getElementById(t[0]).addEventListener('click', function () {
+      tabs.forEach(function (u) {
+        var on = u[0] === t[0];
+        document.getElementById(u[0]).setAttribute('aria-selected', on ? 'true' : 'false');
+        document.getElementById(u[1]).hidden = !on;
+      });
+    });
   });
 }
 
 function renderMedalList(data) {
   var rows = data.medalTable || [];
-  renderPodium(rows);
-  // 1–3 อยู่บนโพเดียมแล้ว ตารางจึงเริ่มที่แถวที่ 4 — ถ้ามีไม่ถึง 4 โรงเรียนก็ซ่อนแผงตารางทั้งแผง
-  var rest = rows.slice(3);
-  var list = document.getElementById('medalList');
-  renderMedalTable(list, rest, { onPick: function (m, row) { openSchoolPopup(current, m, row); } });
-  list.parentElement.hidden = !rest.length;
-  document.getElementById('medalCount').textContent = rest.length
-    ? 'อันดับ ' + rest[0].rank + '–' + rest[rest.length - 1].rank + ' · ทั้งหมด ' + rows.length + ' โรงเรียน'
-    : '';
+  renderMedalTable(document.getElementById('medalList'), rows, { onPick: function (m, row) { openSchoolPopup(current, m, row); } });
+  document.getElementById('medalCount').textContent = rows.length ? 'ทั้งหมด ' + rows.length + ' โรงเรียน' : 'ยังไม่มีตารางเหรียญ';
+}
+
+/** ตารางเหรียญแยกประเภทกีฬา (แท็บ "รวมเหรียญ" ในชีต) — เรียงตามเหรียญรวมจากมากไปน้อย */
+var SP_GRID = 'grid grid-cols-[minmax(0,1fr)_repeat(4,minmax(52px,84px))] items-center gap-3 px-5 max-[560px]:grid-cols-[minmax(0,1fr)_repeat(4,44px)] max-[560px]:gap-1.5 max-[560px]:px-4';
+function renderSportTable(data) {
+  var host = document.getElementById('sportTable');
+  var rows = (data.sports || []).slice().sort(function (a, b) { return total(b) - total(a) || b.gold - a.gold; });
+  if (!rows.length) { host.innerHTML = emptyBox('ยังไม่มีข้อมูลเหรียญแยกประเภทกีฬา'); return; }
+  host.innerHTML =
+    '<div class="' + SP_GRID + ' border-b border-line bg-surface-soft py-3 fs-14.5 text-fg-soft" aria-hidden="true"><span>ประเภทกีฬา</span>' +
+      MEDALS.map(function (k) { return '<span class="flex justify-end"><img class="size-[24px]" src="assets/medals/coin-' + k.n + '.webp" alt="" title="' + k.label + '" width="64" height="64" /></span>'; }).join('') +
+      '<span class="text-right">รวม</span></div>' +
+    rows.map(function (s) {
+      return '<div class="' + SP_GRID + ' border-b border-line py-3 fs-16.5 text-fg last:border-b-0" role="group" aria-label="' + esc(s.name) + ' ทอง ' + s.gold + ' เงิน ' + s.silver + ' ทองแดง ' + s.bronze + ' รวม ' + total(s) + '">' +
+        '<span class="min-w-0 break-words">' + esc(s.name) + '</span>' +
+        MEDALS.map(function (k) { return '<b class="text-right font-mono font-normal tabular-nums' + (s[k.key] ? '' : ' opacity-35') + '">' + s[k.key] + '</b>'; }).join('') +
+        '<b class="text-right font-mono fs-18 font-normal text-brand-strong tabular-nums' + (total(s) ? '' : ' opacity-35') + '">' + total(s) + '</b>' +
+      '</div>';
+    }).join('');
+}
+
+/* ---------- เปรียบเทียบสองโรงเรียน ----------
+   ค่าตั้งต้น: โรงเรียนเรา กับโรงเรียนที่อยู่ติดกันข้างบน (เราอันดับ 1 = เทียบกับอันดับ 2) */
+function idOf(m) { return schoolId(schoolKey(m)); }
+function fillSelect(sel, rows, value) {
+  sel.innerHTML = rows.map(function (m) {
+    return '<option value="' + esc(idOf(m)) + '"' + (idOf(m) === value ? ' selected' : '') + '>' + esc(m.rank + '. ' + m.school) + '</option>';
+  }).join('');
+}
+function renderCompare(data) {
+  var rows = data.medalTable || [];
+  var out = document.getElementById('cmpOut');
+  var selA = document.getElementById('cmpA'), selB = document.getElementById('cmpB');
+  if (rows.length < 2) { out.innerHTML = emptyBox('ต้องมีอย่างน้อยสองโรงเรียน'); return; }
+  var ids = rows.map(idOf);
+  var meIdx = Math.max(0, rows.findIndex(function (m) { return m.isSelf; }));
+  if (ids.indexOf(cmp.a) < 0) cmp.a = ids[meIdx];
+  if (ids.indexOf(cmp.b) < 0 || cmp.b === cmp.a) cmp.b = ids[meIdx === 0 ? 1 : meIdx - 1];
+  fillSelect(selA, rows, cmp.a);
+  fillSelect(selB, rows, cmp.b);
+
+  var A = rows[ids.indexOf(cmp.a)], B = rows[ids.indexOf(cmp.b)];
+  var lines = MEDALS.map(function (k) { return { label: k.label, a: A[k.key], b: B[k.key] }; })
+    .concat([{ label: 'รวม', a: total(A), b: total(B), strong: true }]);
+  function side(m) {
+    return '<div class="flex min-w-0 flex-col items-center gap-1.5 text-center">' + schoolCrest(m, 'size-14 shadow-panel') +
+      '<span class="fs-14 leading-[1.3] ' + (m.isSelf ? 'text-brand' : 'text-fg') + '">' + esc(m.school) + '</span>' +
+      '<span class="fs-13 text-fg-mute">อันดับ ' + m.rank + '</span></div>';
+  }
+  out.innerHTML =
+    '<div class="grid grid-cols-[1fr_auto_1fr] items-start gap-3">' + side(A) + '<span class="pt-4 fs-14 text-fg-mute">เทียบกับ</span>' + side(B) + '</div>' +
+    '<div class="mt-4 flex flex-col gap-2">' + lines.map(function (l) {
+      var max = Math.max(l.a, l.b, 1);
+      // ฝั่งที่มากกว่าเป็นสีชมพู เท่ากันเป็นสีกลางทั้งคู่ — ตัวเลขกำกับทุกแท่ง ไม่ต้องเดาจากความยาว
+      var tone = function (x, y) { return x > y ? 'bg-brand' : 'bg-line-strong'; };
+      return '<div class="grid grid-cols-[34px_1fr_64px_1fr_34px] items-center gap-2 fs-15' + (l.strong ? ' mt-1 border-t border-line pt-3' : '') + '">' +
+        '<b class="text-right font-mono font-normal tabular-nums ' + (l.a > l.b ? 'text-brand' : 'text-fg') + '">' + l.a + '</b>' +
+        '<span class="flex h-2.5 justify-end overflow-hidden rounded-full bg-surface-soft"><span class="block h-full rounded-full ' + tone(l.a, l.b) + '" style="width:' + (l.a / max * 100) + '%"></span></span>' +
+        '<span class="text-center fs-13.5 text-fg-soft">' + l.label + '</span>' +
+        '<span class="flex h-2.5 overflow-hidden rounded-full bg-surface-soft"><span class="block h-full rounded-full ' + tone(l.b, l.a) + '" style="width:' + (l.b / max * 100) + '%"></span></span>' +
+        '<b class="font-mono font-normal tabular-nums ' + (l.b > l.a ? 'text-brand' : 'text-fg') + '">' + l.b + '</b>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+function bindCompare() {
+  document.getElementById('cmpA').addEventListener('change', function (e) { cmp.a = e.target.value; if (current) renderCompare(current); });
+  document.getElementById('cmpB').addEventListener('change', function (e) { cmp.b = e.target.value; if (current) renderCompare(current); });
+}
+
+function renderSide(data) {
+  var rows = data.medalTable || [];
+  document.getElementById('top5').innerHTML = stackedMedalChart(rows.slice(0, 5));
+  var me = rows.filter(function (m) { return m.isSelf; })[0];
+  // ป้ายข้างหัวกราฟ = อันดับจริงของโรงเรียนเรา (ไม่มีเหรียญ = ไม่แสดง ไม่เดาแนวโน้ม)
+  var badge = document.getElementById('top5Badge');
+  badge.hidden = !(me && total(me) > 0);
+  if (!badge.hidden) badge.innerHTML = '<i class="icon-mask" data-ic="medal" aria-hidden="true"></i>เราอันดับ ' + me.rank + ' จาก ' + rows.length;
+  document.getElementById('shareWho').textContent = me ? me.school : '';
+  document.getElementById('share').innerHTML = medalShareChart(me);
+  renderCompare(data);
 }
 
 function renderAll(data) {
   current = data;
   renderMedalList(data);
+  renderSportTable(data);
+  renderSide(data);
   refreshSchoolPopup(data);
+  paintUiIcons(document.getElementById('main'));
   chrome.onData(data);
 }
 
+bindTabs();
+bindCompare();
 loadData().then(function (data) {
   renderAll(data);
   onFreshData(renderAll);

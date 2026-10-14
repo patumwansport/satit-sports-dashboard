@@ -8,7 +8,10 @@
    สคริปต์ Node (import-sheets.mjs) ไม่มี location → '' = ไม่ใช้ตัวกลาง ยิงต้นทางตรง
    ========================================================= */
 
+/* บนเครื่องตัวเอง /api/ มีเฉพาะตอนรัน npm start (server.js พอร์ต 3000) — เปิดผ่านเซิร์ฟเวอร์ไฟล์นิ่งอื่น
+   (เช่น Live Server ของ VS Code พอร์ต 5500) ไม่มี /api/ ทุกคำขอได้ 404 ก่อนถอยไปต้นทาง จึงยิงต้นทางตรงเลย ('') */
+var LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 export var PROXY_ORIGIN = typeof location === 'undefined' ? '' :
-  (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /\.vercel\.app$/.test(location.hostname))
-    ? location.origin
+  LOCAL ? (location.port === '3000' ? location.origin : '') :
+  /\.vercel\.app$/.test(location.hostname) ? location.origin
     : 'https://satit-sports-dashboard-one.vercel.app';

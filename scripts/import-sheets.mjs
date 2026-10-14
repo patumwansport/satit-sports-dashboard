@@ -21,7 +21,7 @@
  * >>> ข้อมูลที่แก้ไว้ในหน้า CMS จะหายถ้ารันซ้ำหลังเริ่มใช้งานจริงแล้ว <<<
  */
 
-import { loadFromSheets } from '../public/js/sheets.js';
+import { loadFromSheets, useSheet, currentSheetId, SHEET_KEYS } from '../public/js/sheets.js';
 // กฎแปลงชีต → แถวตาราง ใช้ร่วมกับปุ่ม "ดึงจาก Google Sheets" ในหน้า admin/
 import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from '../public/admin/sheets-sync.js';
 
@@ -59,7 +59,24 @@ async function rest(method, path, body, extraPrefer) {
   return res.status === 204 ? null : res.json().catch(() => null);
 }
 
+/** ลิงก์ชีตที่ผู้ดูแลตั้งในหน้า CMS — ไม่ได้ตั้ง/อ่านไม่ได้ = ชีตตั้งต้นใน sheets.js
+    (อ่านไม่ได้ไม่ถือว่าพัง: ซิงก์ต่อด้วยชีตตั้งต้น ดีกว่าข้อมูลสำรองหยุดอัปเดต) */
+async function useConfiguredSheet() {
+  if (URL_ && KEY) {
+    try {
+      const res = await fetch(BASE + 'site_settings?select=value&key=eq.' + SHEET_KEYS.url, { headers: HEADERS });
+      if (!res.ok) throw new Error('Supabase ' + res.status);
+      const rows = await res.json();
+      if (rows[0] && rows[0].value) useSheet(rows[0].value, { direct: true });
+    } catch (err) {
+      console.warn('  อ่านลิงก์ชีตจาก CMS ไม่ได้ (' + err.message + ') — ใช้ชีตตั้งต้น');
+    }
+  }
+  console.log('  ชีต: ' + currentSheetId());
+}
+
 async function main() {
+  await useConfiguredSheet();
   console.log('กำลังอ่าน Google Sheets…');
   const data = await loadFromSheets();
   const rows = sheetRows(data);

@@ -1,5 +1,5 @@
 import {
-  el, esc, loadData, onFreshData, initChrome, sportIcon, statusChip,
+  el, esc, loadData, onFreshData, initChrome, sportIcon, resultChip,
   schoolId, schoolKey, findSchool, schoolMatches, schoolCrest, showLoadError
 } from './common.js';
 
@@ -18,7 +18,7 @@ var TOP_ROW = 'mb-7 flex flex-wrap items-center justify-between gap-3 max-[560px
 var COLS = 'flex flex-col gap-7 min-[1180px]:grid min-[1180px]:grid-cols-[1fr_1.4fr] min-[1180px]:items-start min-[1180px]:gap-11';
 /* ระยะห่างใส่ตอนเรียก: utility ที่คุมสมบัติเดียวกันสองตัวในคลาสเดียว ตัวที่ชนะคือตัวที่อยู่หลังในไฟล์ CSS
    ไม่ใช่ตัวที่เขียนทีหลังใน class จึงห้ามใส่ค่าตั้งต้นไว้แล้วทับ */
-var ASIDE = 'flex min-w-0 flex-col min-[1180px]:sticky min-[1180px]:top-[92px]';
+var ASIDE = 'flex min-w-0 flex-col min-[1180px]:sticky min-[1180px]:top-6';
 var BODY = 'flex min-w-0 flex-col';
 var SEC_HEAD = 'm-0 mb-1.5 flex items-baseline gap-[9px] font-display fs-19 font-normal';
 var NOTE = 'mt-2 fs-15.5 text-fg-soft';
@@ -27,7 +27,7 @@ var QUIET_BOX = 'rounded-lg border border-line bg-surface px-[22px] py-[18px] ma
 var QUIET_HEAD = 'm-0 mb-1.5 font-display fs-18 font-normal';
 var QUIET_TEXT = 'm-0 fs-15.5 text-fg-soft';
 /* การ์ดหลัก (อันดับ + เหรียญ): ไล่สีแบรนด์อ่อน ๆ ให้เป็นจุดสายตาแรกของหน้า */
-var HERO_CARD = 'rounded-lg border border-line bg-linear-[165deg,var(--color-brand-100),var(--color-surface-soft)] px-[26px] py-[22px] shadow-panel max-[560px]:mx-[-2px] max-[560px]:px-4 max-[560px]:py-[18px]';
+var HERO_CARD = 'rounded-lg border border-line bg-brand-100 px-[26px] py-[22px] shadow-panel max-[560px]:mx-[-2px] max-[560px]:px-4 max-[560px]:py-[18px]';
 var DONE_PREVIEW = 4; // ผลที่ประกาศแล้วแสดงก่อน 4 รายการ ที่เหลือพับไว้
 
 /* ไอคอนเส้นบนกริด 24 ชุดเดียวกับไอคอนกีฬา — ใช้แทนตัวอักษรสัญลักษณ์ (‹ ⌄ ⚠︎)
@@ -135,7 +135,7 @@ function matchRowHtml(i, opts) {
       (i.score && i.status !== 'upcoming'
         ? '<span class="font-mono fs-21.5 tabular-nums ' + (liveBox ? 'text-live' : '') + '">' + esc(i.score) + '</span>'
         : '') +
-      (opts.hideChip ? '' : statusChip(i.status)) +
+      (opts.hideChip ? '' : resultChip(i)) +
     '</span>' +
     '</li>';
 }

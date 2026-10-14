@@ -169,7 +169,9 @@ function showCookieNotice() {
   try { if (localStorage.getItem(CONSENT_KEY)) return; } catch (e) { return; }   // เก็บค่าไม่ได้ = จะขึ้นทุกหน้า ไม่แสดงดีกว่า
 
   var box = document.createElement('section');
-  box.className = 'fixed right-4 bottom-4 z-[60] w-[min(380px,calc(100vw-32px))] rounded-xl border border-line bg-surface px-5 py-4 text-fg shadow-card motion-safe:animate-pop-in';
+  // จอ ≤860px ยกขึ้นพ้นแถบเมนูล่าง (สูง ~76px) ไม่ทับปุ่มเมนู
+  box.className = 'fixed right-4 bottom-4 z-[60] max-[860px]:bottom-[88px] w-[min(380px,calc(100vw-32px))] rounded-xl border border-line bg-surface px-5 py-4 text-fg shadow-card motion-safe:animate-pop-in';
+  box.id = 'cookieNotice';
   box.setAttribute('aria-label', 'การใช้คุกกี้');
   box.innerHTML =
     '<h2 class="m-0 fs-15.5 font-semibold">คุกกี้บนเว็บไซต์นี้</h2>' +

@@ -11,10 +11,13 @@
        └── พิธีเปิดการแข่งขัน            ← เหมือนกัน
    ชื่อโฟลเดอร์ขึ้นต้นด้วย _ หรืออยู่ใน HIDDEN_FOLDERS = ซ่อนจากเว็บ (เช่น การประชุมคณะกรรมการ)
 
-   รูปมีหลายพันรูป จึงโหลดสองจังหวะ:
-     1) loadDriveTree()  — อ่านโฟลเดอร์แม่ + โฟลเดอร์กีฬา (~20 คำขอพร้อมกัน) → รู้ว่ามีวันไหน กีฬาไหน
+   ทางหลัก: ขอ "ทั้งคลัง" จากตัวกลางในคำขอเดียว (api/drive?tree=) — ได้โครงโฟลเดอร์และรหัสรูปทุกรูปพร้อมกัน
+   (ราว 200 KB) แล้วตอบทุกคำถามข้างล่างจากหน่วยความจำ สลับวัน/กีฬาไม่ต้องรอเน็ตอีก
+   เดิมถามโฟลเดอร์ละคำขอสามรอบต่อกัน ช่วงแคชเย็นผู้ชมรอ 4–5 วินาทีก่อนรูปแรกจะเริ่มโหลด
+   ตัวกลางใช้ไม่ได้ → ถามทีละโฟลเดอร์แบบเดิม ซึ่งแบ่งเป็นสองจังหวะ:
+     1) loadDriveTree()  — อ่านเฉพาะโฟลเดอร์ย่อยของโฟลเดอร์แม่ + โฟลเดอร์กีฬา (~20 คำขอพร้อมกัน) → รู้ว่ามีวันไหน กีฬาไหน
      2) loadUnitPhotos() — อ่านรูปเฉพาะวันที่ผู้ชมเปิดดู (โฟลเดอร์วันของทุกกีฬา ~10–20 คำขอพร้อมกัน)
-   ทุกคำขอผ่านตัวกลางแคช api/drive.js (CDN เก็บ 60 วินาที) — โควตา Drive API 12,000 คำขอ/นาที/โปรเจกต์
+   ทุกคำขอผ่านตัวกลางแคช api/drive.js (CDN สด 2 นาที ตอบชุดเก่าระหว่างถามใหม่ได้ถึง 1 วัน) — โควตา Drive API 12,000 คำขอ/นาที/โปรเจกต์
    จึงไม่ผูกกับจำนวนผู้ชมแล้ว · ตัวกลางใช้ไม่ได้เมื่อไร ถอยไปถามตรง ซึ่งรับได้ ~300 คน/นาที
    ใช้ Drive API v3 ด้วย API key ล้วน ๆ ไม่ต้องล็อกอิน — อ่านได้เพราะโฟลเดอร์แชร์แบบ "ทุกคนที่มีลิงก์"
    ========================================================= */
@@ -49,20 +52,20 @@ export function hasDrive() {
   return Boolean(driveFolderId(cfg.folder) && GOOGLE_API_KEY);
 }
 
-/** files.list ไล่ครบทุกหน้า (หน้าละไม่เกิน 1000 รายการ) */
-async function listAll(q, fields) {
+/** files.list ไล่ครบทุกหน้า (หน้าละไม่เกิน 1000 รายการ) · limit = เอาแค่เท่านี้ (ถามว่า "มีไหม") */
+async function listAll(q, fields, limit) {
   var out = [], token = '';
   do {
     var params = new URLSearchParams({
       q: q,
       key: GOOGLE_API_KEY,
       fields: 'nextPageToken,files(' + fields + ')',
-      pageSize: '1000',
-      orderBy: 'name_natural',          // "รูป2" มาก่อน "รูป10" เหมือนที่เห็นใน Drive
+      pageSize: String(limit || 1000),
       // โฟลเดอร์อยู่ใน Shared Drive ก็อ่านได้ — ไม่ใส่สองค่านี้ API จะมองไม่เห็นไฟล์ในนั้น
       supportsAllDrives: 'true',
       includeItemsFromAllDrives: 'true'
     });
+    if (!limit) params.set('orderBy', 'name_natural');   // "รูป2" มาก่อน "รูป10" เหมือนที่เห็นใน Drive
     if (token) params.set('pageToken', token);
 
     var ctrl = new AbortController();
@@ -77,29 +80,68 @@ async function listAll(q, fields) {
     // ข้อความ error ของ Google บอกสาเหตุตรง ๆ (คีย์ผิด / ยังไม่เปิด Drive API / ถูกจำกัดโดเมน) — ส่งต่อให้เห็นใน console
     if (!res.ok) throw new Error('Drive API ' + res.status + ': ' + ((json.error && json.error.message) || res.statusText));
     out = out.concat(json.files || []);
-    token = json.nextPageToken || '';
+    token = limit ? '' : json.nextPageToken || '';
   } while (token);
   return out;
+}
+
+/* ทั้งคลังจากตัวกลาง: รหัสโฟลเดอร์ → โหนด { id, name, images: [รหัสรูป], folders: [โหนด] }
+   null = ยังไม่ได้ขอ / ขอไม่ได้ → listChildren / listFolders ถาม Drive ทีละโฟลเดอร์แบบเดิม */
+var treeIndex = null;
+
+/** ขอทั้งคลังครั้งเดียว แล้วทำดัชนีตามรหัสโฟลเดอร์ · ได้ false = ใช้ไม่ได้ ให้ถามทีละโฟลเดอร์ */
+async function loadTreeIndex(rootId) {
+  var json = await viaProxy('tree=' + encodeURIComponent(rootId), 'root');
+  if (!json) return false;
+  var index = {};
+  (function walk(node) {
+    index[node.id] = node;
+    (node.folders || []).forEach(walk);
+  })(json.root);
+  treeIndex = index;
+  return true;
+}
+/** โหนดจากดัชนีทั้งคลัง → รายการแบบเดียวกับที่ Drive API ตอบ (รูปไม่มีชื่อ — เรียงตามชื่อมาจากตัวกลางแล้ว) */
+function indexedChildren(node) {
+  return node.folders.map(function (f) { return { id: f.id, name: f.name, mimeType: FOLDER }; })
+    .concat(node.images.map(function (id) { return { id: id, name: '', mimeType: 'image/*' }; }));
 }
 
 /** ทุกอย่างในโฟลเดอร์เดียว — API key (ผู้ชมไม่ได้ล็อกอิน) ถาม "a in parents or b in parents" ไม่ได้
     Google ตอบ 403 ทันที จึงต้องถามทีละโฟลเดอร์ แล้วยิงพร้อมกันแทน */
 async function listChildren(id) {
-  var cached = await viaProxy(id);
-  return cached || listAll("'" + id + "' in parents and trashed = false", 'id,name,mimeType');
+  if (treeIndex && treeIndex[id]) return indexedChildren(treeIndex[id]);
+  var cached = await viaProxy('parent=' + encodeURIComponent(id));
+  return (cached && cached.files) || listAll("'" + id + "' in parents and trashed = false", 'id,name,mimeType');
 }
 
-/* ถามผ่านตัวกลางแคชบน Vercel (api/drive.js) ก่อน — ผู้ชมทุกคนได้คำตอบชุดเดียวกันจาก CDN ไม่กินโควตา Drive
+/** เฉพาะโฟลเดอร์ย่อย + มีรูปวางตรง ๆ ไหม — ใช้อ่านโครงกีฬา → วัน
+    ไม่ดึงรายชื่อรูปทั้งหมด: โฟลเดอร์ที่มีรูปเป็นร้อย (พิธีเปิด 500+ รูป) ถามแบบเต็มนาน ~6 วินาที ทั้งหน้าต้องรอ */
+async function listFolders(id) {
+  var node = treeIndex && treeIndex[id];
+  if (node) return { folders: indexedChildren(node).filter(isFolder), images: node.images.length > 0 };
+  var cached = await viaProxy('only=folders&parent=' + encodeURIComponent(id));
+  if (cached) return { folders: cached.files, images: Boolean(cached.images) };
+  var inParent = "'" + id + "' in parents and trashed = false";
+  var both = await Promise.all([
+    listAll(inParent + " and mimeType = '" + FOLDER + "'", 'id,name,mimeType'),
+    listAll(inParent + " and mimeType contains 'image/'", 'id', 1)
+  ]);
+  return { folders: both[0], images: both[1].length > 0 };
+}
+
+/* ถามผ่านตัวกลางแคชบน Vercel (api/drive.js) ก่อน · key = ชื่อช่องที่คำตอบต้องมี (ไม่ระบุ = files) — ผู้ชมทุกคนได้คำตอบชุดเดียวกันจาก CDN ไม่กินโควตา Drive
    ตัวกลางล่ม / ยังไม่ได้ deploy (Vercel ตอบหน้า HTML) / Google ตอบ error → null แล้วถาม Drive ตรงแบบเดิม
    error ของ Google จึงไปโผล่ที่ listAll ซึ่งแปลข้อความไว้แล้ว (เช่นโฟลเดอร์ไม่ได้แชร์) */
-async function viaProxy(id) {
+async function viaProxy(query, key) {
   if (!PROXY_ORIGIN) return null;
   var ctrl = new AbortController();
   var timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
   try {
-    var res = await fetch(PROXY_ORIGIN + '/api/drive?parent=' + encodeURIComponent(id), { cache: 'no-store', signal: ctrl.signal });
+    // ไม่ใส่ no-store — ตัวกลางให้เบราว์เซอร์เก็บคำตอบ 1 นาที สลับหน้าหลัก ↔ ประมวลภาพไม่ต้องถามซ้ำ
+    var res = await fetch(PROXY_ORIGIN + '/api/drive?' + query, { signal: ctrl.signal });
     var json = res.ok ? await res.json() : null;
-    return json && Array.isArray(json.files) ? json.files : null;
+    return json && (key ? json[key] : Array.isArray(json.files)) ? json : null;
   } catch (err) {
     console.warn('ตัวกลาง Drive ใช้ไม่ได้ (' + (err.name === 'AbortError' ? 'หมดเวลา' : err.message) + ') — ถาม Drive ตรงแทน');
     return null;
@@ -125,20 +167,21 @@ function hidden(name, list) {
  */
 export async function loadDriveTree() {
   var root = driveFolderId(cfg.folder);
-  var top = await listChildren(root);
+  if (!treeIndex || !treeIndex[root]) await loadTreeIndex(root);
+  var top = await listFolders(root);
   var units = [], order = 0;
 
   // รูปที่วางไว้ในโฟลเดอร์แม่ตรง ๆ (ไม่ไล่เข้าโฟลเดอร์กีฬา)
-  if (top.some(isImage)) units.push({ key: 'none', sport: '', roots: [root], exclude: top.filter(isFolder).map(function (f) { return f.id; }), order: order++, shallow: true });
+  if (top.images) units.push({ key: 'none', sport: '', roots: [root], exclude: top.folders.map(function (f) { return f.id; }), order: order++, shallow: true });
 
-  var tops = top.filter(isFolder).filter(function (f) { return !hidden(f.name); })
+  var tops = top.folders.filter(function (f) { return !hidden(f.name); })
     .sort(function (a, b) { return a.name.localeCompare(b.name, 'th', { numeric: true }); });
-  var kidsOf = await Promise.all(tops.map(function (t) { return listChildren(t.id); }));
+  var kidsOf = await Promise.all(tops.map(function (t) { return listFolders(t.id); }));
 
   tops.forEach(function (t, i) {
     var name = t.name.trim();
-    var kids = kidsOf[i].filter(function (k) { return !hidden(k.name); });
-    var dated = kids.filter(function (k) { return isFolder(k) && parseThaiDate(k.name); });
+    var kids = kidsOf[i].folders.filter(function (k) { return !hidden(k.name); });
+    var dated = kids.filter(function (k) { return parseThaiDate(k.name); });
     if (!dated.length) {
       // ไม่มีโฟลเดอร์วัน (พิธีเปิด / ลีลาศ / การประชุม …) — ทั้งโฟลเดอร์เป็นแท็บของมันเอง
       units.push({ key: 'f:' + name, sport: name, roots: [t.id], exclude: [], order: order++ });
@@ -148,7 +191,7 @@ export async function loadDriveTree() {
       units.push({ key: parseThaiDate(d.name), sport: name, roots: [d.id], exclude: [], order: order++ });
     });
     // ของในโฟลเดอร์กีฬาที่ไม่อยู่ในโฟลเดอร์วันไหน (รูปวางตรง ๆ / โฟลเดอร์ชื่ออื่น) → "ภาพอื่น ๆ"
-    if (kids.some(function (k) { return isImage(k) || (isFolder(k) && dated.indexOf(k) < 0); })) {
+    if (kidsOf[i].images || kids.some(function (k) { return dated.indexOf(k) < 0; })) {
       units.push({ key: 'none', sport: name, roots: [t.id], exclude: dated.map(function (d) { return d.id; }), order: order++ });
     }
   });
@@ -207,16 +250,16 @@ export async function checkDriveFolder(link, hiddenList) {
   if (!id) return { ok: false, error: 'ไม่ใช่ลิงก์โฟลเดอร์ Google Drive — คัดลอกจากปุ่ม "แชร์" ของโฟลเดอร์ (…/drive/folders/…)' };
   if (!GOOGLE_API_KEY) return { ok: false, error: 'ยังไม่ได้ใส่ GOOGLE_API_KEY ใน public/js/gallery-config.js' };
   try {
-    var top = (await listChildren(id)).filter(isFolder)
+    var top = (await listFolders(id)).folders
       .sort(function (a, b) { return a.name.localeCompare(b.name, 'th', { numeric: true }); });
-    var kids = await Promise.all(top.map(function (t) { return listChildren(t.id); }));
+    var kids = await Promise.all(top.map(function (t) { return listFolders(t.id); }));
     return {
       ok: true,
       folders: top.map(function (t, i) {
         return {
           name: t.name.trim(),
           hidden: hidden(t.name, hiddenList),
-          days: kids[i].filter(function (k) { return isFolder(k) && parseThaiDate(k.name); }).length
+          days: kids[i].folders.filter(function (k) { return parseThaiDate(k.name); }).length
         };
       })
     };

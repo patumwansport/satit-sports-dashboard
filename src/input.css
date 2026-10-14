@@ -5,7 +5,8 @@
 
    คลาสทั้งหมดในหน้าเว็บเป็น utility ของ Tailwind ไฟล์นี้จึงเหลือแค่ 4 อย่างที่
    เขียนเป็น utility ไม่ได้: ฟอนต์, ตัวแปรธีม (สี/เงา/มุมโค้ง), คีย์เฟรม และรูปทรง mask
-   ฟอนต์: Srinakharinwirot (ไฟล์ที่ /fonts เท่านั้น ไม่มีฟอนต์สำรองอื่น)
+   ฟอนต์ (ไฟล์ที่ /fonts ทั้งหมด ไม่โหลดจากภายนอก) — จับคู่แบบเว็บจุฬาฯ:
+     หัวข้อ = Srinakharinwirot (ฟอนต์ของ มศว ตัวหนาในตัว) · เนื้อความ/ตัวเลข = Anuphan (Google Fonts, OFL)
    ========================================================= */
 
 @import "tailwindcss" source(none);
@@ -27,21 +28,40 @@
    ค่าทั้งหมดเป็นตัวแปร CSS จริง โหมดมืดจึงสลับได้ที่เดียวข้างล่าง
    โดยไม่ต้องติด dark: ไว้ทุก utility ในหน้าเว็บ
    ========================================================= */
-@theme {
-  --font-display: 'Srinakharinwirot', sans-serif;
-  --font-body: 'Srinakharinwirot', sans-serif;
-  --font-mono: 'Srinakharinwirot', monospace;
+/* Anuphan เป็น variable font (น้ำหนัก 100–700 ในไฟล์เดียว) แยกไฟล์ไทย/ละตินตาม unicode-range
+   เบราว์เซอร์โหลดเฉพาะไฟล์ที่หน้านั้นใช้จริง */
+@font-face {
+  font-family: 'Anuphan';
+  src: url('../fonts/anuphan-thai.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC;
+}
+@font-face {
+  font-family: 'Anuphan';
+  src: url('../fonts/anuphan-latin.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
+@theme {
+  --font-display: 'Srinakharinwirot', 'Anuphan', sans-serif;
+  --font-body: 'Anuphan', 'Srinakharinwirot', sans-serif;
+  /* ตัวเลขเวลา/สกอร์ในตาราง — Anuphan ตัวเลขกว้างเท่ากัน (ใส่ tabular-nums คู่กันในหน้า) */
+  --font-mono: 'Anuphan', 'Srinakharinwirot', sans-serif;
+
+  /* พื้นหน้าขาวล้วน (แบบเว็บจุฬาฯ) — แบ่งส่วนด้วยช่องว่างกับเส้นบาง ไม่ใช่พื้นสีกับเงา */
   --color-paper: oklch(100% 0 0);
   --color-surface: oklch(100% 0 0);
-  --color-surface-soft: oklch(95.5% 0.01 250);
+  --color-surface-soft: oklch(96% 0.014 268);
   --color-line: oklch(91% 0.012 250);
   /* rail = แถบเมนูข้าง แยก token ออกจาก surface เพราะโหมดมืดต้องการให้มันจมเป็นฉากหลัง
      ไม่ใช่ลอยเด่นกว่าเนื้อหา — โหมดสว่างใช้ค่าเดียวกับ surface หน้าตาจึงไม่เปลี่ยน */
   --color-rail: oklch(100% 0 0);
   --color-line-strong: oklch(83% 0.016 250);
-  /* stripe = พื้นแถวคู่ในตาราง (ขาวสลับฟ้าอ่อน) ช่วยให้สายตาไล่แถวยาว ๆ ได้ไม่หลุดบรรทัด */
-  --color-stripe: #ecf1f6;
 
   /* fg = ตัวหนังสือ · ink = พื้นเข้มที่มีตัวหนังสือสว่างอยู่บน (on-ink) */
   --color-fg: oklch(22% 0.03 260);
@@ -52,9 +72,20 @@
   --color-on-ink-soft: oklch(99% 0.002 250 / .65);
 
   /* หนึ่งสีเน้นสำหรับส่วนที่โต้ตอบได้ (ลิงก์ เมนูที่เลือก โฟกัส) — ไม่ใช่สีตกแต่ง */
-  --color-brand: oklch(56% 0.19 260);
-  --color-brand-strong: oklch(48% 0.19 260);
-  --color-brand-100: oklch(93% 0.03 260);
+  /* แบบหน้าใหม่: ชมพูเป็นสีเน้น (เมนูที่เลือก ปุ่ม แถวโรงเรียนเรา) · กรมท่าเป็นหัวข้อ/ตัวเลขสำคัญ
+     brand-strong ถูกใช้เป็น "สีตัวหนังสือเน้น" ทั้งเว็บ จึงเป็นกรมท่า ไม่ใช่ชมพูเข้ม */
+  --color-brand: oklch(63% 0.235 357);
+  --color-brand-strong: oklch(32% 0.13 270);
+  --color-brand-100: oklch(95% 0.03 357);
+  /* brand-ink = ตัวหนังสือชมพูบนพื้น brand-100 (ป้าย "จบการแข่งขัน") ชมพูหลักบนพื้นอ่อนคอนทราสต์ไม่ถึง 4.5:1 */
+  --color-brand-ink: oklch(50% 0.2 357);
+  /* navy = แถบเมนูบน/แบนเนอร์ (พื้นเข้มเสมอทั้งสองธีม ตัวหนังสือบนมันเป็นสีขาว) */
+  --color-navy: oklch(27% 0.115 270);
+  --color-navy-2: oklch(38% 0.17 266);
+  --color-navy-100: oklch(94% 0.03 265);   /* พื้นน้ำเงินอ่อนตอนชี้/แตะเมนูกีฬา */
+  --color-chart: oklch(52% 0.19 262);      /* แท่งกราฟข้อมูลทั่วไปที่ไม่ใช่เหรียญ (เช่น ยอดเข้าชม) — แยกจาก live ที่หมายถึง "กำลังแข่ง" */
+  --color-pink: oklch(63% 0.235 357);
+  --color-pink-soft: oklch(80% 0.12 357);
 
   /* สีเหรียญ: บอกความหมายจริง ไม่ใช่สีตกแต่ง */
   --color-gold: oklch(74% 0.15 80);
@@ -66,11 +97,17 @@
   --color-bronze-ink: oklch(47% 0.13 42);
 
   /* สีสถานะ: จุดเดียวในเว็บที่ "สด/กำลังเกิดขึ้น" ได้ใช้สี ข้อมูลนิ่งอื่นทั้งหมดเป็นกลาง */
-  --color-live: oklch(64% 0.20 350);
-  --color-win: oklch(58% 0.21 355);
-  --color-live-bg: oklch(94% 0.03 350);
+  /* "กำลังแข่งขัน" = ป้ายฟ้าทึบ (ดังสุดในหน้า) · "จบการแข่งขัน" = ป้ายเขียวพื้นอ่อน (done-bg + done-ink) */
+  --color-live: oklch(58% 0.19 257);
+  --color-win: oklch(60% 0.235 357);
+  --color-live-bg: oklch(94% 0.035 257);
   --color-done: oklch(62% 0.13 155);
   --color-done-bg: oklch(93% 0.04 155);
+  /* ตัวหนังสือเขียวบนพื้น done-bg (เข้มกว่า --done ให้อ่านออกที่ตัว 13px) */
+  --color-done-ink: oklch(44% 0.11 155);
+  /* ป้าย "จบการแข่งขัน" = แดงเข้ม (คนละเฉดกับชมพูแบรนด์ hue 357) */
+  --color-ended: oklch(44% 0.16 27);
+  --color-ended-bg: oklch(94.5% 0.03 25);
   --color-upcoming: oklch(52% 0.018 260);
   --color-upcoming-bg: oklch(95.5% 0.01 250);
   /* ลบ/อันตราย — ใช้กับปุ่มหรือข้อความเตือนที่ย้อนกลับไม่ได้เท่านั้น (btn-destructive) */
@@ -80,8 +117,9 @@
   --radius-md: 14px;
   --radius-sm: 10px;
 
-  --shadow-panel: 0 6px 20px oklch(40% 0.04 260 / .07);
-  --shadow-card: 0 14px 32px oklch(40% 0.04 260 / .12);
+  /* พื้นขาวทั้งหน้า: แผงแยกจากพื้นด้วยขอบ (border-line) อย่างเดียว ไม่มีเงา */
+  --shadow-panel: none;
+  --shadow-card: none;
 
   /* จุดสถานะ (ซิงก์/สด) ขยับครั้งเดียวตอนปรากฏ แล้วนิ่ง — เดิมวนไม่รู้จบทุกหน้า คนดูรำคาญ
      สีกับข้อความ "สด" บอกสถานะอยู่แล้ว ไม่ต้องกะพริบค้างไว้ */
@@ -92,6 +130,13 @@
   --animate-pop-in: pop-in .16s ease-out;
   /* แถบอันดับบนหน้าหลัก: ข้อความเลื่อนจากขวาไปซ้ายวนไม่รู้จบ (ความยาวรอบตั้งจาก JS ตามความกว้างเนื้อหา) */
   --animate-ticker: ticker 30s linear infinite;
+  /* ป๊อปอัปถ่ายทอดสด (live-popup.js) — ผู้ใช้ขอให้ "ไลฟ์" ขยับ จึงวนไม่รู้จบเฉพาะในป๊อปอัปกับไอคอนปุ่มแข่งสด
+     องค์ประกอบที่ใช้ต้องมีคลาส .motion-ok ด้วย ไม่งั้นโดนกฎปิดการเคลื่อนไหวทั้งเว็บใน @layer base */
+  --animate-live-ping: live-ping 1.6s cubic-bezier(0, 0, .2, 1) infinite;
+  --animate-live-shine: live-shine 3s linear infinite;
+  --animate-live-wave: live-wave 1.8s ease-in-out infinite;
+  --animate-mascot-float: mascot-float 3.4s ease-in-out infinite;
+  --animate-card-in: card-in .4s cubic-bezier(.2, .8, .3, 1) both;
 }
 
 /* โหมดมืด — สลับเฉพาะค่าของ token ชุดเดิม utility ในหน้าเว็บไม่ต้องรู้เรื่องธีมเลย
@@ -113,32 +158,37 @@
     --color-rail: oklch(16% 0.022 260);
     --color-line: oklch(44% 0.034 260);
     --color-line-strong: oklch(52% 0.034 260);
-    --color-stripe: oklch(36.5% 0.045 260);
     --color-fg: oklch(93% 0.012 260);
     --color-fg-soft: oklch(82% 0.016 260);
     --color-fg-mute: oklch(71% 0.016 260);
     --color-ink: oklch(93% 0.012 260);
     --color-on-ink: oklch(22% 0.028 260);
     --color-on-ink-soft: oklch(22% 0.028 260 / .6);
-    --color-brand: oklch(72% 0.17 260);
-    --color-brand-strong: oklch(74% 0.16 260);
-    --color-brand-100: oklch(30% 0.05 260);
+    --color-brand: oklch(70% 0.2 357);
+    --color-brand-strong: oklch(86% 0.06 270);
+    --color-brand-100: oklch(32% 0.07 357);
+    --color-brand-ink: oklch(84% 0.1 357);
+    --color-navy-100: oklch(34% 0.07 268);
     --color-gold: oklch(78% 0.13 82);
     --color-silver: oklch(78% 0.008 250);
     --color-bronze: oklch(66% 0.12 45);
     --color-gold-ink: oklch(82% 0.12 84);
     --color-silver-ink: oklch(80% 0.01 250);
     --color-bronze-ink: oklch(72% 0.12 45);
-    --color-live: oklch(75% 0.16 350);
-    --color-win: oklch(76% 0.15 355);
-    --color-live-bg: oklch(29% 0.055 350);
+    --color-live: oklch(72% 0.15 257);
+    --color-chart: oklch(70% 0.14 260);
+    --color-win: oklch(74% 0.17 357);
+    --color-live-bg: oklch(30% 0.06 257);
     --color-done: oklch(72% 0.13 155);
     --color-done-bg: oklch(27% 0.045 155);
+    --color-done-ink: oklch(80% 0.13 155);
+    --color-ended: oklch(78% 0.12 25);
+    --color-ended-bg: oklch(30% 0.07 25);
     --color-upcoming: oklch(75% 0.018 260);
     --color-upcoming-bg: oklch(29% 0.02 260);
     --color-danger: oklch(70% 0.17 24);
-    --shadow-panel: 0 1px 2px oklch(0% 0 0 / .3), 0 8px 24px oklch(0% 0 0 / .4);
-    --shadow-card: 0 10px 26px oklch(0% 0 0 / .45);
+    --shadow-panel: 0 1px 2px oklch(0% 0 0 / .35);
+    --shadow-card: 0 1px 3px oklch(0% 0 0 / .45);
   }
 }
 
@@ -149,32 +199,37 @@
   --color-rail: oklch(16% 0.022 260);
   --color-line: oklch(44% 0.034 260);
   --color-line-strong: oklch(52% 0.034 260);
-  --color-stripe: oklch(36.5% 0.045 260);
   --color-fg: oklch(93% 0.012 260);
   --color-fg-soft: oklch(82% 0.016 260);
   --color-fg-mute: oklch(71% 0.016 260);
   --color-ink: oklch(93% 0.012 260);
   --color-on-ink: oklch(22% 0.028 260);
   --color-on-ink-soft: oklch(22% 0.028 260 / .6);
-  --color-brand: oklch(72% 0.17 260);
-  --color-brand-strong: oklch(74% 0.16 260);
-  --color-brand-100: oklch(30% 0.05 260);
+  --color-brand: oklch(70% 0.2 357);
+  --color-brand-strong: oklch(86% 0.06 270);
+  --color-brand-100: oklch(32% 0.07 357);
+  --color-brand-ink: oklch(84% 0.1 357);
+  --color-navy-100: oklch(34% 0.07 268);
   --color-gold: oklch(78% 0.13 82);
   --color-silver: oklch(78% 0.008 250);
   --color-bronze: oklch(66% 0.12 45);
   --color-gold-ink: oklch(82% 0.12 84);
   --color-silver-ink: oklch(80% 0.01 250);
   --color-bronze-ink: oklch(72% 0.12 45);
-  --color-live: oklch(75% 0.16 350);
-  --color-win: oklch(76% 0.15 355);
-  --color-live-bg: oklch(29% 0.055 350);
+  --color-live: oklch(72% 0.15 257);
+  --color-chart: oklch(70% 0.14 260);
+  --color-win: oklch(74% 0.17 357);
+  --color-live-bg: oklch(30% 0.06 257);
   --color-done: oklch(72% 0.13 155);
   --color-done-bg: oklch(27% 0.045 155);
+  --color-done-ink: oklch(80% 0.13 155);
+  --color-ended: oklch(78% 0.12 25);
+  --color-ended-bg: oklch(30% 0.07 25);
   --color-upcoming: oklch(75% 0.018 260);
   --color-upcoming-bg: oklch(29% 0.02 260);
   --color-danger: oklch(70% 0.17 24);
-  --shadow-panel: 0 1px 2px oklch(0% 0 0 / .3), 0 8px 24px oklch(0% 0 0 / .4);
-  --shadow-card: 0 10px 26px oklch(0% 0 0 / .45);
+  --shadow-panel: 0 1px 2px oklch(0% 0 0 / .35);
+  --shadow-card: 0 1px 3px oklch(0% 0 0 / .45);
 }
 
 /* =========================================================
@@ -191,7 +246,8 @@
   --color-popover: var(--color-surface);
   --color-popover-foreground: var(--color-fg);
   --color-primary: var(--color-brand);
-  --color-primary-foreground: var(--color-on-ink);
+  /* ปุ่มหลักเป็นพื้นชมพูทั้งสองธีม ตัวหนังสือจึงขาวเสมอ (on-ink ของโหมดมืดเป็นสีเข้ม) */
+  --color-primary-foreground: oklch(100% 0 0);
   --color-secondary: var(--color-surface-soft);
   --color-secondary-foreground: var(--color-fg);
   --color-muted: var(--color-surface-soft);
@@ -252,8 +308,99 @@
   .label { @apply flex items-center gap-2 text-sm leading-none text-foreground select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50; }
 
   .separator { @apply h-px w-full shrink-0 border-0 bg-border; }
+  /* ปุ่มเม็ดยามีเส้นขอบ + ลูกศร (แบบเว็บจุฬาฯ) ใช้กับลิงก์ "ดูทั้งหมด →" / "อ่านต่อ →"
+     .btn-pill-light = บนภาพหรือพื้นเข้ม (ขอบและตัวหนังสือขาว) */
+  .btn-pill {
+    @apply inline-flex h-10 flex-none cursor-pointer items-center gap-2 rounded-full border border-fg bg-transparent px-5 font-body fs-15 whitespace-nowrap text-fg no-underline hover:bg-fg hover:text-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&_svg]:size-4 [&_svg]:flex-none;
+  }
+  .btn-pill-sm { @apply h-9 px-4 fs-14; }
+  .btn-pill-light { @apply border-white text-white hover:bg-white hover:text-ink; }
   .skeleton { @apply rounded-sm bg-line motion-safe:animate-skeleton; }
 }
+
+/* =========================================================
+   ปุ่มแบบ "แผ่นสีเอียงเลื่อนขึ้น" — ผู้ดูแลขอให้ปุ่มทั้งเว็บเป็นแบบนี้ (ต้นแบบคอมโพเนนต์ React button-6)
+   ปกติ = กรอบเส้น 2px พื้นโปร่ง ตัวหนังสือสีปกติ
+   ชี้/โฟกัส = แผ่นสีเอียงเลื่อนขึ้นจากใต้ปุ่มจนเต็ม ข้อความเดิมเลื่อนหลุดขึ้นไป ข้อความสีขาวเลื่อนตามขึ้นมาแทน
+   ต้นแบบซ้อนข้อความสองชุดใน DOM — ที่นี่ใช้ "เงาตัวอักษรสองชั้น" แทน (ชั้นแรก = ข้อความที่เห็น
+   ชั้นสอง = ข้อความสีขาวรออยู่ใต้ปุ่ม 3em) แล้วเลื่อนเงาตอนชี้ จึงไม่ต้องแก้ markup ปุ่มทั้งเว็บ
+   ตัวหนังสือจริงจึงต้องโปร่งใส (!important ชนะ utility text-* ที่ติดมากับปุ่ม) ส่วนไอคอนเปลี่ยนสีอย่างเดียว
+   สี = กรมท่า --color-navy (#131D5E ผู้ดูแลเลือก) ทั้งสองธีม
+   ใช้กับ: .btn (ยกเว้น btn-icon / btn-ghost / btn-link) · .btn-pill · .btn-fx (เติมเองกับปุ่มที่ไม่ใช่ .btn)
+   ไม่ใช้กับปุ่มที่มีสถานะเลือก (aria-pressed / aria-selected / aria-current) เพราะต้องคงสีบอกว่าเลือกอยู่
+   ถ้าแก้ selector ข้างล่าง ต้องแก้ selector ข้อยกเว้นในกฎ "ไม่มีการเคลื่อนไหว" (@layer base) ให้ตรงกันด้วย
+   ========================================================= */
+@layer components {
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) {
+    /* --fx = สีแผ่นที่เลื่อนขึ้น · --fx-line = สีกรอบ (ปกติสีเดียวกัน แยกไว้ให้โหมดมืดยกกรอบให้สว่างขึ้น) */
+    --fx: var(--color-navy);
+    --fx-line: var(--fx);
+    --fx-fg: var(--color-fg);
+    --fx-on: #FFFFFF;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 2px solid var(--fx-line) !important;
+    background-color: transparent !important;
+    color: transparent !important;
+    text-shadow: 0 0 var(--fx-fg), 0 3em var(--fx-on);
+    transition: text-shadow .5s;
+  }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) * { color: inherit !important; }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) :is(svg, .icon-mask) { color: var(--fx-fg) !important; transition: color .5s; }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])::before {
+    content: '';
+    position: absolute;
+    /* สูงกว่าปุ่ม 4 เท่า: ต้นแบบเป็นปุ่มแคบ แผ่นเอียง 12° สูงเท่าปุ่มพอดี แต่ปุ่มกว้าง ๆ ของเรา (เต็มแถว/ดาวน์โหลด)
+       ปลายแผ่นที่เอียงขึ้น-ลงจะเปิดมุมปุ่มให้เห็น — ความสูงที่เกินถูก overflow ของปุ่มตัดทิ้งอยู่แล้ว */
+    inset: -150% 0;
+    z-index: -1;
+    background: var(--fx);
+    /* ลำดับเดียวกับ utility ของต้นแบบ (translate-y-full → scale-y-0 → skew-y-12) เขียนรวมใน transform เดียว
+       เพราะตัวย่อ CSS ตอน build ตัด property translate/scale แยกทิ้ง */
+    transform: translateY(100%) scale(1, 0) skewY(12deg);
+    transition: transform .5s;
+  }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):is(:hover, :focus-visible):not(:disabled, [aria-disabled="true"]) {
+    opacity: 1;
+    text-shadow: 0 -3em var(--fx-fg), 0 0 var(--fx-on);
+  }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):is(:hover, :focus-visible):not(:disabled, [aria-disabled="true"]) :is(svg, .icon-mask) { color: var(--fx-on) !important; }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):is(:hover, :focus-visible):not(:disabled, [aria-disabled="true"])::before { transform: translateY(0) scale(1.5) skewY(12deg); }
+
+  /* สีตามชนิดปุ่ม: ลบ = แดง · บนภาพ/พื้นเข้ม = ขาว (ชี้แล้วตัวหนังสือเข้ม) */
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):is(.btn-destructive) { --fx: var(--color-danger); }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):is(.btn-pill-light) { --fx: #FFFFFF; --fx-fg: #FFFFFF; --fx-on: oklch(22% 0.03 260); }
+}
+/* โหมดมืด: แผ่นสียังเป็นกรมท่า แต่กรอบกรมท่าบนพื้นมืดแทบมองไม่เห็น จึงยกกรอบเป็นกรมท่าสว่าง */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):not(.btn-destructive, .btn-pill-light) { --fx-line: oklch(62% 0.13 270); }
+}
+:root[data-theme="dark"] :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):not(.btn-destructive, .btn-pill-light) { --fx-line: oklch(62% 0.13 270); }
+@media (prefers-reduced-motion: reduce) {
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]), :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) *, :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])::before { transition: none !important; }
+}
+
+/* =========================================================
+   แถบเมนูบนแบบแท็บห้อย (แบบเว็บ supaste.com)
+   มุมบนทั้งสองข้างของแท็บโค้งเว้าต่อกับขอบจอ: สี่เหลี่ยม 24px ที่ขอบนอกแท็บ เจาะวงกลมรัศมี 24px ออก
+   เหลือเป็นครีบโค้งสีพื้นแท็บ มีเส้นขอบ 1px ตามแนวโค้งต่อจากเส้นขอบข้างแท็บ (ครีบเลื่อนเข้าทับขอบแท็บ 1px ให้เส้นต่อกันพอดี)
+   ขอบคม ไม่ฟุ้ง — เว้นช่วงสี .5px พอให้เส้นโค้งไม่เป็นขั้นบันได
+   ========================================================= */
+#topbar::before,
+#topbar::after { content: ''; position: absolute; top: 0; width: 24px; height: 24px; pointer-events: none; }
+#topbar::before {
+  left: -23px;
+  background: radial-gradient(circle at 0 100%, transparent 22.5px, var(--color-line) 23px 23.5px, var(--color-surface) 24px);
+}
+#topbar::after {
+  right: -23px;
+  background: radial-gradient(circle at 100% 100%, transparent 22.5px, var(--color-line) 23px 23.5px, var(--color-surface) 24px);
+}
+
+/* ปุ่มกลับขึ้นบนสุด (#toTop ใน common.js) อยู่มุมเดียวกับกล่องแจ้งคุกกี้ (#cookieNotice ใน admin/site.js)
+   ระหว่างที่กล่องคุกกี้ยังเปิดอยู่จึงซ่อนปุ่มไว้ก่อน ไม่ให้ซ้อนกัน — กด "ยอมรับ" แล้วปุ่มกลับมาเอง */
+body:has(#cookieNotice) #toTop { display: none; }
 
 /* variant dark: — ใช้เฉพาะที่สลับค่าสีไม่พอ (ไอคอนพระอาทิตย์/พระจันทร์, แผ่นรองโลโก้) */
 @custom-variant dark {
@@ -268,12 +415,19 @@
      กฎนี้ทำให้ [hidden] ชนะ utility ที่ตั้ง display (flex/grid/block) ได้เสมอ */
   [hidden] { display: none !important; }
 
+  /* ซ่อนแถบเลื่อนของทั้งหน้า (ผู้ดูแลขอ ต.ค. 2569 — แถบเทาของเบราว์เซอร์ตั้งอยู่ข้างภาพหัวหน้า ดูขัดตา)
+     ยังเลื่อนหน้าได้ตามปกติด้วยล้อเมาส์ ทัชแพด นิ้ว และคีย์บอร์ด · กล่องเลื่อนอื่นในหน้า (ตาราง เมนูกีฬา) ไม่โดนกฎนี้ */
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
+
   /* ไม่มีการเคลื่อนไหวใด ๆ ทั้งเว็บ — ผู้ใช้ขอยกเลิกทรานซิชั่น/อนิเมชันทั้งหมด (ขยับ กะพริบ เด้ง จางเข้า)
      ปิดที่ต้นทางจุดเดียว utility animate-* / transition-* ที่ยังเหลือในหน้าเว็บจึงไม่มีผล
      (ปุ่มยังเปลี่ยนสีเมื่อชี้/โฟกัสตามปกติ แค่เปลี่ยนทันทีไม่ค่อย ๆ จาง)
      ยกเว้นที่ผู้ใช้ขอให้เลื่อน: แถบอันดับบนหน้าหลัก (.rank-ticker)
-     และสไลด์ภาพในหน้าประมวลภาพ (.motion-ok — แทร็ก/ภาพ/จุด/วงแหวนนับเวลา ใน gallery.js) */
-  *:not(.rank-ticker):not(.motion-ok), ::before, ::after {
+     และ .motion-ok — สไลด์ภาพในหน้าประมวลภาพ (แทร็ก/ภาพ/จุด/วงแหวนนับเวลา ใน gallery.js)
+     กับแถวภาพบรรยากาศที่เลื่อนเองบนหน้าหลัก (.photo-row / .photo-card ใน home.js)
+     และปุ่มแบบแผ่นสีเลื่อนขึ้น (selector เดียวกับบล็อก "ปุ่มแบบแผ่นสีเอียงเลื่อนขึ้น" ข้างบน — ผู้ใช้ขอภายหลัง) */
+  *:not(.rank-ticker):not(.motion-ok):not(:is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])):not(:is(:is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])) *), :not(:is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]))::before, ::after {
     animation: none !important;
     transition: none !important;
   }
@@ -289,8 +443,40 @@
 @keyframes skeleton { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 /* translate3d + will-change (ที่ .rank-ticker ข้างล่าง) = ให้การ์ดจอเลื่อนทั้งแถบเป็นชั้นเดียว
    ไม่วาดตัวอักษรใหม่ทุกเฟรม ข้อความจึงไม่สั่น/กระตุกที่ความเร็วต่ำกว่า 1 พิกเซลต่อเฟรม */
+@keyframes live-ping { 75%, 100% { transform: scale(2.6); opacity: 0; } }
+/* พื้นไล่สีชมพู→น้ำเงิน→ชมพู กว้าง 200% เลื่อนครบรอบพอดี จึงวนต่อกันไม่มีรอยสะดุด */
+@keyframes live-shine { from { background-position: 0% 50%; } to { background-position: 200% 50%; } }
+@keyframes live-wave { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.14); opacity: .7; } }
+/* transform แยกจาก property translate/scale ที่ Tailwind v4 ใช้ — ลอยขึ้นลงได้โดยไม่ทับการจัดกึ่งกลางของภาพ */
+@keyframes mascot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes card-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes ticker { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
 .rank-ticker { will-change: transform; backface-visibility: hidden; }
+
+/* แถบภาพบรรยากาศหน้าหลัก (แบบ "Chula Social Impact" ของเว็บจุฬาฯ): การ์ดภาพสองแถวเลื่อนไปทางซ้ายต่อเนื่อง ยื่นเต็มจอ
+   แต่ละแถวมีชุดภาพสองชุดเหมือนกัน เลื่อนครบ -50% = กลับมาตรงจุดเดิมพอดี ไม่เห็นรอยต่อ
+   (เว้นช่องด้วย margin ขวาของการ์ด ไม่ใช้ gap เพราะ gap ทำให้ครึ่งแถวไม่ตรง -50%)
+   ระยะเวลา (--dur) และจุดเริ่มที่เหลื่อมกันของแถวล่าง (--delay) ตั้งจาก JS · กดค้าง/โฟกัสคีย์บอร์ดแล้วหยุดให้ดูภาพ
+   ขอบล่างการ์ดเป็นเงาเข้มให้ตัวหนังสือขาวอ่านออก (ใน home.js) — ไม่ใช้ backdrop-filter เพราะการ์ดเลื่อนตลอด
+   เบลอทุกใบต้องวาดใหม่ทุกเฟรม แถบกระตุก และ Safari มักไม่วาดตัวหนังสือที่ซ้อนบนชั้นเบลอ
+   เครื่องที่ตั้งลดการเคลื่อนไหว → ไม่เลื่อนเอง ให้ปัดเลื่อนเองแทน และซ่อนชุดซ้ำ */
+.photo-marquee { overflow: hidden; padding-block: 12px; }
+.photo-marquee .photo-row { display: flex; width: max-content; animation: ticker var(--dur, 60s) linear var(--delay, 0s) infinite; will-change: transform; backface-visibility: hidden; }
+/* หยุดเลื่อนเฉพาะตอนกดค้าง (:active) กับโฟกัสด้วยคีย์บอร์ด (:focus-visible) — ชี้เมาส์แล้วไม่หยุด (ผู้ดูแลขอ ต.ค. 2569)
+   ไม่ใช้ :hover / :focus-within เพราะบนจอสัมผัสสองสถานะนี้ค้างอยู่หลังแตะ แถบภาพจึงหยุดค้างและการ์ดขยายค้าง
+   การ์ดขยายตอนชี้จึงจำกัดไว้เฉพาะเครื่องที่มีเมาส์ (Tailwind v4 กันให้คลาส hover: อยู่แล้ว แต่ CSS ที่เขียนเองต้องกันเอง) */
+.photo-marquee:active .photo-row, .photo-marquee:has(:focus-visible) .photo-row { animation-play-state: paused; }
+.photo-marquee .photo-card { transition: transform .3s; }
+@media (hover: hover) and (pointer: fine) {
+  .photo-marquee .photo-card:hover { transform: scale(1.02); }
+}
+.photo-marquee .photo-text { text-shadow: 0 1px 2px oklch(0% 0 0 / .25), 0 3px 10px oklch(0% 0 0 / .3); }
+@media (prefers-reduced-motion: reduce) {
+  .photo-marquee > div { overflow-x: auto; scrollbar-width: none; }
+  .photo-marquee .photo-row { animation: none; }
+  .photo-marquee .photo-card { transition: none; }
+  .photo-marquee [data-copy] { display: none; }
+}
 @keyframes heroFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* วงแหวนนับเวลารอบปุ่มหยุด/เล่นของสไลด์ภาพ (gallery.js) — วิ่งครบรอบ = เลื่อนไปภาพถัดไป
    113.1 = เส้นรอบวงของวง r=18 · ถูกเรียกด้วยชื่อจาก JS จึงต้องอยู่นอก @theme */
