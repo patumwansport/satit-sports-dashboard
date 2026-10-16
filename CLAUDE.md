@@ -23,7 +23,7 @@ There is no test suite or linter. Verify changes by loading pages (headless Chro
 
 - **GitHub Pages** (primary, `https://patumwansport.github.io/satit-sports-dashboard/`): push to `main` → `.github/workflows/pages.yml` builds and publishes `public/`. Site lives under a sub-path, so every link/fetch in the code must be relative (no leading `/`). Push needs the `patumwansport` GitHub account (`gh auth switch -u patumwansport`).
 - **Vercel** (`https://satit-sports-dashboard-one.vercel.app`): static mirror of `public/` plus the one serverless function `api/gviz.js`. Not git-linked — redeploy manually with `vercel --prod` whenever `api/` or `public/` changes. `.vercelignore` must keep excluding `server.js` (otherwise Vercel treats the project as an Express app).
-- `.github/workflows/sync-sheets.yml` runs `scripts/import-sheets.mjs` every 15 min to mirror the sheet into Supabase for the backup CMS.
+- `.github/workflows/sync-sheets.yml` runs `scripts/import-sheets.mjs` roughly every 5 min (each scheduled run loops for 50 min because GitHub fires the cron only every ~40 min) to mirror the sheet into Supabase for the backup CMS.
 
 ## Architecture
 
@@ -31,7 +31,7 @@ There is no test suite or linter. Verify changes by loading pages (headless Chro
 
 Data flow: page script (`home.js`, `medals.js`, …) → `loadData()` / `onFreshData()` in `public/js/common.js` → `loadFromSheets()` in `public/js/sheets.js` → gviz JSON per sheet tab → one object with the same schema as `data/mock.json`. Every page renders from that single object.
 
-- **`api/gviz.js` caching proxy**: browsers fetch `GVIZ_PROXY` (see `sheets.js`) and Vercel's CDN caches each tab for 30 s, so heavy traffic never reaches Google. If the proxy fails *or returns something that isn't gviz* (an undeployed Vercel route returns `index.html` with 200), `sheets.js` falls back to calling Google directly. Keep both paths working. The proxy is locked to our `SHEET_ID`. `server.js` mounts the same handler for local dev.
+- **`api/gviz.js` caching proxy**: browsers fetch `GVIZ_PROXY` (see `sheets.js`) and Vercel's CDN caches each tab for 30 s (browser 15 s), so heavy traffic never reaches Google. The tabs every page needs come in one request (`?bundle=main`; `BUNDLE` in `api/gviz.js` must match `BUNDLE_QUERIES` in `sheets.js`) to save Vercel Hobby request quota. If the proxy fails *or returns something that isn't gviz* (an undeployed Vercel route returns `index.html` with 200), `sheets.js` falls back to calling Google directly. Keep both paths working. The proxy is locked to our `SHEET_ID`. `server.js` mounts the same handler for local dev.
 - **Fallback order in `common.js`**: Supabase (only if `public/js/config.js` is filled; currently empty) → Sheets → last good data in localStorage (`dash-data-v1`) → error box with retry. `data/mock.json` is used **only on localhost**; on the live site, sample data must never stand in for real results.
 - Pages fetch once on open and never poll. Data that arrives late shows an "อัปเดต" button instead of re-rendering under the reader (see the `onFreshData` comment block).
 - `sheets.js` is also imported by Node (`scripts/import-sheets.mjs`), so guard browser globals (`typeof location`).
@@ -41,6 +41,7 @@ Data flow: page script (`home.js`, `medals.js`, …) → `loadData()` / `onFresh
 - **Two Supabase configs, deliberately separate**: `public/js/config.js` decides where the public site reads match data (empty = Sheets). `public/admin/config.js` enables only the backup CMS (`public/admin/`), visit counting and announcement banners (`public/admin/site.js`, isolated so a Supabase outage never breaks the dashboard). `public/admin.html` is an older CMS, currently disabled. Security relies only on RLS in `supabase/migrations/`; change the schema via migrations + `db:push`, never in the dashboard.
 - **Gallery** (`gallery.html`, `drive-photos.js`, `gallery-config.js`): lists a public Google Drive folder tree through the second proxy, `api/drive.js`. Its `?tree=<root>` mode returns the whole photo library (folder tree + image ids, ~200 KB gzipped) in one response, memoised in the function and CDN-cached so pages need a single request; per-folder `?parent=` listings remain the fallback. It sends our Vercel domain as `Referer`, because the API key (duplicated from `gallery-config.js`) is referrer-restricted. Fallback: Drive directly, then the sheet's `img` tab.
 - Both proxies resolve their origin through `public/js/proxy.js`. `api/gviz.js` only serves the tabs in its `ALLOWED` list, which must mirror the tab constants at the top of `sheets.js`; an unlisted tab silently bypasses the cache.
+- Drive `<img>`s carry `data-fb` (fallback URL); `public/js/img-retry.js` (imported by `common.js`) handles their errors in one capture listener — fallback, then 3 spaced retries — and only lets the error reach page-level handlers once it gives up. Don't add per-image fallback swaps.
 
 ## Conventions
 

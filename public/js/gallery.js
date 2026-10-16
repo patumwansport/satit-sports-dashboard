@@ -148,7 +148,7 @@ function groupTitle(key) {
   return isFolderKey(key) ? key.slice(FOLDER_KEY.length) : shortLabel(key);
 }
 
-/** วันที่เปิดมาเจอ: ?day= ในลิงก์ → วันนี้ / วันล่าสุดก่อนวันนี้ที่มีภาพ (กติกาเดียวกับแถบภาพหน้าหลัก) */
+/** วันที่เปิดมาเจอ: ?day= ในลิงก์ → วันนี้ / วันล่าสุดก่อนวันนี้ที่มีภาพ (photoDayNow) */
 function initialDay() {
   var want = new URLSearchParams(location.search).get('day');
   var keys = state.groups.map(function (g) { return g.key; });
@@ -238,19 +238,11 @@ function renderSportFilter(group) {
 /** @param {boolean} [inSection] - อยู่ใต้หัวข้อกีฬาแล้ว ไม่ต้องติดป้ายชื่อกีฬาซ้ำทุกรูป */
 /* ---------- รูปสำรองเมื่อโหลดจาก lh3 ไม่ได้ ----------
    ทุก <img> ของ Drive พก data-fb (ลิงก์ drive.google.com/thumbnail แบบเดิม) ไว้
-   โหลดไม่ได้ครั้งแรก → สลับไปลิงก์สำรองหนึ่งครั้ง แล้วลบ data-fb ทิ้งกันวนไม่จบ
-   event "error" ของรูปไม่ bubble จึงดักแบบ capture ที่ document ตัวเดียว ไม่ต้องผูกทีละรูป */
+   img-retry.js (โหลดผ่าน common.js) สลับไปลิงก์สำรองและลองซ้ำให้ ตัวดัก error ในไฟล์นี้ทำงานเมื่อยอมแพ้แล้วเท่านั้น */
 function fallbackAttr(link, width) {
   var fb = imageFallbackAt(link, width);
   return fb ? ' data-fb="' + esc(fb) + '"' : '';
 }
-document.addEventListener('error', function (e) {
-  var img = e.target;
-  if (!img || img.tagName !== 'IMG' || !img.dataset.fb) return;
-  var fb = img.dataset.fb;
-  delete img.dataset.fb;
-  img.src = fb;
-}, true);
 
 function tileHtml(p, i, inSection) {
   var label = [p.caption, p.sport].filter(Boolean).join(' · ') || 'ภาพบรรยากาศ ภาพที่ ' + (i + 1);

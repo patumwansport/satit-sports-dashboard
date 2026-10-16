@@ -10,6 +10,7 @@
 import { loadFromSheets } from './sheets.js';
 import { hasSupabase } from './config.js';
 import { MONTHS_TH, isoDate } from './format.js';
+import './img-retry.js';   // รูปจาก Drive โหลดไม่ขึ้น → ลิงก์สำรอง + ลองซ้ำ (ทุกหน้า)
 
 /** ป้ายสถานะ (สด / ประกาศแล้ว / รอเริ่ม) — โครงเดียว เปลี่ยนแค่คู่สีตามสถานะ */
 export var CHIP = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[11px] py-1 fs-13';
@@ -33,7 +34,12 @@ export var UI_ICONS = {
   rank: "<path d='M3.5 20.5h17' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/><rect x='9.3' y='7.5' width='5.4' height='13' rx='1.2' stroke='%23000' stroke-width='1.7'/><rect x='3.6' y='12' width='5.4' height='8.5' rx='1.2' stroke='%23000' stroke-width='1.7'/><rect x='15' y='10' width='5.4' height='10.5' rx='1.2' stroke='%23000' stroke-width='1.7'/>",
   search: "<circle cx='11' cy='11' r='6.6' stroke='%23000' stroke-width='1.7'/><path d='M16.2 16.2l4.3 4.3' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/>",
   table: "<rect x='3.5' y='4.5' width='17' height='15.5' rx='2.5' stroke='%23000' stroke-width='1.7'/><path d='M3.5 9.5h17M9.5 9.5V20' stroke='%23000' stroke-width='1.7'/>",
-  photo: "<rect x='3.5' y='4.5' width='17' height='15' rx='2.5' stroke='%23000' stroke-width='1.7'/><circle cx='9' cy='10' r='1.8' stroke='%23000' stroke-width='1.7'/><path d='M4 17l4.5-4 3.5 3 3-2.5 5 4' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/>"
+  photo: "<rect x='3.5' y='4.5' width='17' height='15' rx='2.5' stroke='%23000' stroke-width='1.7'/><circle cx='9' cy='10' r='1.8' stroke='%23000' stroke-width='1.7'/><path d='M4 17l4.5-4 3.5 3 3-2.5 5 4' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/>",
+  home: "<path d='M3.8 10.6L12 3.8l8.2 6.8' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/><path d='M5.8 9.2v9.3a2 2 0 002 2h2.7v-5.6h3v5.6h2.7a2 2 0 002-2V9.2' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/>",
+  pin: "<path d='M12 20.5s-6.5-5.6-6.5-10.8a6.5 6.5 0 0113 0c0 5.2-6.5 10.8-6.5 10.8z' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/><circle cx='12' cy='9.7' r='2.4' stroke='%23000' stroke-width='1.7'/>",
+  hourglass: "<path d='M6.5 3.5h11M6.5 20.5h11' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/><path d='M7.8 3.5v2.8a4.2 4.2 0 002 3.6L12 12l2.2-2.1a4.2 4.2 0 002-3.6V3.5M7.8 20.5v-2.8a4.2 4.2 0 012-3.6L12 12l2.2 2.1a4.2 4.2 0 012 3.6v2.8' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/>",
+  download: "<path d='M12 3.8v11M7.2 10.2l4.8 4.8 4.8-4.8M4.5 20.2h15' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/>",
+  check: "<path d='M5 12.5l4.6 4.6L19 7.4' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/>"
 };
 function uiIconUrl(name) {
   var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'>" + (UI_ICONS[name] || '') + "</svg>";
@@ -762,7 +768,9 @@ function renderHeroBanner(data) {
     setText('heroTitleB', cut > 0 ? title.slice(cut).trim() : '');
     var b = document.getElementById('heroTitleB'); if (b) b.hidden = cut <= 0;
   }
-  if (title) setText('footTitle', title);
+  // ชื่อในอัญประกาศห้ามตัดกลางคำ — ตัวตัดคำภาษาไทยไม่รู้จัก "คำมอก" จอแคบเลยขึ้น "คำมอ / กหลวงเกมส์"
+  var foot = document.getElementById('footTitle');
+  if (foot && title) foot.innerHTML = cut > 0 ? esc(title.slice(0, cut).trim()) + ' <span class="whitespace-nowrap">' + esc(title.slice(cut).trim()) + '</span>' : esc(title);
   setText('heroSub', meta.subtitle || '');
   var range = eventDateRange(data.days);
   setText('heroDatesText', range);

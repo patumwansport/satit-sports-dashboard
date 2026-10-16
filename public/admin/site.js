@@ -127,6 +127,8 @@ function bannerHtml(b) {
 async function showBanners() {
   var main = document.getElementById('main');
   if (!main) return;
+  // หน้าหลักมีแถบ "ข่าวสารและไฮไลต์" ที่แสดงประกาศชุดเดียวกันอยู่แล้ว (js/news.js) — ไม่ขึ้นซ้ำบนสุด
+  if (document.getElementById('newsGrid')) return;
 
   // ช่วงเวลาและสถานะเปิด/ปิดกรองที่ RLS แล้ว ตรงนี้กรองแค่ "แสดงเฉพาะหน้าแรก"
   var res = await api('banners?select=id,title,message,image_url,link_url,link_label,tone,placement,updated_at&order=sort_order.asc,updated_at.desc');

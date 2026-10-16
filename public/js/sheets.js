@@ -139,7 +139,7 @@ function cellNum(cell) {
 /**
  * ดึงและแปลง JSON จาก Google Visualization API (gviz)
  * รับได้ทั้ง gid (ตัวเลข) และชื่อแท็บ — ระวังว่า gviz ตอบชีตแรกกลับมาเงียบ ๆ เมื่อชื่อแท็บไม่มีจริง
- * cache: 'no-store' เพื่อเอาคะแนนล่าสุด ไม่ใช่ของที่เบราว์เซอร์แคชไว้ (แคชที่ตั้งใจมีชั้นเดียวคือ CDN ของตัวกลาง)
+ * ยิง Google ตรง = cache: 'no-store' เพื่อเอาคะแนนล่าสุด · ผ่านตัวกลาง = ให้เบราว์เซอร์ใช้ของที่จำไว้ได้ (ตัวกลางกำหนดอายุ 15 วินาที)
  * @param {number} [headers] - จำนวนแถวหัวตาราง ส่งให้ gviz ตรง ๆ แทนให้มันเดาเอง
  *   gviz เดาหัวตารางจาก "ชนิดข้อมูลต่างจากแถวล่าง" แท็บที่ยังเป็นข้อความล้วน
  *   (เช่นตารางเหรียญก่อนเริ่มแข่ง ช่องตัวเลขยังว่างทั้งหมด) จะเดาไม่ออก แล้วคืนหัวตารางมาเป็นแถวข้อมูลแถวแรก
@@ -153,12 +153,14 @@ const FETCH_TIMEOUT_MS = 8000;
    ตัวกลางรับเฉพาะแท็บที่ประกาศไว้ใน ALLOWED ของ api/gviz.js — เพิ่ม/เปลี่ยนแท็บข้างบน ต้องแก้ที่นั่นด้วย */
 const GVIZ_PROXY = PROXY_ORIGIN ? PROXY_ORIGIN + '/api/gviz' : '';
 
-async function fetchText(url, label, onResponse) {
+/** @param {boolean} [viaProxy] - คำขอไปตัวกลาง: ให้เบราว์เซอร์ใช้คำตอบที่จำไว้ได้ตามอายุที่ตัวกลางบอก
+    error ที่ได้มี .status เมื่อปลายทางตอบกลับมา (ไม่มี = ไม่ตอบเลย หมดเวลา/เน็ตตัด) */
+async function fetchText(url, label, onResponse, viaProxy) {
   const ctrl = new AbortController();
   const timer = setTimeout(function () { ctrl.abort(); }, FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
-    if (!res.ok) throw new Error(label + ' ตอบกลับ ' + res.status);
+    const res = await fetch(url, { cache: viaProxy ? 'default' : 'no-store', signal: ctrl.signal });
+    if (!res.ok) throw Object.assign(new Error(label + ' ตอบกลับ ' + res.status), { status: res.status });
     if (onResponse) onResponse(res);
     return await res.text();
   } catch (err) {
@@ -181,14 +183,56 @@ function rememberProxySheet(res) {
   try { localStorage.setItem(SHEET_ID_STORE, id); } catch (e) { /* ไม่มีที่เก็บก็ไม่เป็นไร */ }
 }
 
+/* ชุดรวม: แท็บที่ทุกหน้าใช้ ขอจากตัวกลางในคำขอเดียว (api/gviz?bundle=main) แทนแท็บละคำขอ
+   แผนฟรีของ Vercel นับโควตาทุกคำขอแม้ CDN ตอบจากแคช — เปิดหนึ่งหน้าเคยขอ 5–6 ครั้ง เหลือครั้งเดียว
+   ค่าในรายการ = query ที่ fetchGvizTable สร้างให้แท็บนั้น ต้องตรงกับ BUNDLE ใน api/gviz.js
+   แท็บภาพ (img) ไม่อยู่ในชุด: ตอบช้าที่สุด รวมเข้ามาแล้วทุกหน้าต้องรอมันด้วย */
+const BUNDLE_QUERIES = [
+  'gid=' + SHEET_MEDAL_TABLE + '&headers=1',
+  'gid=' + GID_SPORT_MEDALS + '&headers=0',
+  'gid=' + GID_SCHEDULE,
+  'gid=' + GID_SCHEDULE_PLAN,
+  'gid=' + SHEET_STARS + '&headers=1'
+];
+/* แท็บในชุดที่ขอห่างกันไม่เกินเท่านี้ใช้คำตอบเดียวกัน (เช่นแท็บ MVP ที่หน้าผลขอแยกจากข้อมูลหลัก) */
+const BUNDLE_REUSE_MS = 15000;
+let bundleMemo = null;   // { at, promise }
+
+/** @returns {Promise<{tabs: Object, proxyDown: boolean}>} ไม่ throw — ใช้ไม่ได้ได้ tabs ว่าง
+    proxyDown = ตัวกลางไม่ตอบเลย (หมดเวลา/เน็ตตัด) → แท็บในชุดข้ามไปยิง Google ตรง ไม่ต้องรอหมดเวลาซ้ำแท็บละรอบ
+    ตัวกลางตอบแต่ใช้ไม่ได้ (ยังไม่ได้ deploy ฟังก์ชันรุ่นที่มีชุดรวม ฯลฯ) → ขอทีละแท็บจากตัวกลางแบบเดิม */
+function loadBundle() {
+  if (bundleMemo && Date.now() - bundleMemo.at < BUNDLE_REUSE_MS) return bundleMemo.promise;
+  const label = 'gviz ชุดรวม (ตัวกลาง)';
+  const promise = fetchText(GVIZ_PROXY + '?bundle=main', label, rememberProxySheet, true)
+    .then(function (text) {
+      let tabs = null;
+      try { tabs = JSON.parse(text).tabs; } catch (e) { /* Vercel ที่ยังไม่มีฟังก์ชันนี้ตอบหน้า index.html */ }
+      if (!tabs || typeof tabs !== 'object') throw Object.assign(new Error(label + ' ไม่ได้ตอบเป็นข้อมูลชีต'), { status: 200 });
+      return { tabs: tabs, proxyDown: false };
+    })
+    .catch(function (err) {
+      console.warn(err.message + ' — ขอแยกทีละแท็บแทน');
+      return { tabs: {}, proxyDown: !err.status };
+    });
+  bundleMemo = { at: Date.now(), promise: promise };
+  return promise;
+}
+
 async function fetchGvizTable(source, headers) {
   const key = /^\d+$/.test(String(source)) ? 'gid' : 'sheet';
   const query = key + '=' + encodeURIComponent(source) + (headers != null ? '&headers=' + headers : '');
   const label = 'gviz ' + key + '=' + source;
-  let raw;
-  if (GVIZ_PROXY && !directOnly) {
+  let raw = null;
+  let viaProxy = Boolean(GVIZ_PROXY) && !directOnly;
+  if (viaProxy && BUNDLE_QUERIES.indexOf(query) > -1) {
+    const bundle = await loadBundle();
+    raw = bundle.tabs[query] || null;
+    if (bundle.proxyDown) viaProxy = false;
+  }
+  if (raw == null && viaProxy) {
     try {
-      raw = await fetchText(GVIZ_PROXY + '?' + query, label + ' (ตัวกลาง)', rememberProxySheet);
+      raw = await fetchText(GVIZ_PROXY + '?' + query, label + ' (ตัวกลาง)', rememberProxySheet, true);
       // Vercel ที่ยังไม่มีฟังก์ชันนี้ตอบหน้า index.html กลับมาพร้อม 200 — ไม่ใช่คำตอบของ gviz ก็ถือว่าตัวกลางใช้ไม่ได้
       if (!/setResponse\(/.test(raw)) { raw = null; throw new Error(label + ' (ตัวกลาง) ไม่ได้ตอบเป็นข้อมูลชีต'); }
     } catch (err) {

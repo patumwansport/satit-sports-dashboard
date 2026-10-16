@@ -21,6 +21,7 @@ import { loadFromSheets, useSheet, currentSheetId, sheetIdFromUrl, gvizUrl, SHEE
 import { MONTHS_TH, directImageUrl } from '../js/format.js';
 import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from './sheets-sync.js';
 import { checkDriveFolder, driveFolderId } from '../js/drive-photos.js';
+import { newsCard, NEWS_TONE } from '../js/news.js';
 import { GALLERY_KEYS, parseHiddenFolders } from '../js/gallery-settings.js';
 import { DRIVE_FOLDER, HIDDEN_FOLDERS } from '../js/gallery-config.js';
 
@@ -75,7 +76,7 @@ var TONE_OPTIONS = [
   { value: 'danger', label: 'ด่วน / สำคัญ (แดง)' }
 ];
 var PLACEMENT_OPTIONS = [
-  { value: 'all', label: 'ทุกหน้า' },
+  { value: 'all', label: 'หน้าหลัก + แถบบนสุดทุกหน้า' },
   { value: 'home', label: 'หน้าหลักเท่านั้น' }
 ];
 
@@ -211,23 +212,24 @@ var VIEWS = [
   },
   {
     id: 'banners', kind: 'table', table: 'banners', pk: 'id', icon: 'banner',
-    title: 'แบนเนอร์ประกาศ',
-    hint: 'แถบประกาศบนสุดของหน้าเว็บ — ตั้งเวลาเริ่ม/หมดได้ ถึงเวลาแล้วขึ้นและหายเอง · ผู้ชมกดปิดได้ แก้ข้อความแล้วจะขึ้นให้เห็นใหม่',
+    title: 'ข่าวสารและประกาศ',
+    hint: 'ขึ้นเป็นการ์ดในแถบ "ข่าวสารและไฮไลต์" ของหน้าหลัก (เลือกให้ขึ้นเป็นแถบประกาศบนสุดของหน้าอื่นด้วยได้) — ตั้งเวลาเริ่ม/หมดได้ ถึงเวลาแล้วขึ้นและหายเอง',
     order: 'sort_order.asc,updated_at.desc',
     columns: [
       { key: 'title', label: 'ประกาศ', type: 'banner' },
+      { key: 'tone', label: 'ประเภท', type: 'newsTone' },
       { key: 'placement', label: 'แสดงที่', type: 'placement' },
       { key: 'period', label: 'ช่วงเวลา', type: 'period' },
       { key: 'active', label: 'สถานะ', type: 'bannerState' }
     ],
     fields: [
-      { key: 'title', label: 'หัวข้อ', type: 'text', hint: 'ตัวหนาหน้าข้อความ เช่น "เลื่อนการแข่งขัน"' },
-      { key: 'message', label: 'ข้อความ', type: 'textarea' },
-      { key: 'image_url', label: 'ลิงก์รูปแบนเนอร์', type: 'text',
-        hint: 'ใส่เมื่อต้องการแบนเนอร์แบบรูป (แนะนำสัดส่วนกว้าง เช่น 1600×400) — ใส่แล้วจะแสดงรูปแทนข้อความ · ลิงก์แชร์ Drive ใช้ได้' },
+      { key: 'title', label: 'หัวข้อข่าว', type: 'text', hint: 'เช่น "เลื่อนการแข่งขันฟุตบอล" — การ์ดแสดงไม่เกิน 2 บรรทัด' },
+      { key: 'message', label: 'รายละเอียด', type: 'textarea' },
+      { key: 'image_url', label: 'ลิงก์รูป', type: 'text',
+        hint: 'ไม่บังคับ — ใส่แล้วเป็นรูปปกการ์ด (สัดส่วน 16:10 เช่น 1600×1000) · แถบบนสุดของหน้าอื่นจะแสดงรูปแทนข้อความ · ลิงก์แชร์ Drive ใช้ได้' },
       { key: 'link_url', label: 'ลิงก์เมื่อกด', type: 'text', size: 'half', hint: 'https://… หรือหน้าในเว็บ เช่น matches.html' },
       { key: 'link_label', label: 'ข้อความปุ่มลิงก์', type: 'text', size: 'half', hint: 'เว้นว่าง = "ดูรายละเอียด"' },
-      { key: 'tone', label: 'สีแบนเนอร์', type: 'select', options: TONE_OPTIONS, noBlank: true, size: 'half' },
+      { key: 'tone', label: 'ประเภทข่าว', type: 'select', options: TONE_OPTIONS, noBlank: true, size: 'half' },
       { key: 'placement', label: 'แสดงที่', type: 'select', options: PLACEMENT_OPTIONS, noBlank: true, size: 'half' },
       { key: 'starts_at', label: 'เริ่มแสดง', type: 'datetime', size: 'half', hint: 'เว้นว่าง = แสดงทันที' },
       { key: 'ends_at', label: 'หยุดแสดง', type: 'datetime', size: 'half', hint: 'เว้นว่าง = แสดงจนกว่าจะปิด' },
@@ -260,7 +262,7 @@ var BACKUP_TABLES = [
   { table: 'schools', pk: 'id', label: 'โรงเรียน' },
   { table: 'matches', pk: 'id', label: 'รายการแข่งขัน' },
   { table: 'photos', pk: 'id', label: 'ภาพ' },
-  { table: 'banners', pk: 'id', label: 'แบนเนอร์' }
+  { table: 'banners', pk: 'id', label: 'ข่าวสารและประกาศ' }
 ];
 
 var PAGE_NAMES = {
@@ -413,6 +415,10 @@ function cellHtml(col, row) {
         ? '<img class="h-9 w-16 flex-none rounded-sm border border-line object-cover" src="' + esc(directImageUrl(row.image_url)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />'
         : '<span class="mt-[7px] size-2.5 flex-none rounded-full ' + (TONE_DOT[row.tone] || TONE_DOT.info) + '" aria-hidden="true"></span>') +
       '<span class="line-clamp-2">' + esc(text) + '</span></span>';
+  }
+  if (col.type === 'newsTone') {
+    var nt = NEWS_TONE[row.tone] || NEWS_TONE.info;
+    return '<span class="inline-flex rounded-full px-2.5 py-0.5 fs-13 font-semibold whitespace-nowrap ' + nt.cls + '">' + esc(nt.label) + '</span>';
   }
   if (col.type === 'placement') return esc(optionLabel(PLACEMENT_OPTIONS, row.placement));
   if (col.type === 'period') {
@@ -609,9 +615,35 @@ function openEditor(row) {
     return fieldHtml(f, v);
   }).join('');
 
+  $('editorFields').oninput = $('editorFields').onchange = null;   // ตัวอย่างสดของหมวดข่าวสาร ไม่ติดไปฟอร์มหมวดอื่น
+  if (current.id === 'banners') mountNewsPreview();
+
   $('editor').showModal();
   var first = $('editorFields').querySelector('input, select, textarea');
   if (first) first.focus();
+}
+
+/* ตัวอย่างการ์ดในฟอร์มข่าวสาร — วาดด้วย newsCard() ตัวเดียวกับหน้าหลัก พิมพ์แล้วเปลี่ยนตามทันที
+   ลิงก์ในตัวอย่างกดไม่ได้ (กันกดหลุดออกจากฟอร์มที่ยังไม่บันทึก) */
+function mountNewsPreview() {
+  var box = document.createElement('div');
+  box.className = 'col-span-6 flex flex-col gap-2 rounded-md bg-surface-soft p-4';
+  box.innerHTML = '<p class="m-0 fs-13 text-fg-mute">ตัวอย่างบนหน้าหลัก (แถบข่าวสารและไฮไลต์)</p>' +
+    '<div class="pointer-events-none w-[260px] max-w-full self-center" id="newsPreview" aria-hidden="true"></div>';
+  $('editorFields').prepend(box);
+  var paint = function () {
+    var v = collectValues(!editing);
+    v.updated_at = editing && editing.updated_at;
+    var host = $('newsPreview');
+    host.innerHTML = (v.title || v.message || v.image_url) ? newsCard(v)
+      : '<div class="flex h-[180px] items-center justify-center rounded-[16px] border border-dashed border-line-strong fs-14 text-fg-mute">กรอกหัวข้อหรือรายละเอียดเพื่อดูตัวอย่าง</div>';
+    host.querySelectorAll('img[data-fb]').forEach(function (img) {
+      img.addEventListener('error', function () { var fb = img.dataset.fb; if (fb) { delete img.dataset.fb; img.src = fb; } });
+    });
+  };
+  $('editorFields').oninput = paint;
+  $('editorFields').onchange = paint;
+  paint();
 }
 
 function collectValues(isNew) {
@@ -642,7 +674,7 @@ async function save(event) {
   if (current.id === 'results' && values.score && values.status === 'upcoming') values.status = 'done';
   if (current.id === 'banners') {
     if (!values.title && !values.message && !values.image_url) {
-      setEditorError('ใส่หัวข้อ ข้อความ หรือรูปอย่างน้อยหนึ่งอย่าง — แบนเนอร์ว่างจะขึ้นเป็นแถบเปล่าบนเว็บ');
+      setEditorError('ใส่หัวข้อ รายละเอียด หรือรูปอย่างน้อยหนึ่งอย่าง — ประกาศว่างจะไม่ขึ้นบนเว็บ');
       return;
     }
     if (values.starts_at && values.ends_at && values.ends_at <= values.starts_at) {

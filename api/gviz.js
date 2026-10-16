@@ -13,6 +13,9 @@
  * "ชีตของเรา" = ลิงก์ที่ผู้ดูแลตั้งในหน้า CMS (site_settings key sheet_url — เขียนได้เฉพาะผู้ดูแลตาม RLS)
  * ไม่ได้ตั้ง / อ่าน Supabase ไม่ได้ = DEFAULT_SHEET_ID (ต้องตรงกับ public/js/sheets.js)
  * บอก id ที่ใช้จริงกลับไปในหัว X-Sheet-Id ให้เบราว์เซอร์จำไว้ใช้ตอนตัวกลางล่ม
+ *
+ * ?bundle=main → { tabs: { "<query ของแท็บ>": ข้อความดิบของ gviz } } แท็บที่ทุกหน้าใช้ในคำตอบเดียว (ดู BUNDLE)
+ *   แผนฟรีของ Vercel นับโควตาทุกคำขอ แม้ CDN ตอบจากแคช — เดิมเปิดหนึ่งหน้าขอแท็บละคำขอ 5–6 ครั้ง เหลือครั้งเดียว
  */
 
 const DEFAULT_SHEET_ID = '1W0kFccDAHhzPUH8kunlGqW6vX5uQRxqYHFJd6xLH0Kw';
@@ -57,10 +60,53 @@ const ALLOWED = {
   sheet: ['img']
 };
 
+/* ชุดรวม: query ของแท็บแบบที่ fetchGvizTable ใน sheets.js สร้าง — ต้องตรงกับ BUNDLE_QUERIES ใน public/js/sheets.js
+   (ไม่ตรง = แท็บนั้นไม่มีในชุด เบราว์เซอร์ขอแยกเองแบบเดิม ยังทำงานแต่เปลืองคำขอ)
+   แท็บภาพ (img) ไม่อยู่ในชุด: ตอบช้าที่สุด รวมเข้ามาแล้วทุกหน้าต้องรอมันด้วย */
+const BUNDLE = [
+  'gid=1195929060&headers=1',   // สถิติเหรียญรางวัล
+  'gid=1253612074&headers=0',   // รวมเหรียญ
+  'gid=2119468784',             // ผลการแข่งขัน
+  'gid=1146003336',             // ตารางการแข่งขัน
+  'gid=1636287265&headers=1'    // MVP
+];
+
 /* CDN: สดได้ 30 วินาที เลยจากนั้นยังตอบชุดเดิมไปก่อน (สูงสุด 5 นาที) ระหว่างไปดึงชุดใหม่เบื้องหลัง
-   ผู้ชมจึงไม่ต้องรอ Google เลย ยกเว้นคนแรกของภูมิภาคหลังเงียบไปนานเกิน 5 นาที
-   เบราว์เซอร์ไม่แคช (no-store) — แคชมีชั้นเดียวคือ CDN จะได้ไม่ซ้อนอายุกัน */
+   ผู้ชมจึงไม่ต้องรอ Google เลย ยกเว้นคนแรกของภูมิภาคหลังเงียบไปนานเกิน 5 นาที */
 const CDN_CACHE = 'max-age=30, stale-while-revalidate=300';
+/* เบราว์เซอร์จำคำตอบ 15 วินาที — กดเปลี่ยนหน้าในเว็บติด ๆ กันไม่ต้องขอซ้ำ (แต่ละหน้าโหลดข้อมูลชุดเดียวกันทั้งหมด)
+   ผลใหม่จึงช้าสุดราว 45 วินาที (CDN 30 + เบราว์เซอร์ 15) */
+const BROWSER_CACHE = 'public, max-age=15';
+
+/** ข้อความดิบของ gviz หนึ่งแท็บ · error ที่ gviz ห่อมาเป็น status 200 ถือว่าล้มเหลว (ต้องไม่ค้างอยู่บน CDN) */
+async function fetchRaw(sheetId, query) {
+  let upstream;
+  try {
+    upstream = await fetch('https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&' + query, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+  } catch (err) {
+    throw new Error(err.name === 'TimeoutError' ? 'ไม่ตอบภายใน ' + TIMEOUT_MS / 1000 + ' วินาที' : err.message);
+  }
+  if (!upstream.ok) throw new Error('Google ตอบกลับ ' + upstream.status);
+  const raw = await upstream.text();
+  if (!/setResponse\(/.test(raw) || !/"status":"ok"/.test(raw)) throw new Error('ชีตตอบกลับในรูปแบบที่ไม่ถูกต้อง');
+  return raw;
+}
+
+/** ?bundle=main — ถามทุกแท็บในชุดพร้อมกัน แท็บที่พังได้ null (เบราว์เซอร์ขอแท็บนั้นแยกเอง)
+    พังบางแท็บ = แคช CDN สั้น ๆ ไม่ให้ชุดขาดค้างอยู่ครึ่งนาที · พังหมด = 502 ไม่แคช */
+async function sendBundle(res, sheetId) {
+  const raws = await Promise.all(BUNDLE.map(function (q) {
+    return fetchRaw(sheetId, q).catch(function (err) { console.warn('ชุดรวม ' + q + ': ' + err.message); return null; });
+  }));
+  const tabs = {};
+  BUNDLE.forEach(function (q, i) { tabs[q] = raws[i]; });
+  const ok = raws.filter(Boolean).length;
+  if (!ok) return res.status(502).send('ดึงชีตไม่สำเร็จทุกแท็บ');
+  res.setHeader('Vercel-CDN-Cache-Control', ok === BUNDLE.length ? CDN_CACHE : 'max-age=5');
+  res.setHeader('Cache-Control', BROWSER_CACHE);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  return res.status(200).send(JSON.stringify({ tabs: tabs }));
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -68,6 +114,12 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   const q = req.query || {};
+  if (q.bundle === 'main') {
+    const sheetId = await currentSheetId();
+    res.setHeader('X-Sheet-Id', sheetId);
+    return sendBundle(res, sheetId);
+  }
+
   const gid = typeof q.gid === 'string' ? q.gid : '';
   const sheet = typeof q.sheet === 'string' ? q.sheet : '';
   const headers = typeof q.headers === 'string' ? q.headers : '';
@@ -77,23 +129,15 @@ module.exports = async function handler(req, res) {
 
   const sheetId = await currentSheetId();
   res.setHeader('X-Sheet-Id', sheetId);
-  const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&' +
-    (gid ? 'gid=' + gid : 'sheet=' + encodeURIComponent(sheet)) + (headers ? '&headers=' + headers : '');
-
   let raw;
   try {
-    const upstream = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!upstream.ok) throw new Error('Google ตอบกลับ ' + upstream.status);
-    raw = await upstream.text();
+    raw = await fetchRaw(sheetId, (gid ? 'gid=' + gid : 'sheet=' + encodeURIComponent(sheet)) + (headers ? '&headers=' + headers : ''));
   } catch (err) {
-    return res.status(502).send('ดึงชีตไม่สำเร็จ: ' + (err.name === 'TimeoutError' ? 'ไม่ตอบภายใน ' + TIMEOUT_MS / 1000 + ' วินาที' : err.message));
-  }
-  // แคชเฉพาะคำตอบที่ใช้ได้ — error ที่ gviz ห่อมาเป็น status 200 ต้องไม่ค้างอยู่บน CDN
-  if (!/setResponse\(/.test(raw) || !/"status":"ok"/.test(raw)) {
-    return res.status(502).send('ชีตตอบกลับในรูปแบบที่ไม่ถูกต้อง');
+    return res.status(502).send('ดึงชีตไม่สำเร็จ: ' + err.message);
   }
 
   res.setHeader('Vercel-CDN-Cache-Control', CDN_CACHE);
+  res.setHeader('Cache-Control', BROWSER_CACHE);
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   return res.status(200).send(raw);
 };

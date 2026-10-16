@@ -1,4 +1,4 @@
-# ซิงก์ Google Sheets → ฐานข้อมูล CMS สำรอง (Supabase) อัตโนมัติทุก 15 นาที
+# ซิงก์ Google Sheets → ฐานข้อมูล CMS สำรอง (Supabase) อัตโนมัติราวทุก 5 นาที
 #
 # หน้าเว็บยังอ่านผลจากชีตโดยตรง งานนี้มีไว้ให้ "ข้อมูลสำรอง" ในฐานข้อมูลตรงกับชีตอยู่เสมอ
 # วันที่ชีตใช้ไม่ได้ จะได้สลับหน้าเว็บมาอ่านจากฐานข้อมูลได้ทันทีโดยข้อมูลไม่ค้างเก่า
@@ -8,8 +8,14 @@
 #   SUPABASE_URL           https://<project-ref>.supabase.co
 #   SUPABASE_SERVICE_KEY   service_role key — ข้าม RLS ได้ทั้งหมด เก็บใน secret เท่านั้น ห้ามใส่ในไฟล์
 #
-# หมายเหตุของ GitHub: เวลา schedule อาจช้ากว่ากำหนดได้หลายนาทีช่วงคนใช้เยอะ และถ้า repo ไม่มี
-# ความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง (เปิดคืนที่แท็บ Actions)
+# ทำไมรอบเดียววนหลายครั้ง: GitHub ไม่รันตาม schedule ตรงเวลา — ตั้งไว้ทุก 15 นาที แต่วัดจริง (ต.ค. 2569)
+# รันแค่ทุก 37–40 นาที ข้อมูลสำรองจึงช้ากว่าชีตได้เกือบชั่วโมง แต่ละรอบจึงซิงก์ซ้ำทุก SYNC_EVERY_MIN นาที
+# จนครบ RUN_FOR_MIN นาที รอบถัดไปที่ schedule ปลุกมาระหว่างนั้นจะรอคิว (concurrency) แล้วต่อทันทีที่รอบก่อนจบ
+# ผลคือซิงก์ต่อเนื่องราวทุก 5 นาที ไม่ขึ้นกับว่า GitHub ปลุกช้าแค่ไหน
+# repo นี้เป็น public — นาทีของ GitHub Actions ไม่จำกัด ไม่มีค่าใช้จ่าย (ถ้าเปลี่ยนเป็น private ต้องลด RUN_FOR_MIN ไม่งั้นโควตาฟรีหมดในไม่กี่วัน)
+# หยุดซิงก์ชั่วคราว: แท็บ Actions → Sync Sheets to CMS → ⋯ → Disable workflow
+#
+# หมายเหตุของ GitHub: ถ้า repo ไม่มีความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง (เปิดคืนที่แท็บ Actions)
 
 name: Sync Sheets to CMS
 
@@ -29,7 +35,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +44,23 @@ jobs:
         with:
           node-version: 22
 
-      - run: node scripts/import-sheets.mjs
+      # ซิงก์ทุก SYNC_EVERY_MIN นาทีจนครบ RUN_FOR_MIN นาที (ไม่เกิน timeout-minutes ข้างบน)
+      # รอบไหนพังก็วนต่อ (ชีตช้าชั่วคราวไม่ควรหยุดทั้งชั่วโมง) แต่จบแล้วรายงานเป็น failed ให้เห็นในแท็บ Actions
+      # กดรันเอง (workflow_dispatch) = ซิงก์ครั้งเดียวแล้วจบ
+      - name: Sync loop
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SYNC_EVERY_MIN: 5
+          RUN_FOR_MIN: ${{ github.event_name == 'schedule' && 50 || 0 }}
+        run: |
+          end=$(( $(date +%s) + RUN_FOR_MIN * 60 ))
+          failed=0
+          while true; do
+            echo "::group::sync $(date -u +%H:%M:%S) UTC"
+            node scripts/import-sheets.mjs || { failed=$((failed + 1)); echo "::warning::ซิงก์รอบนี้ไม่สำเร็จ"; }
+            echo "::endgroup::"
+            [ $(( $(date +%s) + SYNC_EVERY_MIN * 60 )) -lt "$end" ] || break
+            sleep $(( SYNC_EVERY_MIN * 60 ))
+          done
+          [ "$failed" -eq 0 ] || { echo "::error::ซิงก์ไม่สำเร็จ $failed รอบ"; exit 1; }

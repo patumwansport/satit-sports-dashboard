@@ -111,6 +111,11 @@ function indexedChildren(node) {
     Google ตอบ 403 ทันที จึงต้องถามทีละโฟลเดอร์ แล้วยิงพร้อมกันแทน */
 async function listChildren(id) {
   if (treeIndex && treeIndex[id]) return indexedChildren(treeIndex[id]);
+  return listFolder(id);
+}
+
+/** ทุกอย่างในโฟลเดอร์เดียว พร้อมชื่อไฟล์ (ไม่ผ่านดัชนีทั้งคลังที่เก็บแค่รหัสรูป) — ใช้กับโฟลเดอร์เอกสารรายวันด้วย (day-files.js) */
+export async function listFolder(id) {
   var cached = await viaProxy('parent=' + encodeURIComponent(id));
   return (cached && cached.files) || listAll("'" + id + "' in parents and trashed = false", 'id,name,mimeType');
 }

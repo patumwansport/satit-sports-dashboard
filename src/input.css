@@ -378,7 +378,7 @@
 }
 :root[data-theme="dark"] :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]):not(.btn-destructive, .btn-pill-light) { --fx-line: oklch(62% 0.13 270); }
 @media (prefers-reduced-motion: reduce) {
-  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]), :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) *, :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])::before { transition: none !important; }
+  :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]),:is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current]) *, :is(.btn:not(.btn-icon, .btn-ghost, .btn-link), .btn-pill, .btn-fx):not([aria-pressed], [aria-selected], [aria-current])::before { transition: none !important; }
 }
 
 /* =========================================================
@@ -483,8 +483,22 @@ body:has(#cookieNotice) #toTop { display: none; }
 @keyframes carRing { from { stroke-dashoffset: 113.1; } to { stroke-dashoffset: 0; } }
 
 /* =========================================================
-   utility เพิ่มเอง 2 ตัว — ทั้งคู่เป็น "รูปทรง mask" ที่เขียนเป็น utility สำเร็จรูปไม่ได้
+   utility เพิ่มเอง — icon-mask / medal-mic เป็น "รูปทรง mask" ที่เขียนเป็น utility สำเร็จรูปไม่ได้
+   text-poster = ตัวหนังสือบนภาพแบบโปสเตอร์เกมส์
    ========================================================= */
+
+/* ตัวหนังสือขาววางบนภาพตรง ๆ (แถบโปรแกรมวันถัดไปในหน้าหลัก): ขอบกรมท่าคม 8 ทิศ + เงาตกแข็งด้านล่าง
+   เงาทุกชั้นไม่เบลอ (ข้อ "ห้ามฟุ้ง" ใน DESIGN.md) — หน้าตาแบบชื่องานบนแบนเนอร์ · ความหนาขอบตั้งด้วย --tp (ตั้งต้น 2px) */
+@utility text-poster {
+  --tp: 2px;
+  --tc: var(--color-navy);
+  color: #fff;
+  text-shadow:
+    var(--tp) 0 0 var(--tc), calc(var(--tp) * -1) 0 0 var(--tc), 0 var(--tp) 0 var(--tc), 0 calc(var(--tp) * -1) 0 var(--tc),
+    calc(var(--tp) * .75) calc(var(--tp) * .75) 0 var(--tc), calc(var(--tp) * -.75) calc(var(--tp) * -.75) 0 var(--tc),
+    calc(var(--tp) * .75) calc(var(--tp) * -.75) 0 var(--tc), calc(var(--tp) * -.75) calc(var(--tp) * .75) 0 var(--tc),
+    0 calc(var(--tp) * 2) 0 var(--tc);
+}
 
 /* ไอคอน UI: รูปทรงมาจาก JS (paintUiIcons ใน common.js ตั้ง mask-image ให้ [data-ic])
    ตัวไอคอนย้อมด้วยสีข้อความรอบ ๆ จึงคุมสีได้ด้วย utility text-* ตามปกติ */

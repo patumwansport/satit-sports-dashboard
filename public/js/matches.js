@@ -481,10 +481,6 @@ function showPhotos(list, day, iso, ctx) {
     grid.className = 'grid gap-2.5 max-[560px]:gap-2 ' + (EVEN_COLS[picks.length] || '');
     grid.innerHTML = picks.map(function (p) { return photoTile(p, href, picks.length < 3, picks.length === 1 ? 'aspect-[16/8]' : 'aspect-[4/3]'); }).join('');
   }
-  // รูปลิงก์ lh3 โหลดไม่ได้ สลับไปลิงก์รูปย่อของ Drive หนึ่งครั้ง
-  grid.querySelectorAll('img[data-fb]').forEach(function (img) {
-    img.addEventListener('error', function () { var fb = img.getAttribute('data-fb'); img.removeAttribute('data-fb'); if (fb) img.src = fb; }, { once: true });
-  });
   var empty = document.getElementById('hlEmpty');
   empty.hidden = Boolean(picks.length);
   empty.textContent = 'ยังไม่มีภาพ' + (ctx.sportName || 'การแข่งขัน') + (!day ? '' : isToday(day) ? 'ของวันนี้' : 'ของวันที่ ' + day.date) + ' — ฝ่ายประชาสัมพันธ์จะทยอยลงภาพระหว่างวัน';
@@ -580,11 +576,9 @@ function renderStars(ctx) {
     // ทีละใบเต็มกล่อง · คนเดียวไม่ต้องวน — ชุดเดียว
     starCar = starCar || loopCarousel({ box: 'stars', viewport: 'mvpViewport', track: 'starList', ms: STAR_MS });
     starCar.set(list, function (s, i, k) { return starSlide(s, i, n, k, isSelf); });
-    // รูปลิงก์ lh3 โหลดไม่ได้ สลับไปลิงก์รูปย่อของ Drive หนึ่งครั้ง · ยังไม่ได้อีก (ไฟล์ไม่ได้แชร์/ลิงก์เว็บอื่นกันดึงรูป) = มาสคอตแทนรูปแตก
+    // รูปโหลดไม่ได้แม้ลองลิงก์สำรองและลองซ้ำแล้ว (img-retry.js · ไฟล์ไม่ได้แชร์/ลิงก์เว็บอื่นกันดึงรูป) = มาสคอตแทนรูปแตก
     track.querySelectorAll('img[data-sport]').forEach(function (img) {
       img.addEventListener('error', function () {
-        var fb = img.getAttribute('data-fb');
-        if (fb) { img.removeAttribute('data-fb'); img.src = fb; return; }
         img.outerHTML = starPhoto({ sportId: img.getAttribute('data-sport') });
       });
     });
