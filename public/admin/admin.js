@@ -18,10 +18,11 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from './config.js';
 import { esc, sportIcon, UI_ICONS } from '../js/common.js';
 import { loadFromSheets, useSheet, currentSheetId, sheetIdFromUrl, gvizUrl, SHEET_KEYS, SHEET_TABS, DEFAULT_SHEET_ID } from '../js/sheets.js';
-import { MONTHS_TH, directImageUrl } from '../js/format.js';
+import { MONTHS_TH, directImageUrl, imageUrlAt, imageFallbackAt } from '../js/format.js';
 import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from './sheets-sync.js';
 import { checkDriveFolder, driveFolderId } from '../js/drive-photos.js';
-import { newsCard, NEWS_TONE } from '../js/news.js';
+import { newsCard, NEWS_TONE, safeUrl } from '../js/news.js';
+import { HERO_SLOTS } from '../js/hero-settings.js';
 import { GALLERY_KEYS, parseHiddenFolders } from '../js/gallery-settings.js';
 import { DRIVE_FOLDER, HIDDEN_FOLDERS } from '../js/gallery-config.js';
 
@@ -212,7 +213,7 @@ var VIEWS = [
   },
   {
     id: 'banners', kind: 'table', table: 'banners', pk: 'id', icon: 'banner',
-    title: 'ข่าวสารและประกาศ',
+    title: 'ข่าวสารและไฮไลต์',
     hint: 'ขึ้นเป็นการ์ดในแถบ "ข่าวสารและไฮไลต์" ของหน้าหลัก (เลือกให้ขึ้นเป็นแถบประกาศบนสุดของหน้าอื่นด้วยได้) — ตั้งเวลาเริ่ม/หมดได้ ถึงเวลาแล้วขึ้นและหายเอง',
     order: 'sort_order.asc,updated_at.desc',
     columns: [
@@ -236,6 +237,11 @@ var VIEWS = [
       { key: 'active', label: 'เปิดใช้งาน', type: 'checkbox', default: true, hint: 'ไม่ติ๊ก = เก็บเป็นฉบับร่าง ยังไม่ขึ้นบนเว็บ' },
       { key: 'sort_order', label: 'ลำดับ', type: 'number', hint: 'เลขน้อยขึ้นก่อน' }
     ]
+  },
+  {
+    id: 'heroes', kind: 'heroes', icon: 'photo',
+    title: 'ภาพแบนเนอร์',
+    hint: 'ภาพใหญ่บนสุดของหน้าเว็บ — วางลิงก์รูปแล้วบันทึก ผู้ชมรีเฟรชหน้าก็เห็น ไม่ต้อง deploy เว็บใหม่ · เว้นว่าง = ใช้ภาพเดิม'
   },
   {
     id: 'gallery', kind: 'gallery', icon: 'folder',
@@ -1208,6 +1214,115 @@ async function saveGallerySettings(event) {
 }
 
 /* =========================================================
+   มุมมอง "ภาพแบนเนอร์" — ลิงก์รูปแบนเนอร์บนสุดของหน้า (HERO_SLOTS ใน hero-settings.js)
+   เก็บใน site_settings · admin/site.js บนหน้าเว็บสาธารณะอ่านแล้วสลับรูป · ว่าง = รูปเดิมใน assets/hero/
+   ========================================================= */
+
+async function renderHeroView() {
+  $('viewBody').innerHTML = '<div class="' + CARD + ' text-[14.5px] text-fg-mute">กำลังโหลด…</div>';
+  var res = await db.from('site_settings').select('key,value').in('key', HERO_SLOTS.map(function (s) { return s.key; }));
+  if (current.id !== 'heroes') return;
+  if (res.error) { setPanelError('โหลดค่าไม่สำเร็จ: ' + missingSchemaHint(res.error)); $('viewBody').innerHTML = ''; return; }
+  var saved = {};
+  (res.data || []).forEach(function (r) { saved[r.key] = r.value || ''; });
+
+  $('viewBody').innerHTML =
+    '<form class="flex flex-col gap-5" id="heroForm">' +
+      HERO_SLOTS.map(function (s, i) {
+        return '<section class="' + CARD + ' flex flex-col gap-3">' +
+          '<label class="label" for="hero' + i + '">' + esc(s.label) + '</label>' +
+          '<div class="overflow-hidden rounded-md border border-line bg-surface-soft" style="aspect-ratio:' + s.ratio + '">' +
+            '<img class="block size-full object-cover" id="heroPrev' + i + '" alt="ตัวอย่าง' + esc(s.label) + '" referrerpolicy="no-referrer" /></div>' +
+          '<div class="flex flex-wrap gap-2.5">' +
+            '<input class="input h-10 min-w-0 flex-1" id="hero' + i + '" type="url" placeholder="ลิงก์รูป — ลิงก์แชร์ Google Drive หรือ https://…" value="' + esc(saved[s.key] || '') + '" />' +
+            '<button class="btn btn-outline" type="button" data-hero-reset="' + i + '">ใช้ภาพเดิม</button>' +
+          '</div>' +
+          '<p class="m-0 text-[13.5px] text-fg-mute">' + esc(s.size) + ' · ไฟล์ใน Drive ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้"</p>' +
+          '<div id="heroMsg' + i + '"></div>' +
+        '</section>';
+      }).join('') +
+      '<div class="flex flex-wrap items-center gap-2.5">' +
+        '<button class="btn" type="submit" id="heroSave">บันทึก</button>' +
+        '<a class="btn btn-ghost ml-auto text-fg-soft" href="../index.html" target="_blank" rel="noopener">' + icon('external') + 'เปิดหน้าหลัก</a>' +
+      '</div>' +
+      notice('ok', '', 'ข่าวสาร ไฮไลต์ และแถบประกาศ แก้ที่เมนู <button class="cursor-pointer border-0 bg-transparent p-0 font-semibold text-brand-ink underline" type="button" data-go="banners">ข่าวสารและไฮไลต์</button>') +
+    '</form>';
+
+  HERO_SLOTS.forEach(function (s, i) {
+    var input = $('hero' + i), timer = null;
+    input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { previewHero(i); }, 500); });
+    previewHero(i);
+  });
+  $('heroForm').querySelectorAll('[data-hero-reset]').forEach(function (b) {
+    b.addEventListener('click', function () { var i = +b.dataset.heroReset; $('hero' + i).value = ''; previewHero(i); });
+  });
+  $('heroForm').addEventListener('submit', saveHeroSettings);
+  bindGoLinks($('viewBody'));
+  paintIcons($('viewBody'));
+}
+
+/** โหลดรูปจริงแบบที่หน้าเว็บจะโหลด (lh3 → ลิงก์สำรองของ Drive) · ได้ { ok, w, h } */
+function probeHero(url, width) {
+  return new Promise(function (resolve) {
+    var tries = [imageUrlAt(url, width), imageFallbackAt(url, width)].filter(Boolean);
+    (function next() {
+      var src = tries.shift();
+      if (!src) { resolve({ ok: false }); return; }
+      var im = new Image();
+      im.referrerPolicy = 'no-referrer';
+      im.onload = function () { resolve({ ok: true, w: im.naturalWidth, h: im.naturalHeight, src: src }); };
+      im.onerror = next;
+      im.src = src;
+    })();
+  });
+}
+
+/** ตัวอย่างรูป + ผลตรวจ (โหลดได้ไหม · สัดส่วนใกล้ที่แนะนำไหม) · ได้ true เมื่อใช้ได้ (ว่าง = ใช้ภาพเดิม ถือว่าใช้ได้) */
+async function previewHero(i) {
+  var s = HERO_SLOTS[i], raw = $('hero' + i).value.trim(), msg = $('heroMsg' + i), prev = $('heroPrev' + i);
+  if (!raw) {
+    prev.src = '../' + s.def;
+    msg.innerHTML = '<p class="m-0 text-[13.5px] text-fg-mute">ใช้ภาพเดิมของเว็บ</p>';
+    return true;
+  }
+  var url = safeUrl(raw);
+  if (!/^https?:\/\//i.test(url)) {
+    msg.innerHTML = '<p class="m-0 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14px] text-destructive">ลิงก์ต้องขึ้นต้นด้วย https://</p>';
+    return false;
+  }
+  msg.innerHTML = '<p class="m-0 text-[13.5px] text-fg-mute">กำลังโหลดรูป…</p>';
+  var r = await probeHero(url, s.width);
+  if ($('hero' + i).value.trim() !== raw) return false;   // พิมพ์ต่อระหว่างโหลด — ผลนี้เก่าแล้ว
+  if (!r.ok) {
+    prev.removeAttribute('src');
+    msg.innerHTML = '<p class="m-0 rounded-sm border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-[14px] text-destructive">โหลดรูปไม่ได้ — ตรวจว่าเป็นลิงก์ของไฟล์รูป (ไม่ใช่โฟลเดอร์) และแชร์แบบ "ทุกคนที่มีลิงก์ดูได้"</p>';
+    return false;
+  }
+  prev.src = r.src;
+  var ratio = r.w / r.h, off = Math.abs(ratio - s.ratio) / s.ratio > 0.15;
+  msg.innerHTML = off
+    ? '<p class="m-0 rounded-sm border border-gold/40 bg-gold/15 px-3.5 py-2.5 text-[14px] text-gold-ink">โหลดได้ ✓ แต่สัดส่วนรูป ' + ratio.toFixed(2) + ' : 1 ต่างจากที่แนะนำ — ขอบบน/ล่างหรือซ้าย/ขวาจะถูกตัด ดูกรอบตัวอย่างข้างบน</p>'
+    : '<p class="m-0 rounded-sm border border-done/30 bg-done-bg px-3.5 py-2.5 text-[14px] text-done">โหลดได้ ✓ (' + r.w + ' × ' + r.h + ' px)</p>';
+  return true;
+}
+
+async function saveHeroSettings(event) {
+  event.preventDefault();
+  $('heroSave').disabled = true;
+  var checks = await Promise.all(HERO_SLOTS.map(function (s, i) { return previewHero(i); }));
+  if (checks.indexOf(false) > -1 && !confirm('มีรูปที่ตรวจไม่ผ่าน — หน้าเว็บจะใช้ภาพเดิมแทนรูปนั้นจนกว่าจะแก้\nบันทึกต่อไปหรือไม่?')) {
+    $('heroSave').disabled = false;
+    return;
+  }
+  var res = await db.from('site_settings').upsert(HERO_SLOTS.map(function (s, i) {
+    return { key: s.key, value: safeUrl($('hero' + i).value.trim()) };
+  }), { onConflict: 'key' });
+  $('heroSave').disabled = false;
+  if (res.error) { setPanelError('บันทึกไม่สำเร็จ: ' + friendlyError(res.error)); return; }
+  setSaveState('บันทึกแล้ว — ผู้ชมรีเฟรชหน้าก็เห็นผล');
+}
+
+/* =========================================================
    แหล่งข้อมูล — ลิงก์ชีต + ตัวเชื่อม Apps Script (เก็บใน site_settings, key ใน SHEET_KEYS ของ sheets.js)
    ========================================================= */
 
@@ -1794,6 +1909,8 @@ function selectView(id) {
     renderBackupView();
   } else if (current.kind === 'gallery') {
     renderGalleryView();
+  } else if (current.kind === 'heroes') {
+    renderHeroView();
   } else if (current.kind === 'sheet') {
     renderSheetView();
   } else if (current.kind === 'source') {

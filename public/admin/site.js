@@ -2,6 +2,7 @@
    admin/site.js — ส่วนของ CMS สำรองที่ทำงานบนหน้าเว็บสาธารณะ
      1) นับผู้เข้าชม: บอก Supabase ว่ามีคนเปิดหน้านี้ (ผ่าน rpc track_visit)
      2) แบนเนอร์ประกาศ: ดึงแบนเนอร์ที่เปิดอยู่มาแสดงบนสุดของ <main>
+     3) ภาพแบนเนอร์บนสุดของหน้า: สลับเป็นรูปที่ผู้ดูแลตั้งใน CMS (ไม่ได้ตั้ง = รูปเดิมใน assets/hero/)
 
    ทุกหน้าโหลดไฟล์นี้แยกจากสคริปต์หลักของหน้า และไม่มีใคร import มัน
    พังหรือช้าแค่ไหนก็ไม่ลากแดชบอร์ดพังตาม — ทุกขั้นกลืน error ทิ้งเงียบ ๆ
@@ -12,7 +13,8 @@
    ========================================================= */
 
 import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from './config.js';
-import { directImageUrl } from '../js/format.js';
+import { directImageUrl, imageUrlAt, imageFallbackAt } from '../js/format.js';
+import { HERO_SLOTS } from '../js/hero-settings.js';
 
 var DISMISS_KEY = 'banner-dismissed';
 
@@ -161,7 +163,74 @@ async function showBanners() {
   main.prepend(wrap);
 }
 
-/* ---------- 3) แจ้งการใช้คุกกี้ (PDPA) ----------
+/* ---------- 3) ภาพแบนเนอร์บนสุดของหน้า ----------
+   หน้า HTML ใส่รูปเดิมไว้ (เว็บต้องสวยแม้ Supabase ล่ม) แล้วไฟล์นี้สลับเป็นรูปที่ตั้งใน CMS
+   รูปที่ใช้ล่าสุดจำไว้ในเบราว์เซอร์ — เปิดหน้าถัดไปสลับได้ทันทีตอนสคริปต์เริ่ม ไม่เห็นรูปเดิมแวบก่อน
+   ค่าจาก CMS เปลี่ยน = โหลดรูปใหม่ให้เสร็จก่อนค่อยสลับ (ไม่เห็นกรอบว่างระหว่างโหลด)
+   รูปโหลดไม่ได้ (ไฟล์ Drive ไม่ได้แชร์ ฯลฯ) = ลองลิงก์สำรองของ Drive แล้วกลับไปใช้รูปเดิม ไม่ปล่อยแบนเนอร์แตก */
+
+var HERO_CACHE = 'hero-images';
+// จับ <img> ไว้ตั้งแต่ต้น — พอสลับ src แล้ว selector ที่หาจากชื่อไฟล์เดิมจะหาไม่เจออีก
+var heroes = HERO_SLOTS.map(function (slot) {
+  return { slot: slot, img: document.querySelector('img[src*="' + slot.match + '"]') };
+}).filter(function (h) { return h.img; });
+
+function readHeroCache() {
+  try { return JSON.parse(localStorage.getItem(HERO_CACHE)) || {}; } catch (e) { return {}; }
+}
+function restoreHero(img) {
+  img.onerror = null;
+  if (img.dataset.heroSrcset) img.setAttribute('srcset', img.dataset.heroSrcset);
+  if (img.dataset.heroSrc) img.src = img.dataset.heroSrc;
+}
+function setHero(h, url) {
+  var img = h.img;
+  if (img.dataset.heroSrc == null) {
+    img.dataset.heroSrc = img.getAttribute('src') || '';
+    img.dataset.heroSrcset = img.getAttribute('srcset') || '';
+  }
+  if (!url) { restoreHero(img); return; }
+  var src = imageUrlAt(url, h.slot.width), fb = imageFallbackAt(url, h.slot.width);
+  img.referrerPolicy = 'no-referrer';   // Drive ตอบ 429 แทนรูปเมื่อเห็น Referer ข้ามโดเมน
+  img.onerror = function () {
+    if (fb && img.src !== fb) { img.src = fb; return; }
+    restoreHero(img);
+  };
+  img.removeAttribute('srcset');
+  img.src = src;
+}
+
+/** ช่วงสคริปต์เริ่ม: ใช้รูปที่จำไว้ทันที */
+function applyCachedHeroes() {
+  var cached = readHeroCache();
+  heroes.forEach(function (h) { if (cached[h.slot.key]) setHero(h, cached[h.slot.key]); });
+}
+
+async function showHeroes() {
+  if (!heroes.length) return;
+  var keys = heroes.map(function (h) { return h.slot.key; });
+  var res = await api('site_settings?select=key,value&key=in.(' + keys.join(',') + ')');
+  if (!res.ok) return;
+  var saved = {};
+  (await res.json()).forEach(function (r) { saved[r.key] = safeUrl(r.value); });
+  heroes.forEach(function (h) {
+    var url = saved[h.slot.key] || '';
+    if (url === (readHeroCache()[h.slot.key] || '')) return;
+    if (!url) { setHero(h, ''); rememberHero(h.slot.key, ''); return; }
+    // จำเฉพาะรูปที่โหลดได้จริง — รูปเสียจะได้ไม่ถูกลองซ้ำทุกครั้งที่เปิดหน้า
+    var probe = new Image();
+    probe.referrerPolicy = 'no-referrer';
+    probe.onload = function () { setHero(h, url); rememberHero(h.slot.key, url); };
+    probe.src = imageUrlAt(url, h.slot.width);
+  });
+}
+function rememberHero(key, url) {
+  var cached = readHeroCache();
+  if (url) cached[key] = url; else delete cached[key];
+  try { localStorage.setItem(HERO_CACHE, JSON.stringify(cached)); } catch (e) {}
+}
+
+/* ---------- 4) แจ้งการใช้คุกกี้ (PDPA) ----------
    การนับผู้เข้าชมเก็บรหัสสุ่มไว้ในเบราว์เซอร์ จึงแจ้งผู้ชมให้รู้ — ขึ้นครั้งเดียว กด "ยอมรับ" แล้วไม่ขึ้นอีก
    รหัสนั้นไม่ผูกกับตัวบุคคล (ไม่มี IP ชื่อ หรืออีเมล) จึงใช้แบบ "แจ้งให้ทราบ" ไม่ได้หยุดนับระหว่างรอคำตอบ */
 
@@ -204,6 +273,8 @@ function showCookieNotice() {
 }
 
 if (hasSupabase()) {
+  applyCachedHeroes();
+  showHeroes().catch(function () {});
   trackVisit();
   showBanners().catch(function () {});
   showCookieNotice();
