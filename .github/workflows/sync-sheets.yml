@@ -37,30 +37,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # สคริปต์ใช้แค่ fetch ของ Node ไม่ต้อง npm install
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
       # ซิงก์ทุก SYNC_EVERY_MIN นาทีจนครบ RUN_FOR_MIN นาที (ไม่เกิน timeout-minutes ข้างบน)
-      # รอบไหนพังก็วนต่อ (ชีตช้าชั่วคราวไม่ควรหยุดทั้งชั่วโมง) แต่จบแล้วรายงานเป็น failed ให้เห็นในแท็บ Actions
       # กดรันเอง (workflow_dispatch) = ซิงก์ครั้งเดียวแล้วจบ
+      # รอบไหนพัง (ส่วนใหญ่ Google ตอบช้าเกิน 8 วินาทีชั่วครู่) ลองซ้ำอีกครั้งหลัง 30 วินาที แล้ววนต่อตามปกติ
+      # แจ้ง failed (GitHub ส่งอีเมล) เฉพาะตอนข้อมูลสำรองขาดจริง: พังติดกัน FAIL_STREAK รอบ (~15 นาทีไม่มีชุดใหม่) หรือไม่สำเร็จเลยสักรอบ
+      # เดิมพังรอบเดียวก็แจ้ง — Google ช้าครั้งเดียวทั้งที่รอบถัดไปซิงก์ได้ปกติ ได้อีเมลเตือนโดยไม่มีอะไรต้องแก้
       - name: Sync loop
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SYNC_EVERY_MIN: 5
+          FAIL_STREAK: 3
           RUN_FOR_MIN: ${{ github.event_name == 'schedule' && 50 || 0 }}
         run: |
           end=$(( $(date +%s) + RUN_FOR_MIN * 60 ))
-          failed=0
+          ok=0 streak=0 worst=0
+          sync() { node scripts/import-sheets.mjs; }
           while true; do
             echo "::group::sync $(date -u +%H:%M:%S) UTC"
-            node scripts/import-sheets.mjs || { failed=$((failed + 1)); echo "::warning::ซิงก์รอบนี้ไม่สำเร็จ"; }
+            if sync || { echo "ลองใหม่ใน 30 วินาที"; sleep 30; sync; }; then
+              ok=$((ok + 1)); streak=0
+            else
+              streak=$((streak + 1)); [ "$streak" -gt "$worst" ] && worst=$streak
+              echo "::warning::ซิงก์รอบนี้ไม่สำเร็จ (ติดกัน $streak รอบ)"
+            fi
             echo "::endgroup::"
             [ $(( $(date +%s) + SYNC_EVERY_MIN * 60 )) -lt "$end" ] || break
             sleep $(( SYNC_EVERY_MIN * 60 ))
           done
-          [ "$failed" -eq 0 ] || { echo "::error::ซิงก์ไม่สำเร็จ $failed รอบ"; exit 1; }
+          if [ "$ok" -eq 0 ] || [ "$worst" -ge "$FAIL_STREAK" ]; then
+            echo "::error::ข้อมูลสำรองไม่ได้อัปเดต — สำเร็จ $ok รอบ · พังติดกันสูงสุด $worst รอบ"
+            exit 1
+          fi
