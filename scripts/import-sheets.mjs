@@ -59,6 +59,27 @@ async function rest(method, path, body, extraPrefer) {
   return res.status === 204 ? null : res.json().catch(() => null);
 }
 
+/**
+ * แทนทั้งตาราง (ล้างแล้วใส่ชุดใหม่) แบบใส่ไม่ผ่าน = คืนชุดเดิม
+ * PostgREST ทำสองขั้นนี้ในธุรกรรมเดียวไม่ได้ — เดิมถ้าขั้นใส่พัง (เช่นช่องเวลาเป็นข้อความ) ตารางจะว่างค้างไว้
+ * ทุกรอบถัดไปก็พังแบบเดิม ข้อมูลสำรองหายในจังหวะที่อาจต้องใช้ จึงจำชุดเดิมไว้ก่อนล้าง แล้วใส่คืนเมื่อพัง
+ * อ่านชุดเดิมได้สูงสุดตาม max rows ของ Supabase (ค่าตั้งต้น 1000 แถว · ของจริงราว 400)
+ */
+async function replaceAll(table, insert) {
+  const before = await rest('GET', table + '?select=*');
+  await rest('DELETE', table + '?id=neq.00000000-0000-0000-0000-000000000000');
+  try {
+    await insert();
+  } catch (err) {
+    if (before && before.length) {
+      await rest('POST', table, before)
+        .then(function () { console.warn('  ใส่ชุดใหม่ไม่ผ่าน — คืน ' + table + ' ชุดเดิม ' + before.length + ' แถวแล้ว'); })
+        .catch(function (e) { console.error('  คืน ' + table + ' ชุดเดิมไม่สำเร็จ: ' + e.message); });
+    }
+    throw err;
+  }
+}
+
 /** ลิงก์ชีตที่ผู้ดูแลตั้งในหน้า CMS — ไม่ได้ตั้ง/อ่านไม่ได้ = ชีตตั้งต้นใน sheets.js
     (อ่านไม่ได้ไม่ถือว่าพัง: ซิงก์ต่อด้วยชีตตั้งต้น ดีกว่าข้อมูลสำรองหยุดอัปเดต) */
 async function useConfiguredSheet() {
@@ -109,23 +130,23 @@ async function main() {
   // ---- รายการแข่งขัน ----
   // neq.<uuid ที่เป็นไปไม่ได้> = "ทุกแถว" — PostgREST ปฏิเสธ DELETE ที่ไม่มีเงื่อนไข
   // เพื่อกันการลบทั้งตารางโดยไม่ตั้งใจ จึงต้องเขียนเงื่อนไขที่จริงเสมอมาหลอกมัน
-  await rest('DELETE', 'matches?id=neq.00000000-0000-0000-0000-000000000000');
   const matches = rows.matches;
-  if (matches.length) await rest('POST', 'matches', matches);
+  await replaceAll('matches', function () { return matches.length ? rest('POST', 'matches', matches) : null; });
   console.log('✓ รายการแข่งขัน ' + matches.length + ' แถว');
 
   // ---- ภาพ ----
   // ชีตเก็บลิงก์รูปดิบ แต่ loadFromSheets() แปลงเป็นลิงก์ thumbnail ให้แล้ว
   // เก็บลงฐานข้อมูลได้ตามนั้น — supabase-data.js ปล่อยผ่าน URL ที่ไม่ใช่ลิงก์แชร์ Drive
   if (data.photos.length) {
-    await rest('DELETE', 'photos?id=neq.00000000-0000-0000-0000-000000000000');
-    try {
-      await rest('POST', 'photos', rows.photos);
-    } catch (err) {
-      if (!isMissingPhotoColumns(err.message)) throw err;
-      console.warn('  ฐานข้อมูลยังไม่มีคอลัมน์วันที่ของภาพ — บันทึกภาพโดยไม่มีวันที่ไปก่อน (รัน migration photo_days เพื่อแก้)');
-      await rest('POST', 'photos', withoutPhotoDays(rows.photos));
-    }
+    await replaceAll('photos', async function () {
+      try {
+        await rest('POST', 'photos', rows.photos);
+      } catch (err) {
+        if (!isMissingPhotoColumns(err.message)) throw err;
+        console.warn('  ฐานข้อมูลยังไม่มีคอลัมน์วันที่ของภาพ — บันทึกภาพโดยไม่มีวันที่ไปก่อน (รัน migration photo_days เพื่อแก้)');
+        await rest('POST', 'photos', withoutPhotoDays(rows.photos));
+      }
+    });
   }
   console.log('✓ ภาพ ' + data.photos.length + ' แถว');
 

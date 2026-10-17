@@ -41,6 +41,15 @@ function teamsOf(teams) {
   return { team_a: sides[0] || '', team_b: sides[1] || '' };
 }
 
+/** ช่องเวลาในชีต → 'HH:MM' สำหรับคอลัมน์ start_time (ชนิด time) · อ่านไม่ออก = null
+    ชีตพิมพ์เวลาเป็นข้อความอิสระได้ ("เช้า", "บ่าย", "ตามประกาศ") — ส่งข้อความแบบนั้นไปตรง ๆ ฐานข้อมูลปฏิเสธทั้งชุด
+    (ต.ค. 2569 มีคนพิมพ์ "เช้า" ซิงก์พังทุกรอบจนตาราง matches ว่าง) · ช่วงเวลา "09.00 - 12.00" ใช้เวลาเริ่ม */
+export function timeValue(text) {
+  var m = /^\s*(\d{1,2})[:.](\d{2})/.exec(String(text || ''));
+  if (!m || +m[1] > 23 || +m[2] > 59) return null;
+  return (m[1].length < 2 ? '0' : '') + m[1] + ':' + m[2];
+}
+
 function flattenDays(days, kind, skipped) {
   var out = [];
   days.forEach(function (day) {
@@ -52,7 +61,7 @@ function flattenDays(days, kind, skipped) {
         match_date: date,
         sport_id: i.sportId || null,
         event_type: eventTypeOf(i.event),
-        start_time: i.time || null,
+        start_time: timeValue(i.time),
         score: kind === 'result' ? (i.score || '') : '',
         status: kind === 'result' ? (i.status || 'upcoming') : 'upcoming',
         unofficial: kind === 'result' ? Boolean(i.unofficial) : false,
