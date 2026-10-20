@@ -23,7 +23,7 @@ var SUPABASE_URL = 'https://nrnblsmwfixxijawaevl.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_1zfYu-Mhs9R0jJYWVNxDPw_r-C230n9';   // publishable key เปิดเผยได้
 
 function doGet() {
-  return json_({ ok: true, app: 'satit-sheet-bridge', version: 1 });
+  return json_({ ok: true, app: 'satit-sheet-bridge', version: 2 });   // 2 = เก็บสกอร์เป็นข้อความ (ต.ค. 2569)
 }
 
 function doPost(e) {
@@ -33,7 +33,7 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (req.action === 'ping') {
-      return json_({ ok: true, app: 'satit-sheet-bridge', version: 1, user: who, sheetId: ss.getId(), sheetName: ss.getName() });
+      return json_({ ok: true, app: 'satit-sheet-bridge', version: 2, user: who, sheetId: ss.getId(), sheetName: ss.getName() });
     }
     if (req.action === 'tabs') {
       return json_({ ok: true, sheetId: ss.getId(), tabs: ss.getSheets().map(tabInfo_) });
@@ -140,6 +140,18 @@ function cellValue_(v) {
   return /^-?\d+(\.\d+)?$/.test(s.trim()) ? Number(s) : s;
 }
 
+/** สกอร์อย่าง "2-1" / "21 - 15" — ช่องรูปแบบอัตโนมัติ ชีตจะแปลงเป็นวันที่ (2 ม.ค.) แล้วหน้าเว็บขึ้นวันที่แทนผล
+    (ต.ค. 2569 — แท็บผลการแข่งขันยังว่าง ไม่รู้ว่าคอลัมน์ผลตั้งเป็นข้อความไว้หรือยัง จึงกันที่ตัวเชื่อมเลย) */
+function isScore_(v) {
+  return /^\s*\d{1,3}\s*[-–]\s*\d{1,3}\s*$/.test(String(v == null ? '' : v));
+}
+
+/** เขียนช่องเดียว: สกอร์ = ตั้งช่องเป็นข้อความก่อนแล้วเขียน (ไม่ใช้ ' นำหน้า — ช่องที่เป็นข้อความอยู่แล้วจะเก็บ ' ไว้จริง) */
+function writeCell_(range, v) {
+  if (isScore_(v)) range.setNumberFormat('@').setValue(String(v).trim());
+  else range.setValue(cellValue_(v));
+}
+
 function updateRow_(sh, req) {
   var row = Number(req.row);
   assertWritable_(sh, row);
@@ -148,7 +160,7 @@ function updateRow_(sh, req) {
   var changed = 0;
   for (var c = 0; c < req.values.length; c++) {
     if (formulas[c] || String(req.values[c]) === String(req.expect[c])) continue;   // ไม่แตะช่องสูตร/ช่องที่ไม่ได้แก้
-    sh.getRange(row, c + 1).setValue(cellValue_(req.values[c]));
+    writeCell_(sh.getRange(row, c + 1), req.values[c]);
     changed++;
   }
   return { ok: true, row: row, changed: changed };
@@ -160,7 +172,10 @@ function appendRow_(sh, req) {
     throw new Error('แถวใหม่ว่างทั้งแถว');
   }
   sh.appendRow(req.values.map(cellValue_));
-  return { ok: true, row: sh.getLastRow() };
+  var row = sh.getLastRow();
+  // appendRow ตั้งรูปแบบช่องเองไม่ได้ — ช่องสกอร์ที่ชีตอาจแปลงเป็นวันที่ไปแล้ว เขียนซ้ำเป็นข้อความ
+  req.values.forEach(function (v, c) { if (isScore_(v)) writeCell_(sh.getRange(row, c + 1), v); });
+  return { ok: true, row: row };
 }
 
 function deleteRow_(sh, req) {
