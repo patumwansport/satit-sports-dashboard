@@ -23,7 +23,7 @@ There is no test suite or linter. Verify changes by loading pages (headless Chro
 
 - **GitHub Pages** (primary, `https://patumwansport.github.io/satit-sports-dashboard/`): push to `main` → `.github/workflows/pages.yml` builds and publishes `public/`. Site lives under a sub-path, so every link/fetch in the code must be relative (no leading `/`). Push needs the `patumwansport` GitHub account (`gh auth switch -u patumwansport`).
 - **Vercel** (`https://satit-sports-dashboard-one.vercel.app`): static mirror of `public/` plus the one serverless function `api/gviz.js`. Not git-linked — redeploy manually with `vercel --prod` whenever `api/` or `public/` changes. `.vercelignore` must keep excluding `server.js` (otherwise Vercel treats the project as an Express app).
-- `.github/workflows/sync-sheets.yml` runs `scripts/import-sheets.mjs` roughly every 5 min (each scheduled run loops for 50 min because GitHub fires the cron only every ~40 min) to mirror the sheet into Supabase for the backup CMS.
+- `.github/workflows/sync-sheets.yml` runs `scripts/import-sheets.mjs` roughly every 5 min (each scheduled run loops for 5.5 h because GitHub fires the cron late and sometimes skips 2–4 h; the next run queues behind it via `concurrency`) to mirror the sheet into Supabase for the backup CMS.
 
 ## Architecture
 

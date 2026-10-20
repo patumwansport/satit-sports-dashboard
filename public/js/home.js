@@ -14,9 +14,9 @@ import {
 } from './common.js';
 import { total } from './charts.js';
 import { MONTHS_TH, WEEKDAYS_TH, isoDate } from './format.js';
-import { dayFolder, dayRootUrl, driveFolderUrl } from './day-files.js';
+import { dayFolder, nextDayFolder, dayRootUrl, driveFolderUrl } from './day-files.js';
 import { venueInfo } from './venues.js';
-import { loadNews, newsCard, CARD_CLASS } from './news.js';
+import { loadNews, newsCard } from './news.js';
 
 var chrome = initChrome('home');
 var NEWS_SLOTS = 5;    // กล่องเทาจองที่ระหว่างโหลดแถบข่าวสาร (แถวเดียว 5 ใบตามภาพแบบ)
@@ -538,48 +538,78 @@ function downloadCsv(name, lines) {
 }
 
 /* ===================== แถบโปรแกรมวันแข่งขันถัดไป =====================
-   วันแรกหลังวันนี้ที่มีรายการ (พรุ่งนี้พอดี = "วันพรุ่งนี้" · เว้นวัน = "วันแข่งขันถัดไป") · ไม่มีวันถัดไปแล้ว = ซ่อนแถบ
-   ปุ่มตามวันนั้นเอง: เปิดโฟลเดอร์ของวันในโฟลเดอร์ DayByDay ของ Drive (day-files.js)
-   ระหว่างรอ Drive / ยังไม่มีโฟลเดอร์ของวัน / อ่าน Drive ไม่ได้ = เปิดโฟลเดอร์ DayByDay ทั้งโฟลเดอร์ */
-var nextDay = null;
+   วันถัดไป = โฟลเดอร์วันแรกหลังวันนี้ในโฟลเดอร์ DayByDay ของ Drive (day-files.js) — ผู้ดูแลสร้างโฟลเดอร์ 24Oct, 25Oct … ไว้ล่วงหน้า
+   ก่อนชีตมีรายการของวันนั้น (ผู้ดูแลขอ ต.ค. 2569: ให้ปุ่มไปโฟลเดอร์ 24Oct ก่อน แม้ชีตเริ่มที่ 27 ต.ค.)
+   ระหว่างรอ Drive / อ่าน Drive ไม่ได้ = ใช้วันแรกหลังวันนี้ที่มีรายการในชีต แทน
+   พรุ่งนี้พอดี = "วันพรุ่งนี้" · เว้นวัน = "วันถัดไป" · ไม่มีวันถัดไปทั้งใน Drive และชีต = ซ่อนแถบ
+   ปุ่มเปิดโฟลเดอร์ของวันนั้น · ยังไม่รู้โฟลเดอร์ / ไม่มีโฟลเดอร์ของวัน = เปิดโฟลเดอร์ DayByDay ทั้งโฟลเดอร์ */
+var nextIso = null;      // วันที่แถบชี้อยู่ตอนนี้ — กันคำตอบ Drive ที่มาช้าทับวันที่ใหม่กว่า
+var nextFromDrive = false;
 function renderNext() {
-  var now = new Date(), today = isoDate(now);
-  var tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  var prevIso = nextDay && nextDay.iso;
-  nextDay = state.days.filter(function (d) { return d.iso && d.iso > today && d.items.length; })[0] || null;
-  var band = document.getElementById('nextBand');
-  band.hidden = !nextDay;
-  if (!nextDay) return;
-  var isTomorrow = nextDay.iso === tomorrow;
-  setText('nextTitle', 'โปรแกรมการแข่งขัน' + (isTomorrow ? 'วันพรุ่งนี้' : 'วันถัดไป'));
-  if (nextDay.iso !== prevIso) linkNextFolder(nextDay);
+  var today = isoDate(new Date());
+  var sheetDay = state.days.filter(function (d) { return d.iso && d.iso > today && d.items.length; })[0] || null;
+  if (!nextFromDrive) showNext(sheetDay ? sheetDay.iso : null, null);
+  nextDayFolder(today).then(function (folder) {
+    if (!folder || (sheetDay && today.slice(0, 5) + folder.md > sheetDay.iso)) return;   // ชีตมีวันที่มาก่อนโฟลเดอร์ = ใช้วันจากชีตต่อ
+    nextFromDrive = true;
+    showNext(today.slice(0, 5) + folder.md, folder);
+  }).catch(function (err) { console.error('โฟลเดอร์โปรแกรมรายวันใน Drive:', err.message); });
 }
-function linkNextFolder(d) {
+/** วาดแถบให้ชี้วัน iso · folder = โฟลเดอร์ของวันนั้น (รู้แล้ว) · ไม่มี = ถาม Drive เอง */
+function showNext(iso, folder) {
+  var band = document.getElementById('nextBand');
+  band.hidden = !iso;
+  if (!iso) { nextIso = null; return; }
+  var now = new Date();
+  var tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  setText('nextTitle', 'โปรแกรมการแข่งขัน' + (iso === tomorrow ? 'วันพรุ่งนี้' : 'วันถัดไป'));
   var link = document.getElementById('nextDl');
+  if (folder) { nextIso = iso; link.href = driveFolderUrl(folder.id); return; }
+  if (iso === nextIso) return;
+  nextIso = iso;
   var root = dayRootUrl();
   if (root) link.href = root;
-  dayFolder(d.iso).then(function (folder) {
-    if (!folder || !nextDay || nextDay.iso !== d.iso) return;   // ไม่มีโฟลเดอร์ของวัน / วันถัดไปเปลี่ยนระหว่างรอ
-    link.href = driveFolderUrl(folder.id);
+  dayFolder(iso).then(function (f) {
+    if (f && nextIso === iso) link.href = driveFolderUrl(f.id);   // ไม่มีโฟลเดอร์ของวัน / วันเปลี่ยนระหว่างรอ = คงลิงก์เดิม
   }).catch(function (err) { console.error('โฟลเดอร์โปรแกรมรายวันใน Drive:', err.message); });
 }
 
 /* ===================== ข่าวสารและไฮไลต์ =====================
    ประกาศที่ผู้ดูแลลงไว้ใน CMS (ตาราง banners ผ่าน news.js — ชุดเดียวกับแบนเนอร์ประกาศ) ผู้ดูแลขอ ต.ค. 2569
-   ประกาศมีรูป = การ์ดรูป · ไม่มีรูป = การ์ดข้อความสีตามประเภท (ข่าวสาร/ข่าวดี/แจ้งเตือน/ด่วน) · มีลิงก์ = กดการ์ดแล้วไปตามลิงก์ (newsCard ใน news.js)
+   การ์ดแนวตั้งรูปเต็มใบ วันที่/หัวข้อ/อ่านเพิ่มเติม ทับบนรูป · ไม่มีรูป = พื้นกรมท่า · มีลิงก์ = กดการ์ดแล้วไปตามลิงก์ (newsCard ใน news.js)
    หน้าหลักจึงไม่ขึ้นแบนเนอร์ซ้ำบนสุดอีก (admin/site.js ข้ามเมื่อเจอ #newsGrid)
    แถบแสดงเสมอ: ระหว่างโหลด = กล่องเทาจองที่ · ไม่มีประกาศ / ยังไม่ตั้ง CMS = ข้อความในแถบ · วาดครั้งเดียวตอนเปิดหน้า */
 var newsDrawn = false;
 
 function skeletonCards(n) {
-  var one = '<span class="' + CARD_CLASS + '" aria-hidden="true">' +
-    '<span class="skeleton block aspect-[16/10] rounded-none"></span><span class="flex flex-col gap-2 px-3.5 pt-3 pb-3.5"><span class="skeleton block h-4 w-2/3"></span><span class="skeleton block h-3 w-1/3"></span></span></span>';
+  var one = '<span class="skeleton block aspect-[3/4] w-[calc((100%-4rem)/5)] flex-none rounded-[16px] max-[1180px]:w-[260px] max-[560px]:w-[220px]" aria-hidden="true"></span>';
   var out = '';
   for (var i = 0; i < n; i++) out += one;
   return out;
 }
 function gridEmpty(id, text) {
   document.getElementById(id).innerHTML = '<div class="' + EMPTY_BOX + ' col-span-full flex min-h-[240px] w-full items-center justify-center">' + text + '</div>';
+}
+/** แถบข่าวเลื่อนเองทีละใบทุก NEWS_AUTO_MS เมื่อการ์ดล้นแถบ · ถึงใบสุดท้ายแล้ววนกลับใบแรก
+    หยุดชั่วคราวเมื่อเมาส์ชี้/โฟกัสอยู่ในแถบ หรือผู้ชมแตะ/ปัดเอง (กลับมาเลื่อนต่อหลังปล่อยมือสักพัก)
+    ไม่เลื่อนเมื่อแท็บถูกซ่อน · ผู้ชมตั้ง "ลดการเคลื่อนไหว" ในเครื่อง = ไม่เลื่อนเอง (ยังปัดดูเองได้) */
+var NEWS_AUTO_MS = 4000;
+function autoScrollNews(grid) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var hover = false, focus = false, touchUntil = 0;
+  grid.addEventListener('mouseenter', function () { hover = true; });
+  grid.addEventListener('mouseleave', function () { hover = false; });
+  grid.addEventListener('focusin', function () { focus = true; });
+  grid.addEventListener('focusout', function () { focus = false; });
+  grid.addEventListener('touchstart', function () { touchUntil = Date.now() + 8000; }, { passive: true });
+  setInterval(function () {
+    if (hover || focus || Date.now() < touchUntil || document.hidden) return;
+    var max = grid.scrollWidth - grid.clientWidth;
+    if (max <= 2 || grid.children.length < 2) return;
+    if (grid.scrollLeft >= max - 2) { grid.scrollTo({ left: 0, behavior: 'smooth' }); return; }
+    var step = grid.children[1].offsetLeft - grid.children[0].offsetLeft;   // กว้างการ์ด + ช่องว่าง
+    grid.scrollBy({ left: step, behavior: 'smooth' });
+  }, NEWS_AUTO_MS);
 }
 function renderNews() {
   if (newsDrawn) return;
@@ -590,6 +620,7 @@ function renderNews() {
     if (!list.length) return gridEmpty('newsGrid', 'ยังไม่มีประกาศ');
     grid.innerHTML = list.map(newsCard).join('');
     paintUiIcons(grid);
+    autoScrollNews(grid);
   }).catch(function (err) {
     console.error('แถบข่าวสารและไฮไลต์:', err.message);
     gridEmpty('newsGrid', 'โหลดประกาศไม่สำเร็จ');

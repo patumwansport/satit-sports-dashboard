@@ -9,9 +9,11 @@
    ========================================================= */
 
 /* บนเครื่องตัวเอง /api/ มีเฉพาะตอนรัน npm start (server.js พอร์ต 3000) — เปิดผ่านเซิร์ฟเวอร์ไฟล์นิ่งอื่น
-   (เช่น Live Server ของ VS Code พอร์ต 5500) ไม่มี /api/ ทุกคำขอได้ 404 ก่อนถอยไปต้นทาง จึงยิงต้นทางตรงเลย ('') */
+   (เช่น Live Server ของ VS Code พอร์ต 5500/5501) ไม่มี /api/ จึงใช้ตัวกลางบน Vercel แทน (เปิด CORS ไว้แล้ว)
+   ห้ามยิง Drive ตรง: API key จำกัด referer ไว้ที่โดเมนเว็บจริง 127.0.0.1:<พอร์ต> จะโดน 403 */
 var LOCAL = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+var VERCEL_ORIGIN = 'https://satit-sports-dashboard-one.vercel.app';
 export var PROXY_ORIGIN = typeof location === 'undefined' ? '' :
-  LOCAL ? (location.port === '3000' ? location.origin : '') :
+  LOCAL ? (location.port === '3000' ? location.origin : VERCEL_ORIGIN) :
   /\.vercel\.app$/.test(location.hostname) ? location.origin
-    : 'https://satit-sports-dashboard-one.vercel.app';
+    : VERCEL_ORIGIN;

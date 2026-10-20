@@ -30,14 +30,27 @@ export function dayRootUrl() {
 var rootList = null;
 
 /**
- * โฟลเดอร์ของวัน (iso 'YYYY-MM-DD') → { id, name } · ไม่มี / ไม่ได้ตั้งค่า = null · อ่าน Drive ไม่ได้ = reject
- * เทียบแค่เดือน-วัน: ชื่อโฟลเดอร์มักไม่มีปี (parseThaiDate เติมปีปัจจุบันให้ ซึ่งอาจไม่ตรงปีของงานช่วงข้ามปี)
+ * โฟลเดอร์วันทั้งหมดใน DayByDay → [{ id, name, md: 'MM-DD' }] เรียงตามวัน · ไม่ได้ตั้งค่า = [] · อ่าน Drive ไม่ได้ = reject
+ * เก็บแค่เดือน-วัน: ชื่อโฟลเดอร์มักไม่มีปี (parseThaiDate เติมปีปัจจุบันให้ ซึ่งอาจไม่ตรงปีของงานช่วงข้ามปี)
  */
-export async function dayFolder(iso) {
+async function dayFolders() {
   var root = driveFolderId(DAY_FILES_FOLDER);
-  if (!root || !GOOGLE_API_KEY || !iso) return null;
+  if (!root || !GOOGLE_API_KEY) return [];
   if (!rootList) rootList = listFolder(root).catch(function (err) { rootList = null; throw err; });
   return (await rootList).filter(function (f) {
-    return f.mimeType === FOLDER && !/^[_#]/.test(String(f.name || '').trim()) && parseThaiDate(f.name).slice(5) === iso.slice(5);
-  })[0] || null;
+    return f.mimeType === FOLDER && !/^[_#]/.test(String(f.name || '').trim()) && parseThaiDate(f.name);
+  }).map(function (f) {
+    return { id: f.id, name: f.name, md: parseThaiDate(f.name).slice(5) };
+  }).sort(function (a, b) { return a.md < b.md ? -1 : a.md > b.md ? 1 : 0; });
+}
+
+/** โฟลเดอร์ของวัน (iso 'YYYY-MM-DD') → { id, name, md } · ไม่มี / ไม่ได้ตั้งค่า = null · อ่าน Drive ไม่ได้ = reject */
+export async function dayFolder(iso) {
+  if (!iso) return null;
+  return (await dayFolders()).filter(function (f) { return f.md === iso.slice(5); })[0] || null;
+}
+
+/** โฟลเดอร์วันแรกที่เลยวันนี้ (iso) ไปแล้ว → { id, name, md } · ไม่มีแล้ว = null — ผู้ดูแลสร้างโฟลเดอร์ล่วงหน้า (24Oct…) ก่อนชีตมีรายการ */
+export async function nextDayFolder(todayIso) {
+  return (await dayFolders()).filter(function (f) { return f.md > todayIso.slice(5); })[0] || null;
 }

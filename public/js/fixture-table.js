@@ -375,24 +375,41 @@ export function mountFixtureTable(opts) {
     return b;
   }
 
+  /**
+   * วันที่ให้เลือกบนแถบวัน: เฉพาะวันที่กีฬาที่เลือกอยู่มีแข่งจริง (ทุกกีฬา = วันที่มีรายการอย่างน้อยหนึ่งรายการ)
+   * ผู้ดูแลขอ ต.ค. 2569 — เดิมขึ้นครบทุกวันของงานแล้วทำจางวันที่ว่าง เทนนิสแข่งวันเดียวก็มีการ์ดวันให้กดถึง 8 ใบ
+   * ไม่คิดคำค้นตรงนี้ (พิมพ์ค้นแล้วการ์ดวันหายไปมาจะสับสน วันที่คำค้นไม่เจอยังใช้แบบจางเหมือนเดิม)
+   * วันที่เลือกค้างไว้คงอยู่แม้กีฬานั้นไม่มีแข่ง จะได้เห็นว่ากรองวันอะไรอยู่และกดออกได้
+   */
+  function pickableDays(all) {
+    var has = {};
+    all.forEach(function (r) {
+      if (state.sportId === 'all' || r.sportId === state.sportId) has[r.dayId] = true;
+    });
+    return opts.days(state.data).filter(function (d) { return has[d.id] || d.id === state.dayId; });
+  }
+
   function renderDayBar(all) {
     var host = document.getElementById('dayJump');
     host.innerHTML = '';
     var pool = filterRows(all, 'day');
-    var days = opts.days(state.data);
+    var days = pickableDays(all);
 
     host.appendChild(dayCard('ทุกวัน', '', state.dayId === 'all', false,
       function () { setFilter('dayId', 'all'); }));
 
-    days.forEach(function (day, idx) {
+    var order = opts.days(state.data);
+    days.forEach(function (day) {
       var n = pool.filter(function (r) { return r.dayId === day.id; }).length;
       var on = state.dayId === day.id;
       // บรรทัดรองมีเฉพาะการ์ดของวันนี้ (ตามปฏิทินจริง) — แถวนี้คือที่ที่คนมองหาว่าจะกดวันไหน
-      host.appendChild(dayCard(esc(day.date || ('วันที่ ' + (idx + 1))),
+      // "วันที่ N" นับตามลำดับวันของทั้งงาน ไม่ใช่ลำดับในแถบที่ตัดวันว่างออกแล้ว
+      host.appendChild(dayCard(esc(day.date || ('วันที่ ' + (order.indexOf(day) + 1))),
         isToday(day) ? 'วันนี้' : '',
         on, !n, function () { setFilter('dayId', state.dayId === day.id ? 'all' : day.id); }));
     });
-    document.getElementById('dayRow').hidden = days.length < 2;
+    // ซ่อนทั้งแถบเฉพาะเมื่อทั้งงานมีวันแข่งไม่ถึงสองวัน — กีฬาที่แข่งวันเดียวยังเห็นแถบ (มีปุ่มล้างตัวกรองอยู่ในแถบนี้)
+    document.getElementById('dayRow').hidden = opts.days(state.data).length < 2;
 
     // ตัวเลือกวันเสริมของหน้า (มีเฉพาะบางหน้า)
     var idx = days.map(function (d) { return d.id; }).indexOf(state.dayId);
@@ -578,7 +595,7 @@ export function mountFixtureTable(opts) {
   /* ตัวเลือกวันเสริม: ‹ › เลื่อนไปวันก่อน/ถัดไป */
   function stepDay(step) {
     if (!state.data) return;
-    var ids = opts.days(state.data).map(function (d) { return d.id; });
+    var ids = pickableDays(allRows()).map(function (d) { return d.id; });
     var i = ids.indexOf(state.dayId) + step;
     if (i >= 0 && i < ids.length) setFilter('dayId', ids[i]);
   }

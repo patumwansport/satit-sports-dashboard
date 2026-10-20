@@ -317,7 +317,7 @@ function renderSchool(data) {
       ' min-[1180px]:grid-cols-1 min-[1180px]:gap-5 max-[560px]:grid-cols-1 max-[560px]:gap-5">' +
       '<div class="max-[560px]:flex max-[560px]:flex-wrap max-[560px]:items-baseline max-[560px]:gap-3">' +
         '<p class="m-0 fs-14 tracking-[.08em] text-fg-soft max-[560px]:order-1">อันดับ</p>' +
-        '<p class="mt-1 mb-1.5 font-mono fs-63.5 leading-[.95] text-brand-strong tabular-nums max-[560px]:order-2 max-[560px]:m-0 max-[560px]:fs-55">' + m.rank + '</p>' +
+        '<p class="mt-1 mb-1.5 font-mono fs-63.5 leading-[.95] text-brand-strong tabular-nums max-[560px]:order-2 max-[560px]:m-0 max-[560px]:fs-55">' + (m.rank || '—') + '</p>' +
         '<p class="m-0 fs-15 text-fg-soft max-[560px]:order-3">จาก ' + list.length + ' โรงเรียน</p>' +
       '</div>' +
       '<div class="flex max-w-[300px] flex-col gap-2 min-[1180px]:max-w-none max-[560px]:max-w-none">' +

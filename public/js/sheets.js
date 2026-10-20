@@ -9,7 +9,7 @@
    ใช้กับชีตที่แชร์แบบ "ทุกคนที่มีลิงก์ดูได้" เท่านั้น
    ========================================================= */
 
-import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl, parseThaiDate } from './format.js';
+import { WEEKDAYS_TH, MONTHS_TH, SELF_SCHOOL_NAME, pad2, isoDate, shortSchoolName, directImageUrl, parseThaiDate, rankMedalTable } from './format.js';
 import { PROXY_ORIGIN } from './proxy.js';
 
 /* ชีตตั้งต้น — ใช้เมื่อยังไม่ได้ตั้งลิงก์ชีตในหน้า CMS (admin/ → ตั้งค่าแหล่งข้อมูล) หรืออ่านค่านั้นไม่ได้
@@ -317,11 +317,9 @@ function buildMedalTable(table) {
         gold: cellNum(c[1]), silver: cellNum(c[2]), bronze: cellNum(c[3])
       };
     })
-    .filter(Boolean)
-    .sort(function (a, b) { return (b.gold - a.gold) || (b.silver - a.silver) || (b.bronze - a.bronze); });
+    .filter(Boolean);
 
-  rows.forEach(function (r, i) { r.rank = i + 1; });
-  return rows;
+  return rankMedalTable(rows);
 }
 
 /* ---------- เหรียญแยกตามชนิดกีฬา ---------- */

@@ -20,7 +20,7 @@
    ========================================================= */
 
 /** ลิงก์โฟลเดอร์แม่ใน Drive (วางลิงก์แชร์ทั้งเส้นได้เลย หรือใส่แค่ ID ของโฟลเดอร์ก็ได้) */
-export var DRIVE_FOLDER = 'https://drive.google.com/drive/folders/146iiPoUiOcoPVPej7n3nBG1BJ_CEK4Fu?usp=sharing';
+export var DRIVE_FOLDER = 'https://drive.google.com/drive/folders/16HYOVkIChgupBn3Z-LMXj5P1gkOmOugW?usp=sharing';
 
 /** โฟลเดอร์ที่ไม่แสดงบนเว็บ (ชื่อตรงตามใน Drive) — ภาพงานภายในที่ไม่ใช่ภาพการแข่งขัน
     อีกทางหนึ่ง: ตั้งชื่อโฟลเดอร์ใน Drive ให้ขึ้นต้นด้วย _ ก็ซ่อนได้เหมือนกันโดยไม่ต้องแก้ไฟล์นี้ */

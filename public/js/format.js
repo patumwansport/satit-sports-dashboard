@@ -14,6 +14,24 @@ export var SELF_SCHOOL_NAME = 'โรงเรียนสาธิตมหา�
 
 export function pad2(n) { return String(n).padStart(2, '0'); }
 
+/**
+ * เรียงตารางเหรียญ ทอง → เงิน → ทองแดง แล้วใส่ r.rank (แก้ในที่ + คืนชุดเดิม)
+ * เหรียญเท่ากันทุกสี = อันดับร่วม แบบ 1, 1, 3 — เดิมนับ 1, 2, 3 ตามลำดับแถวในชีต
+ * โรงเรียนที่เหรียญเท่ากันจึงได้อันดับต่างกันโดยไม่มีเหตุผล
+ * ทั้งงานยังไม่มีใครได้เหรียญ = rank 0 ทุกแถว (หน้าเว็บแสดง "—") ไม่ให้ขึ้นว่าเรา "อันดับ 1" ก่อนเริ่มแข่ง
+ */
+export function rankMedalTable(rows) {
+  rows.sort(function (a, b) { return (b.gold - a.gold) || (b.silver - a.silver) || (b.bronze - a.bronze); });
+  var any = rows.some(function (r) { return r.gold + r.silver + r.bronze > 0; });
+  rows.forEach(function (r, i) {
+    var prev = rows[i - 1];
+    r.rank = !any ? 0
+      : prev && prev.gold === r.gold && prev.silver === r.silver && prev.bronze === r.bronze ? prev.rank
+      : i + 1;
+  });
+  return rows;
+}
+
 /** Date (เวลาท้องถิ่น) → 'YYYY-MM-DD' — ไม่ใช้ toISOString() เพราะมันแปลงเป็น UTC ก่อน
     เวลาไทยช่วงเที่ยงคืนถึงเจ็ดโมงเช้าจะกลายเป็นวันก่อนหน้า */
 export function isoDate(d) {
@@ -112,7 +130,7 @@ export function originalImageUrl(url) {
   return id ? 'https://drive.google.com/file/d/' + id + '/view' : url;
 }
 
-var MONTHS_TH_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+export var MONTHS_TH_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 var MONTHS_EN = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 /** ชื่อเดือน (ไทยย่อ/ไทยเต็ม/อังกฤษ) → 0–11 · ไม่รู้จัก = -1 */

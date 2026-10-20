@@ -122,7 +122,7 @@ function bannerHtml(b) {
       (b.title ? '<strong class="font-semibold">' + esc(b.title) + '</strong> ' : '') +
       (b.message ? '<span>' + esc(b.message) + '</span>' : '') +
       (link ? ' <a class="font-semibold whitespace-nowrap text-current underline underline-offset-2" href="' + esc(link) + '"' + external + '>' +
-        esc(b.link_label || 'ดูรายละเอียด') + ' →</a>' : '') +
+        'อ่านเพิ่มเติม →</a>' : '') +
     '</div>' + close + '</div>';
 }
 

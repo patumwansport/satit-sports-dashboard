@@ -707,7 +707,7 @@ export function renderMedalTable(host, rows, opts) {
       ' max-[720px]:grid-cols-[28px_repeat(3,minmax(0,1fr))_minmax(38px,auto)] max-[720px]:gap-x-1.5 max-[720px]:gap-y-1.5 max-[720px]:px-3.5 max-[720px]:py-3' +
       (m.isSelf ? ' bg-brand-100' : ''),
       '<span class="flex size-7 flex-none items-center justify-center rounded-full font-mono fs-17 max-[720px]:col-start-1 max-[720px]:row-span-2 max-[720px]:row-start-1 ' +
-        (RANK_TONE[m.rank] || 'text-fg-mute') + '">' + m.rank + '</span>' +
+        (RANK_TONE[m.rank] || 'text-fg-mute') + '">' + (m.rank || '—') + '</span>' +
       '<span class="flex min-w-0 items-center gap-3 max-[720px]:col-span-3 max-[720px]:col-start-2 max-[720px]:row-start-1">' +
         schoolCrest(m, 'size-9 max-[720px]:hidden') +
         '<span class="min-w-0 fs-17 leading-[1.35] break-words max-[720px]:fs-17.5">' + esc(name) + '</span>' +
@@ -723,7 +723,7 @@ export function renderMedalTable(host, rows, opts) {
       row.setAttribute('role', 'group');
     }
     row.setAttribute('aria-label',
-      (pick ? 'ดูรายละเอียด ' : '') + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') + ' อันดับ ' + m.rank +
+      (pick ? 'ดูรายละเอียด ' : '') + name + (m.isSelf ? ' (โรงเรียนของเรา)' : '') + (m.rank ? ' อันดับ ' + m.rank : ' ยังไม่มีอันดับ') +
       ' ทอง ' + m.gold + ' เงิน ' + m.silver + ' ทองแดง ' + m.bronze + ' รวม ' + total);
     host.appendChild(row);
   }

@@ -10,7 +10,7 @@
    ========================================================= */
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
-import { SELF_SCHOOL_NAME, shortSchoolName, directImageUrl, dayLabel, pad2, isoDate } from './format.js';
+import { SELF_SCHOOL_NAME, shortSchoolName, directImageUrl, dayLabel, pad2, isoDate, rankMedalTable } from './format.js';
 
 /**
  * ยิง PostgREST หนึ่งตาราง
@@ -42,10 +42,8 @@ function buildMedalTable(rows) {
     };
   });
 
-  // อันดับคำนวณตอนอ่านเสมอ ไม่เก็บในฐานข้อมูล: ทอง → เงิน → ทองแดง
-  list.sort(function (a, b) { return (b.gold - a.gold) || (b.silver - a.silver) || (b.bronze - a.bronze); });
-  list.forEach(function (r, i) { r.rank = i + 1; });
-  return list;
+  // อันดับคำนวณตอนอ่านเสมอ ไม่เก็บในฐานข้อมูล: ทอง → เงิน → ทองแดง (กฎเดียวกับ sheets.js)
+  return rankMedalTable(list);
 }
 
 /* ---------- เหรียญแยกตามชนิดกีฬา ---------- */

@@ -226,10 +226,9 @@ var VIEWS = [
     fields: [
       { key: 'title', label: 'หัวข้อข่าว', type: 'text', hint: 'เช่น "เลื่อนการแข่งขันฟุตบอล" — การ์ดแสดงไม่เกิน 2 บรรทัด' },
       { key: 'message', label: 'รายละเอียด', type: 'textarea' },
-      { key: 'image_url', label: 'ลิงก์รูป', type: 'text',
-        hint: 'ไม่บังคับ — ใส่แล้วเป็นรูปปกการ์ด (สัดส่วน 16:10 เช่น 1600×1000) · แถบบนสุดของหน้าอื่นจะแสดงรูปแทนข้อความ · ลิงก์แชร์ Drive ใช้ได้' },
-      { key: 'link_url', label: 'ลิงก์เมื่อกด', type: 'text', size: 'half', hint: 'https://… หรือหน้าในเว็บ เช่น matches.html' },
-      { key: 'link_label', label: 'ข้อความปุ่มลิงก์', type: 'text', size: 'half', hint: 'เว้นว่าง = "ดูรายละเอียด"' },
+      { key: 'image_url', label: 'รูป', type: 'text', upload: { bucket: 'news', maxSide: 1600 },
+        hint: 'ไม่บังคับ — กด "อัปโหลดรูป" เลือกไฟล์จากเครื่อง หรือวางลิงก์รูปเอง · ใส่แล้วเป็นรูปเต็มการ์ด (แนวตั้ง 3:4 เช่น 1200×1600 · โปสเตอร์สี่เหลี่ยม/4:5 ก็ได้ ขอบซ้ายขวาถูกตัดเล็กน้อย) ส่วนล่างของรูปมีหัวข้อทับ · แถบบนสุดของหน้าอื่นจะแสดงรูปแทนข้อความ · ลิงก์แชร์ Drive ใช้ได้' },
+      { key: 'link_url', label: 'ลิงก์เมื่อกด', type: 'text', hint: 'https://… หรือหน้าในเว็บ เช่น matches.html — ใส่แล้วการ์ดมีปุ่ม "อ่านเพิ่มเติม"' },
       { key: 'tone', label: 'ประเภทข่าว', type: 'select', options: TONE_OPTIONS, noBlank: true, size: 'half' },
       { key: 'placement', label: 'แสดงที่', type: 'select', options: PLACEMENT_OPTIONS, noBlank: true, size: 'half' },
       { key: 'starts_at', label: 'เริ่มแสดง', type: 'datetime', size: 'half', hint: 'เว้นว่าง = แสดงทันที' },
@@ -245,7 +244,7 @@ var VIEWS = [
   },
   {
     id: 'gallery', kind: 'gallery', icon: 'folder',
-    title: 'ประมวลภาพ (Google Drive)',
+    title: 'ประมวลภาพ',
     hint: 'โฟลเดอร์ Drive ที่หน้า "ประมวลภาพ" ดึงรูปมาแสดง — บันทึกแล้วมีผลทันที ผู้ชมรีเฟรชหน้าก็เห็น ไม่ต้อง deploy เว็บใหม่'
   },
   {
@@ -553,6 +552,82 @@ async function refreshTable() {
 }
 
 /* =========================================================
+   อัปโหลดรูปจากเครื่อง → Supabase Storage (bucket "news" / "hero" — migrations 20261020000001/2)
+   ย่อรูปในเบราว์เซอร์ก่อน (ด้านยาวไม่เกิน maxSide) แล้วแปลงเป็น webp — รูปจากมือถือ 5–10 MB เหลือไม่กี่ร้อย KB
+   ชื่อไฟล์ใหม่ทุกครั้ง (เวลา + สุ่ม) ไม่เขียนทับไฟล์เดิม เพราะ CDN เก็บรูปไว้นาน เขียนทับแล้วผู้ชมอาจยังเห็นรูปเก่า
+   สิทธิ์อัปโหลดบังคับที่ policy ของ storage (is_admin) เหมือนตารางอื่น
+   ========================================================= */
+var UPLOAD_MAX_BYTES = 25 * 1024 * 1024;   // ไฟล์ต้นฉบับ — ใหญ่กว่านี้มักไม่ใช่รูปถ่าย/โปสเตอร์ธรรมดา
+
+function canvasBlob(canvas, type, quality) {
+  return new Promise(function (resolve) { canvas.toBlob(resolve, type, quality); });
+}
+
+/** ไฟล์รูป → { url, w, h } (URL สาธารณะของไฟล์ใน bucket) · ไม่ใช่รูป / ใหญ่เกิน / อัปโหลดไม่ผ่าน = throw พร้อมข้อความภาษาไทย */
+async function uploadImage(file, bucket, maxSide) {
+  if (!file || !/^image\//.test(file.type)) throw new Error('เลือกไฟล์รูปภาพ (jpg, png, webp)');
+  if (file.size > UPLOAD_MAX_BYTES) throw new Error('ไฟล์ใหญ่เกิน 25 MB');
+  var bmp;
+  try { bmp = await createImageBitmap(file); } catch (e) { throw new Error('เปิดไฟล์รูปนี้ไม่ได้ — ลองบันทึกเป็น jpg หรือ png ก่อน'); }
+  var scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  var w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  if (bmp.close) bmp.close();
+  // Safari รุ่นเก่าแปลงเป็น webp ไม่ได้ (ได้ png กลับมา) — ใช้ jpg แทน
+  var blob = await canvasBlob(canvas, 'image/webp', 0.86);
+  if (!blob || blob.type !== 'image/webp') blob = await canvasBlob(canvas, 'image/jpeg', 0.88);
+  if (!blob) throw new Error('แปลงรูปไม่สำเร็จ');
+  var ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+  var path = new Date().toISOString().slice(0, 10) + '/' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+  var res = await db.storage.from(bucket).upload(path, blob, { contentType: blob.type, cacheControl: '31536000', upsert: false });
+  if (res.error) throw new Error('อัปโหลดไม่สำเร็จ: ' + (res.error.message || res.error));
+  return { url: db.storage.from(bucket).getPublicUrl(path).data.publicUrl, w: w, h: h };
+}
+
+/** ปุ่ม "อัปโหลดรูป" + ช่องเลือกไฟล์ที่ซ่อนไว้ · ผูกการทำงานด้วย bindUpload() */
+function uploadButtonHtml(id) {
+  return '<button class="btn btn-outline flex-none" type="button" id="' + id + 'Btn">' + icon('upload') + 'อัปโหลดรูป</button>' +
+    '<input class="hidden" id="' + id + 'File" type="file" accept="image/*" />';
+}
+
+/** กดปุ่ม → เลือกไฟล์ → อัปโหลด → ใส่ URL ลงช่อง input แล้วยิง event input (ตัวอย่างสดอัปเดตตาม) · onDone(url) ไม่บังคับ */
+function bindUpload(id, input, bucket, maxSide, statusNode, onDone) {
+  var btn = $(id + 'Btn'), picker = $(id + 'File');
+  if (!btn || !picker) return;
+  var label = btn.innerHTML;
+  function status(text, tone) {
+    if (!statusNode) return;
+    statusNode.textContent = text;
+    statusNode.className = 'mt-1.5 mb-0 fs-12.5 leading-snug ' + (tone === 'error' ? 'text-destructive' : tone === 'ok' ? 'text-done' : 'text-fg-mute');
+    statusNode.hidden = !text;
+  }
+  btn.addEventListener('click', function () { picker.click(); });
+  picker.addEventListener('change', async function () {
+    var file = picker.files && picker.files[0];
+    picker.value = '';
+    if (!file) return;
+    btn.disabled = true;
+    btn.textContent = 'กำลังอัปโหลด…';
+    status('กำลังย่อรูปและอัปโหลด ' + file.name + '…');
+    try {
+      var r = await uploadImage(file, bucket, maxSide);
+      input.value = r.url;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      status('อัปโหลดแล้ว ✓ (' + r.w + ' × ' + r.h + ' px) — กดบันทึกเพื่อใช้รูปนี้', 'ok');
+      if (onDone) onDone(r.url);
+    } catch (err) {
+      status(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = label;
+      paintIcons(btn);
+    }
+  });
+}
+
+/* =========================================================
    กล่องแก้ไข
    ========================================================= */
 
@@ -587,9 +662,14 @@ function fieldHtml(f, value) {
     input = '<textarea class="textarea min-h-[92px]" id="' + id + '" name="' + f.key + '" rows="3">' + esc(value == null ? '' : value) + '</textarea>';
   } else {
     var type = { number: 'number', date: 'date', time: 'time', datetime: 'datetime-local' }[f.type] || 'text';
-    input = '<input class="input h-10" id="' + id + '" name="' + f.key + '" type="' + type + '"' +
+    input = '<input class="input h-10' + (f.upload ? ' min-w-0 flex-1' : '') + '" id="' + id + '" name="' + f.key + '" type="' + type + '"' +
       (f.type === 'number' ? ' min="0" step="1"' : '') + (f.required ? ' required' : '') +
       ' value="' + esc(value == null ? '' : value) + '" />';
+    // ช่องลิงก์รูปที่อัปโหลดจากเครื่องได้ (f.upload = { bucket, maxSide }) — ผูกปุ่มใน bindFieldUploads()
+    if (f.upload) {
+      input = '<div class="flex gap-2">' + input + uploadButtonHtml(id + 'Up') + '</div>' +
+        '<p class="mt-1.5 mb-0 fs-12.5 leading-snug" id="' + id + 'UpMsg" hidden></p>';
+    }
   }
   return wrap + label + input + hint + '</div>';
 }
@@ -623,6 +703,11 @@ function openEditor(row) {
 
   $('editorFields').oninput = $('editorFields').onchange = null;   // ตัวอย่างสดของหมวดข่าวสาร ไม่ติดไปฟอร์มหมวดอื่น
   if (current.id === 'banners') mountNewsPreview();
+  current.fields.forEach(function (f) {
+    var id = 'f_' + f.key;
+    if (f.upload && $(id)) bindUpload(id + 'Up', $(id), f.upload.bucket, f.upload.maxSide, $(id + 'UpMsg'));
+  });
+  paintIcons($('editorFields'));
 
   $('editor').showModal();
   var first = $('editorFields').querySelector('input, select, textarea');
@@ -642,7 +727,7 @@ function mountNewsPreview() {
     v.updated_at = editing && editing.updated_at;
     var host = $('newsPreview');
     host.innerHTML = (v.title || v.message || v.image_url) ? newsCard(v)
-      : '<div class="flex h-[180px] items-center justify-center rounded-[16px] border border-dashed border-line-strong fs-14 text-fg-mute">กรอกหัวข้อหรือรายละเอียดเพื่อดูตัวอย่าง</div>';
+      : '<div class="flex aspect-[3/4] items-center justify-center rounded-[16px] border border-dashed border-line-strong fs-14 text-fg-mute">กรอกหัวข้อหรือรายละเอียดเพื่อดูตัวอย่าง</div>';
     host.querySelectorAll('img[data-fb]').forEach(function (img) {
       img.addEventListener('error', function () { var fb = img.dataset.fb; if (fb) { delete img.dataset.fb; img.src = fb; } });
     });
@@ -1112,7 +1197,7 @@ async function syncFromSheets() {
 
 
 /* =========================================================
-   มุมมอง "ประมวลภาพ (Google Drive)" — แก้ลิงก์โฟลเดอร์ / โฟลเดอร์ที่ซ่อน
+   มุมมอง "ประมวลภาพ" — แก้ลิงก์โฟลเดอร์ / โฟลเดอร์ที่ซ่อน
    เก็บใน site_settings (GALLERY_KEYS) · หน้าประมวลภาพอ่านค่านี้ก่อนค่าในไฟล์ gallery-config.js
    ========================================================= */
 
@@ -1235,9 +1320,11 @@ async function renderHeroView() {
             '<img class="block size-full object-cover" id="heroPrev' + i + '" alt="ตัวอย่าง' + esc(s.label) + '" referrerpolicy="no-referrer" /></div>' +
           '<div class="flex flex-wrap gap-2.5">' +
             '<input class="input h-10 min-w-0 flex-1" id="hero' + i + '" type="url" placeholder="ลิงก์รูป — ลิงก์แชร์ Google Drive หรือ https://…" value="' + esc(saved[s.key] || '') + '" />' +
+            uploadButtonHtml('heroUp' + i) +
             '<button class="btn btn-outline" type="button" data-hero-reset="' + i + '">ใช้ภาพเดิม</button>' +
           '</div>' +
-          '<p class="m-0 text-[13.5px] text-fg-mute">' + esc(s.size) + ' · ไฟล์ใน Drive ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้"</p>' +
+          '<p class="m-0 text-[13.5px] text-fg-mute" id="heroUpMsg' + i + '" hidden></p>' +
+          '<p class="m-0 text-[13.5px] text-fg-mute">' + esc(s.size) + ' · กด "อัปโหลดรูป" เลือกไฟล์จากเครื่อง หรือวางลิงก์ (ไฟล์ใน Drive ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้")</p>' +
           '<div id="heroMsg' + i + '"></div>' +
         '</section>';
       }).join('') +
@@ -1251,6 +1338,7 @@ async function renderHeroView() {
   HERO_SLOTS.forEach(function (s, i) {
     var input = $('hero' + i), timer = null;
     input.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { previewHero(i); }, 500); });
+    bindUpload('heroUp' + i, input, 'hero', s.width, $('heroUpMsg' + i));
     previewHero(i);
   });
   $('heroForm').querySelectorAll('[data-hero-reset]').forEach(function (b) {

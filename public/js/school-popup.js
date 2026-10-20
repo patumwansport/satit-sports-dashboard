@@ -136,7 +136,7 @@ function paint(opening) {
         '<div class="grid grid-cols-[auto_1fr] items-center gap-4 rounded-md border border-line bg-surface-soft px-4 py-3">' +
           '<div class="border-r border-line pr-4 text-center">' +
             '<p class="m-0 fs-12.5 text-fg-mute">อันดับ</p>' +
-            '<p class="m-0 font-mono fs-34 leading-[1.05] text-brand-strong tabular-nums">' + m.rank + '</p>' +
+            '<p class="m-0 font-mono fs-34 leading-[1.05] text-brand-strong tabular-nums">' + (m.rank || '—') + '</p>' +
             '<p class="m-0 fs-12 text-fg-mute">จาก ' + list.length + '</p>' +
           '</div>' +
           '<div class="grid grid-cols-4 gap-1 text-center">' +

@@ -12,7 +12,9 @@
 # รันแค่ทุก 37–40 นาที ข้อมูลสำรองจึงช้ากว่าชีตได้เกือบชั่วโมง แต่ละรอบจึงซิงก์ซ้ำทุก SYNC_EVERY_MIN นาที
 # จนครบ RUN_FOR_MIN นาที รอบถัดไปที่ schedule ปลุกมาระหว่างนั้นจะรอคิว (concurrency) แล้วต่อทันทีที่รอบก่อนจบ
 # ผลคือซิงก์ต่อเนื่องราวทุก 5 นาที ไม่ขึ้นกับว่า GitHub ปลุกช้าแค่ไหน
-# repo นี้เป็น public — นาทีของ GitHub Actions ไม่จำกัด ไม่มีค่าใช้จ่าย (ถ้าเปลี่ยนเป็น private ต้องลด RUN_FOR_MIN ไม่งั้นโควตาฟรีหมดในไม่กี่วัน)
+# เดิมวนรอบละ 50 นาที แต่ 19–20 ต.ค. 2569 GitHub เว้นไม่ปลุกเลยนาน 2.5–4 ชั่วโมงหลายครั้ง ข้อมูลสำรองจึงขาดเป็นช่วง
+# ตอนนี้วนรอบละ 5 ชั่วโมงครึ่ง (เกือบเพดาน 6 ชั่วโมงต่องานของ GitHub) — แค่ GitHub ปลุกสักครั้งใน 5 ชั่วโมงครึ่ง ซิงก์ก็ไม่ขาด
+# repo นี้เป็น public — นาทีของ GitHub Actions ไม่จำกัด ไม่มีค่าใช้จ่าย (ถ้าเปลี่ยนเป็น private ต้องลด RUN_FOR_MIN ไม่งั้นโควตาฟรีหมดในวันเดียว)
 # หยุดซิงก์ชั่วคราว: แท็บ Actions → Sync Sheets to CMS → ⋯ → Disable workflow
 #
 # หมายเหตุของ GitHub: ถ้า repo ไม่มีความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง (เปิดคืนที่แท็บ Actions)
@@ -35,7 +37,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v5
 
@@ -55,7 +57,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SYNC_EVERY_MIN: 5
           FAIL_STREAK: 3
-          RUN_FOR_MIN: ${{ github.event_name == 'schedule' && 50 || 0 }}
+          RUN_FOR_MIN: ${{ github.event_name == 'schedule' && 330 || 0 }}
         run: |
           end=$(( $(date +%s) + RUN_FOR_MIN * 60 ))
           ok=0 streak=0 worst=0

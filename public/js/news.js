@@ -9,7 +9,7 @@
    ========================================================= */
 import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from '../admin/config.js';
 import { esc } from './common.js';
-import { MONTHS_TH, isoDate, imageUrlAt, imageFallbackAt } from './format.js';
+import { MONTHS_TH_FULL, imageUrlAt, imageFallbackAt } from './format.js';
 
 var TIMEOUT_MS = 8000;
 
@@ -50,18 +50,20 @@ export var NEWS_TONE = {
   warning: { label: 'แจ้งเตือน', cls: 'bg-gold/15 text-gold-ink' },
   danger: { label: 'ด่วน', cls: 'bg-destructive/10 text-destructive' }
 };
-/** กรอบการ์ดในแถบข่าวสารของหน้าหลัก — จอ ≤1180px การ์ดกว้างคงที่ เลื่อนแนวนอน */
-export var CARD_CLASS = 'group flex min-w-0 flex-col overflow-hidden rounded-[16px] border border-line bg-surface no-underline max-[1180px]:w-[260px] max-[1180px]:flex-none max-[560px]:w-[220px]';
-export var CARD_LINK = ' hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand';
-var CLOCK = '<svg class="size-[14px] flex-none" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/** กรอบการ์ดในแถบข่าวสารของหน้าหลัก — การ์ดแนวตั้ง 3:4 รูปเต็มใบ · จอใหญ่กว้าง 1/5 ของแถบ (gap-4 × 4 ช่อง = 4rem) · จอ ≤1180px กว้างคงที่ · เกินแถบเลื่อนแนวนอน */
+export var CARD_CLASS = 'group relative isolate flex aspect-[3/4] w-[calc((100%-4rem)/5)] min-w-0 flex-none snap-start flex-col justify-end overflow-hidden rounded-[16px] bg-navy no-underline shadow-[0_4px_16px_oklch(25%_0.08_270/.12)] max-[1180px]:w-[260px] max-[560px]:w-[220px]';
+var CARD_LINK = ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand';
+var CALENDAR = '<svg class="size-[17px] flex-none" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7.5 13.5h1M11.5 13.5h1M15.5 13.5h1M7.5 17h1M11.5 17h1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+var CHEVRON = '<svg class="size-[15px] flex-none transition-transform duration-200 group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/** 'YYYY-MM-DD' → "16 ต.ค. 2569" */
-export function isoLabel(iso) {
-  var p = iso.split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
-  return d.getDate() + ' ' + MONTHS_TH[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+/** Date → "7 ตุลาคม 2569" */
+function dateLabel(d) {
+  return d.getDate() + ' ' + MONTHS_TH_FULL[d.getMonth()] + ' ' + (d.getFullYear() + 543);
 }
 
-/** การ์ดประกาศหนึ่งใบ: มีรูป = การ์ดรูป (ป้ายประเภทมุมรูป) · ไม่มีรูป = การ์ดข้อความ · มีลิงก์ = ทั้งการ์ดเป็นลิงก์ */
+/** การ์ดประกาศหนึ่งใบ: รูปเต็มใบ เงาดำไล่จากล่าง แล้ววันที่ / หัวข้อ / "อ่านเพิ่มเติม" ทับบนรูป
+    ไม่มีรูป = พื้นกรมท่าไล่สีแทนรูป และแสดงรายละเอียดเพิ่มใต้หัวข้อ (การ์ดว่างจะได้ไม่โล่ง)
+    ประเภท "ข่าวสาร" เป็นค่าปกติ ไม่ติดป้าย · ข่าวดี/แจ้งเตือน/ด่วน ติดป้ายมุมซ้ายบน · มีลิงก์ = ทั้งการ์ดเป็นลิงก์ */
 export function newsCard(b) {
   var tone = NEWS_TONE[b.tone] || NEWS_TONE.info;
   var link = safeUrl(b.link_url), img = safeUrl(b.image_url);
@@ -69,20 +71,27 @@ export function newsCard(b) {
   var title = b.title || b.message || 'ประกาศ';
   var body = b.title ? b.message : '';
   var fb = img ? imageFallbackAt(img, 800) : '';
-  var top = img
-    ? '<span class="relative block aspect-[16/10] flex-none overflow-hidden bg-navy">' +
-        // no-referrer: Drive ตอบ 429 แทนรูปเมื่อเห็น Referer ข้ามโดเมน
-        '<img class="absolute inset-0 block size-full object-cover" src="' + esc(imageUrlAt(img, 800)) + '"' + (fb ? ' data-fb="' + esc(fb) + '"' : '') +
-          ' alt="' + esc(title) + '" loading="lazy" decoding="async" referrerpolicy="no-referrer" />' +
-        '<span class="absolute bottom-0 left-0 rounded-tr-[10px] bg-pink px-3 py-0.5 fs-13 font-semibold text-white">' + esc(tone.label) + '</span>' +
-      '</span>'
-    : '<span class="flex-none px-3.5 pt-3.5"><span class="inline-flex rounded-full px-2.5 py-0.5 fs-13 font-semibold ' + tone.cls + '">' + esc(tone.label) + '</span></span>';
-  var inner = top +
-    '<span class="flex flex-1 flex-col gap-1 px-3.5 pt-2.5 pb-3">' +
-      '<span class="line-clamp-2 fs-15.5 leading-[1.35] font-semibold text-brand-strong' + (link ? ' group-hover:text-brand' : '') + '">' + esc(title) + '</span>' +
-      (body ? '<span class="' + (img ? 'line-clamp-2' : 'line-clamp-5') + ' fs-14 leading-[1.5] text-fg-soft">' + esc(body) + '</span>' : '') +
-      '<span class="mt-auto flex items-center gap-1.5 pt-1 fs-13 text-fg-mute">' + CLOCK + esc(isoLabel(isoDate(when))) +
-        (link ? '<span class="ml-auto font-semibold text-brand-strong group-hover:text-brand">' + esc(b.link_label || 'ดูรายละเอียด') + ' →</span>' : '') + '</span>' +
+  var bg = img
+    // no-referrer: Drive ตอบ 429 แทนรูปเมื่อเห็น Referer ข้ามโดเมน
+    ? '<img class="absolute inset-0 -z-10 block size-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" src="' + esc(imageUrlAt(img, 800)) + '"' + (fb ? ' data-fb="' + esc(fb) + '"' : '') +
+        ' alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />' +
+      // เบลอบาง ๆ เฉพาะช่วงตัวหนังสือด้านล่าง (ยังเห็นรูปลาง ๆ) จางขึ้นไปหารูปชัด + เงาไล่ให้ตัวหนังสือขาวอ่านออกบนรูปสีอ่อน
+      '<span class="absolute inset-x-0 bottom-0 -z-10 h-[46%] backdrop-blur-[6px] [mask-image:linear-gradient(to_top,black_60%,transparent)]" aria-hidden="true"></span>' +
+      '<span class="absolute inset-0 -z-10 bg-linear-to-t from-black/75 via-black/40 via-30% to-transparent to-60%" aria-hidden="true"></span>'
+    : '<span class="absolute inset-0 -z-10 bg-linear-to-br from-navy-2 to-navy" aria-hidden="true"></span>';
+  var badge = b.tone && b.tone !== 'info'
+    ? '<span class="absolute top-3 left-3 rounded-full px-2.5 py-0.5 fs-13 font-semibold ' + tone.cls + '">' + esc(tone.label) + '</span>'
+    : '';
+  var inner = bg + badge +
+    '<span class="flex flex-col gap-1.5 p-4 pt-10 text-white [text-shadow:0_1px_3px_rgb(0_0_0/.45)]">' +
+      '<span class="flex items-center gap-1.5 fs-14 text-white/85">' + CALENDAR + esc(dateLabel(when)) + '</span>' +
+      // การ์ดรูปจองที่หัวข้อ 2 บรรทัด และแถวลิงก์เสมอ (ไม่มีลิงก์ = แถวล่องหน) วันที่/หัวข้อของทุกใบในแถวจึงอยู่ระดับเดียวกัน
+      '<span class="' + (img ? 'line-clamp-2 min-h-[2.7em]' : 'line-clamp-3') + ' fs-18 leading-[1.35] font-semibold">' + esc(title) + '</span>' +
+      (body && !img ? '<span class="line-clamp-4 fs-14 leading-[1.5] text-white/80">' + esc(body) + '</span>' : '') +
+      (link || img
+        ? '<span class="mt-1.5 flex min-w-0 items-center gap-1.5 fs-14.5 text-white/90 group-hover:text-white' + (link ? '' : ' invisible') + '"' + (link ? '' : ' aria-hidden="true"') + '>' +
+            '<span class="truncate">' + 'อ่านเพิ่มเติม' + '</span>' + CHEVRON + '</span>'
+        : '') +
     '</span>';
   if (!link) return '<article class="' + CARD_CLASS + '">' + inner + '</article>';
   var external = /^https?:/i.test(link) ? ' target="_blank" rel="noopener"' : '';
