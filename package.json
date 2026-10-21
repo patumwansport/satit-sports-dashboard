@@ -23,6 +23,9 @@
   "dependencies": {
     "express": "^4.19.2"
   },
+  "overrides": {
+    "@parcel/watcher": "^2.6.0"
+  },
   "keywords": [
     "dashboard",
     "sports",
