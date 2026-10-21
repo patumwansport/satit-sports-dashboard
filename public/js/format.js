@@ -89,6 +89,7 @@ export function shortSchoolName(name) {
     .replace(/แห่งมหาวิทยาลัย/, 'ม.')
     .replace(/มหาวิทยาลัยศรีนครินทรวิโรฒ/, 'มศว')
     .replace(/มหาวิทยาลัย/, 'ม.')
+    .replace(/สาธิตมศว(?=\s|$)/, 'สาธิต มศว')
     .trim();
 }
 

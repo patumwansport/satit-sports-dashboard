@@ -7,9 +7,9 @@
   "school": {
     "id": "patumwan",
     "abbr": "ปทว.",
-    "name": "สาธิตปทุมวัน",
+    "name": "สาธิต มศว ปทุมวัน",
     "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน",
-    "logo": "assets/school/ปทว.png",
+    "logo": "assets/school/สาธิต ปทุมวัน.png",
     "rank": 2,
     "totalSchools": 16
   },
@@ -37,9 +37,9 @@
   ],
   "medalTable": [
     { "rank": 1,  "abbr": "จฬม.",   "school": "สาธิตจุฬาฯ",           "fullName": "โรงเรียนสาธิตจุฬาลงกรณ์มหาวิทยาลัย ฝ่ายมัธยม",                       "logo": "assets/school/จฬม.png", "isSelf": false, "gold": 8, "silver": 5, "bronze": 4, "trend": "same" },
-    { "rank": 2,  "abbr": "ปทว.",   "school": "สาธิตปทุมวัน",         "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน",                    "logo": "assets/school/ปทว.png", "isSelf": true,  "gold": 6, "silver": 7, "bronze": 3, "trend": "up" },
+    { "rank": 2,  "abbr": "ปทว.",   "school": "สาธิต มศว ปทุมวัน",    "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ปทุมวัน",                    "logo": "assets/school/สาธิต ปทุมวัน.png", "isSelf": true,  "gold": 6, "silver": 7, "bronze": 3, "trend": "up" },
     { "rank": 3,  "abbr": "สมก.",   "school": "สาธิตเกษตร บางเขน",    "fullName": "โรงเรียนสาธิตแห่งมหาวิทยาลัยเกษตรศาสตร์ ศูนย์วิจัยและพัฒนาการศึกษา", "logo": "assets/school/สมก.png", "isSelf": false, "gold": 5, "silver": 4, "bronze": 6, "trend": "down" },
-    { "rank": 4,  "abbr": "สปม.",   "school": "สาธิตประสานมิตร",      "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ประสานมิตร (ฝ่ายมัธยม)",     "logo": "assets/school/สปม.png", "isSelf": false, "gold": 4, "silver": 6, "bronze": 5, "trend": "same" },
+    { "rank": 4,  "abbr": "สปม.",   "school": "สาธิตประสานมิตร",      "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ประสานมิตร (ฝ่ายมัธยม)",     "logo": "assets/school/สาธิต ปทุมวัน.png", "isSelf": false, "gold": 4, "silver": 6, "bronze": 5, "trend": "same" },
     { "rank": 5,  "abbr": "สธ.มร.", "school": "สาธิตรามคำแหง",        "fullName": "โรงเรียนสาธิตมหาวิทยาลัยรามคำแหง (ฝ่ายมัธยม)",                       "logo": "assets/school/สธ.มร.png", "isSelf": false, "gold": 4, "silver": 3, "bronze": 4, "trend": "up" },
     { "rank": 6,  "abbr": "มศก.",   "school": "สาธิตศิลปากร",         "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศิลปากร",                                    "logo": "assets/school/มศก.png", "isSelf": false, "gold": 3, "silver": 2, "bronze": 3, "trend": "down" },
     { "rank": 7,  "abbr": "พมบ.",   "school": "สาธิตพิบูลบำเพ็ญ",     "fullName": "โรงเรียนสาธิต พิบูลบำเพ็ญ มหาวิทยาลัยบูรพา",                         "logo": "assets/school/พมบ.png", "isSelf": false, "gold": 3, "silver": 1, "bronze": 4, "trend": "same" },
@@ -47,7 +47,7 @@
     { "rank": 9,  "abbr": "สมข.",   "school": "สาธิตขอนแก่น",         "fullName": "โรงเรียนสาธิตมหาวิทยาลัยขอนแก่น (ศึกษาศาสตร์)",                      "logo": "assets/school/สมข.png", "isSelf": false, "gold": 2, "silver": 2, "bronze": 3, "trend": "same" },
     { "rank": 10, "abbr": "ปมอ.",   "school": "สาธิตปัตตานี",         "fullName": "โรงเรียนสาธิตมหาวิทยาลัยสงขลานครินทร์ วิทยาเขตปัตตานี",              "logo": "assets/school/ปมอ.png", "isSelf": false, "gold": 2, "silver": 1, "bronze": 1, "trend": "down" },
     { "rank": 11, "abbr": "กพส.",   "school": "สาธิตเกษตร กำแพงแสน",  "fullName": "โรงเรียนสาธิตแห่งมหาวิทยาลัยเกษตรศาสตร์ วิทยาเขตกำแพงแสน",           "logo": "assets/school/กพส.png", "isSelf": false, "gold": 1, "silver": 3, "bronze": 2, "trend": "up" },
-    { "rank": 12, "abbr": "สอร.",   "school": "สาธิตองครักษ์",        "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ องครักษ์",                   "logo": "assets/school/สอร.png", "isSelf": false, "gold": 1, "silver": 2, "bronze": 4, "trend": "same" },
+    { "rank": 12, "abbr": "สอร.",   "school": "สาธิตองครักษ์",        "fullName": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ องครักษ์",                   "logo": "assets/school/สาธิต ปทุมวัน.png", "isSelf": false, "gold": 1, "silver": 2, "bronze": 4, "trend": "same" },
     { "rank": 13, "abbr": "สมน.",   "school": "สาธิตนเรศวร",          "fullName": "โรงเรียนมัธยมสาธิตมหาวิทยาลัยนเรศวร",                                "logo": "assets/school/สมน.png", "isSelf": false, "gold": 1, "silver": 1, "bronze": 2, "trend": "down" },
     { "rank": 14, "abbr": "สมพ.",   "school": "สาธิตพะเยา",           "fullName": "โรงเรียนสาธิตมหาวิทยาลัยพะเยา",                                      "logo": "assets/school/สมพ.png", "isSelf": false, "gold": 1, "silver": 0, "bronze": 3, "trend": "same" },
     { "rank": 15, "abbr": "สมค.",   "school": "สาธิตมหาสารคาม",       "fullName": "โรงเรียนสาธิตมหาวิทยาลัยมหาสารคาม (ฝ่ายมัธยม)",                      "logo": "assets/school/สมค.png", "isSelf": false, "gold": 0, "silver": 2, "bronze": 2, "trend": "up" },
