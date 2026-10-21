@@ -38,13 +38,13 @@ const TREE_FOLDERS = 600;   // กันโฟลเดอร์วนลูก/
    เบราว์เซอร์เก็บ 1 นาที — สลับหน้าหลัก ↔ ประมวลภาพไม่ต้องถามโครงโฟลเดอร์ซ้ำ */
 const CDN_CACHE = 'max-age=120, stale-while-revalidate=86400';
 const BROWSER_CACHE = 'public, max-age=60';
-/* ทั้งคลัง: สด 5 นาที แล้วตอบชุดเดิมทันที (นานสุด 7 วัน) ระหว่างถามชุดใหม่เบื้องหลัง
-   คำขอเดียวต่อทั้งเว็บ แคชจึงอุ่นเกือบตลอด · รูปที่อัปโหลดใหม่ขึ้นเว็บช้าสุดราว 5 นาทีหลังมีคนเปิดดู */
-const TREE_CDN_CACHE = 'max-age=300, stale-while-revalidate=604800';
+/* ทั้งคลัง: สด 1 นาที แล้วให้แคช CDN เก่าได้อีกไม่เกิน 1 นาทีระหว่างถามชุดใหม่
+   แคชในฟังก์ชันอุ่นไว้ 5 นาที และเมื่อหมดอายุจะรอข้อมูลใหม่ก่อนส่งกลับ */
+const TREE_CDN_CACHE = 'max-age=60, stale-while-revalidate=60';
 
 /* จำคำตอบ tree ไว้ในหน่วยความจำของฟังก์ชันด้วย — Vercel ใช้ instance เดิมซ้ำข้ามคำขอ (Fluid Compute)
    และฟังก์ชันอยู่ภูมิภาคเดียว ผู้ชมทุกประเทศ/ทุก edge ที่แคช CDN ยังเย็นจึงได้คำตอบทันทีแทนการไล่ Drive ใหม่
-   เก่ากว่า TREE_FRESH_MS = ตอบของเดิมไปก่อน แล้วไล่ใหม่เบื้องหลังให้คนถัดไป (ไม่ซ้อนกันเกินหนึ่งรอบ) */
+   เก่ากว่า TREE_FRESH_MS จะเริ่มโหลดใหม่และรอผล · ใช้ pending ร่วมกันไม่ให้คำขอพร้อมกันไล่ Drive ซ้ำ */
 const TREE_FRESH_MS = 5 * 60 * 1000;
 const treeMemo = new Map();   // root id → { at, body, pending }
 
@@ -103,7 +103,7 @@ async function crawlTree(rootId) {
   return { root: root };
 }
 
-/** คำตอบ tree จากหน่วยความจำ (ถ้ามี) — เก่าแล้วตอบของเดิมไปก่อนแล้วไล่ใหม่เบื้องหลัง */
+/** คำตอบ tree จากหน่วยความจำ — เมื่อหมดอายุให้รอโหลดข้อมูลใหม่ เพื่อไม่ต่ออายุแคชของชื่อเก่า */
 async function treeBody(rootId) {
   let memo = treeMemo.get(rootId);
   const refresh = function () {
@@ -121,7 +121,7 @@ async function treeBody(rootId) {
     return entry.pending;
   };
   if (memo && memo.body) {
-    if (Date.now() - memo.at > TREE_FRESH_MS) refresh().catch(function () {});   // ล้มก็ใช้ของเดิมต่อ
+    if (Date.now() - memo.at > TREE_FRESH_MS) return refresh();
     return memo.body;
   }
   return refresh();
