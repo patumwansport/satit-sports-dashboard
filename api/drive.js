@@ -121,7 +121,8 @@ async function treeBody(rootId) {
     return entry.pending;
   };
   if (memo && memo.body) {
-    if (Date.now() - memo.at > TREE_FRESH_MS) return refresh();
+    // ไล่ Drive ใหม่ไม่สำเร็จ = ตอบชุดเดิมไปก่อน ดีกว่าให้หน้าประมวลภาพถอยไปโหลดทีละโฟลเดอร์
+    if (Date.now() - memo.at > TREE_FRESH_MS) return refresh().catch(function () { return memo.body; });
     return memo.body;
   }
   return refresh();

@@ -53,13 +53,7 @@
     { "rank": 15, "abbr": "สมค.",   "school": "สาธิตมหาสารคาม",       "fullName": "โรงเรียนสาธิตมหาวิทยาลัยมหาสารคาม (ฝ่ายมัธยม)",                      "logo": "assets/school/สมค.png", "isSelf": false, "gold": 0, "silver": 2, "bronze": 2, "trend": "up" },
     { "rank": 16, "abbr": "มข.นค.", "school": "สาธิตขอนแก่น หนองคาย", "fullName": "โรงเรียนสาธิตมหาวิทยาลัยขอนแก่น วิทยาเขตหนองคาย",                    "logo": "assets/school/มข.นค.png", "isSelf": false, "gold": 0, "silver": 1, "bronze": 1, "trend": "down" }
   ],
-  "photos": [
-    { "id": "d1-football",   "dayId": 1, "sportId": "football",   "time": "10:30", "caption": "ฟุตบอลชาย รอบคัดเลือก สาย A",       "venue": "สนามฟุตบอล",   "credit": "ฝ่ายประชาสัมพันธ์", "src": "assets/photos/day1-football.svg" },
-    { "id": "d1-volleyball", "dayId": 1, "sportId": "volleyball", "time": "10:00", "caption": "วอลเลย์บอลหญิง รอบรองชนะเลิศ",     "venue": "โรงยิม 1",     "credit": "ฝ่ายประชาสัมพันธ์", "src": "assets/photos/day1-volleyball.svg" },
-    { "id": "d1-athletics",  "dayId": 1, "sportId": "athletics",  "time": "08:30", "caption": "กรีฑา 100 เมตร รอบชิงชนะเลิศ",     "venue": "สนามกีฬากลาง", "credit": "ชมรมถ่ายภาพ",      "src": "assets/photos/day1-athletics.svg" },
-    { "id": "d1-swimming",   "dayId": 1, "sportId": "swimming",   "time": "09:00", "caption": "ว่ายน้ำฟรีสไตล์ 50 เมตร ชิงชนะเลิศ", "venue": "สระว่ายน้ำ",   "credit": "ชมรมถ่ายภาพ",      "src": "assets/photos/day1-swimming.svg" },
-    { "id": "d1-dancesport", "dayId": 1, "sportId": "dancesport", "time": "09:30", "caption": "ลีลาศ ประเภทมาตรฐาน ชิงชนะเลิศ",   "venue": "หอประชุมใหญ่", "credit": "ฝ่ายประชาสัมพันธ์", "src": "assets/photos/day1-dancesport.svg" }
-  ],
+  "photos": [],
   "schedule": [
     {
       "id": 1,

@@ -458,7 +458,7 @@ export function schoolNickname(m) {
 /** พาธรูปโลโก้ ('' = ไม่รู้จักโรงเรียนนี้ ให้ผู้เรียกใช้ตัวอักษรย่อแทน) */
 export function schoolLogo(m) {
   var abbr = schoolAbbr(m).replace(/\.$/, '');
-  if (abbr === 'ปทว' || abbr === 'สปม' || abbr === 'สอร') return encodeURI('assets/school/สาธิต ปทุมวัน.png');
+  if (abbr === 'ปทว' || abbr === 'สปม' || abbr === 'สอร') return encodeURI('assets/school/สาธิต ปทุมวัน.webp');
   if (m && m.logo) return encodeURI(m.logo);
   return abbr ? 'assets/school/' + encodeURIComponent(abbr) + '.webp' : '';
 }
@@ -854,20 +854,37 @@ export function initChrome(activePage) {
   }, { passive: true });
   syncToTop();
 
-  // เวลาที่ข้อมูลถูกดึงมา — แถบบนเลิกแสดงป้าย "อัปเดตล่าสุด" แล้ว แต่ยังจำไว้ให้ secondsSinceSync
-  // (หน้าไหนยังมี #syncTime ก็เขียนเวลาให้ เขียนครั้งเดียวต่อชุดข้อมูล ไม่มีตัวนับวินาที)
-  var syncedMs = NaN, out = document.getElementById('syncTime');
+  // ป้าย "อัปเดตล่าสุด hh:mm น." ในแถบบน — สร้างจาก JS ที่เดียวเหมือนปุ่มอัปเดตด้านล่าง วางหน้าปุ่มแข่งสด
+  // เวลา = ตอนที่ข้อมูลชุดนี้ถูกดึงมา (syncedAt) เขียนครั้งเดียวต่อชุด ไม่มีตัวนับวินาที
+  // จอ <560px แถวบนไม่มีที่เหลือ (โลโก้ + 3 ปุ่มเต็มพอดี) จึงย้ายป้ายลงเป็นบรรทัดเล็กใต้แถว
+  // จอ 1181–1399px เมนูแท็บเต็มแถว ซ่อนป้ายไว้ · ชุดเก่าข้ามวัน (ของสำรองตอนดึงไม่ได้) ใส่วันที่กำกับ
+  var status = document.getElementById('liveBell');
+  var syncedMs = NaN, syncLabels = [];
+  if (status) {
+    var inRow = document.createElement('span');
+    inRow.className = 'flex-none fs-13 whitespace-nowrap text-fg-mute max-[560px]:hidden min-[1181px]:max-[1400px]:hidden';
+    var below = document.createElement('p');
+    below.className = 'm-0 -mt-2 pb-1.5 text-center fs-12 text-fg-mute min-[560px]:hidden';
+    [inRow, below].forEach(function (el) {
+      el.setAttribute('role', 'status');
+      el.innerHTML = 'อัปเดตล่าสุด <b class="font-medium tabular-nums text-fg-soft" data-sync-time>—</b> น.';
+    });
+    status.parentNode.insertBefore(inRow, status);
+    status.parentNode.parentNode.after(below);
+    syncLabels = [inRow, below];
+  }
   function showSynced(data) {
     syncedMs = Date.parse(data.syncedAt);
-    if (!out) return;
     var t = isNaN(syncedMs) ? new Date() : new Date(syncedMs);
-    out.textContent = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+    var hm = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+    var text = t.toDateString() === new Date().toDateString() ? hm : t.getDate() + ' ' + MONTHS_TH[t.getMonth()] + ' ' + hm;
+    syncLabels.forEach(function (el) { el.querySelector('[data-sync-time]').textContent = text; });
   }
   syncHook = showSynced;
 
   // ปุ่ม "มีผลใหม่ · อัปเดต" — สร้างจาก JS ที่เดียว ไม่ต้องแก้ HTML ทั้ง 6 หน้า
   // วางหน้าปุ่มกระดิ่งรายการสด ซ่อนไว้จนกว่าจะมีชุดใหม่รออยู่ ไม่กะพริบ ไม่เด้ง
-  var status = document.getElementById('liveBell');
+  // ปุ่มขึ้นเมื่อไรก็ซ่อนป้ายเวลา (ที่ในแถบบนจอแคบมีไม่พอ และปุ่มบอกอยู่แล้วว่ามีของใหม่กว่า)
   var newBtn = document.createElement('button');
   newBtn.type = 'button';
   newBtn.hidden = true;
@@ -876,7 +893,10 @@ export function initChrome(activePage) {
   newBtn.setAttribute('aria-label', 'มีผลการแข่งขันใหม่ กดเพื่ออัปเดตหน้า');
   newBtn.addEventListener('click', applyPending);
   if (status) status.parentNode.insertBefore(newBtn, status);
-  pendingHook = function (on) { newBtn.hidden = !on; };
+  pendingHook = function (on) {
+    newBtn.hidden = !on;
+    syncLabels.forEach(function (el) { el.hidden = on; });
+  };
 
   paintUiIcons();
 
