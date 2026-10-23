@@ -47,7 +47,8 @@ export function useSheet(id, opts) {
 }
 export function currentSheetId() { return sheetId; }
 /* แท็บทั้งหมดข้างล่าง (gid/ชื่อ) ต้องตรงกับ ALLOWED ใน api/gviz.js — ตัวกลางปฏิเสธแท็บที่ไม่อยู่ในรายการ
-   (แท็บไหนไม่ตรง หน้าเว็บยังทำงาน แต่แท็บนั้นจะยิง Google ตรงทุกครั้ง ไม่ได้ใช้แคช) */
+   (แท็บไหนไม่ตรง หน้าเว็บยังทำงาน แต่แท็บนั้นจะยิง Google ตรงทุกครั้ง ไม่ได้ใช้แคช)
+   scripts/check-consistency.mjs เทียบ SHEET_TABS / BUNDLE_QUERIES / DEFAULT_SHEET_ID กับ api/gviz.js ทุกครั้งที่ build */
 /**
  * แท็บ "สถิติเหรียญรางวัล" — ตารางเหรียญรายโรงเรียน: โรงเรียน / ทอง / เงิน / ทองแดง / รวม
  * อ้างด้วย gid ไม่ใช่ชื่อแท็บ: ชื่อแท็บในไฟล์นี้ขึ้นต้นด้วย "🔒 " (ตั้งชื่อให้รู้ว่าเป็นแท็บล็อกไว้)
@@ -175,10 +176,12 @@ export function gvizUrl(id, query) {
   return 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:json&' + query;
 }
 
-/** ตัวกลางบอกว่าตอนนี้ใช้ชีตไหน (ตามลิงก์ที่ตั้งใน CMS) — จำไว้ ถ้าตัวกลางล่มรอบหน้าจะยิง Google ชีตเดียวกันได้ถูก */
+/** ตัวกลางบอกว่าตอนนี้ใช้ชีตไหน (ตามลิงก์ที่ตั้งใน CMS) — จำไว้ ถ้าตัวกลางล่มรอบหน้าจะยิง Google ชีตเดียวกันได้ถูก
+    X-Sheet-Id-Source: default = ตัวกลางอ่าน CMS ไม่ได้เลยตั้งแต่เปิดเครื่อง (Supabase ล่ม/ถูกพัก) จึงเดาเป็นชีตตั้งต้น
+    — ไม่จำค่านั้นทับ id ที่เคยได้จาก CMS จริง */
 function rememberProxySheet(res) {
   const id = res.headers.get('X-Sheet-Id');
-  if (!id || !sheetIdFromUrl(id) || directOnly) return;
+  if (!id || !sheetIdFromUrl(id) || directOnly || res.headers.get('X-Sheet-Id-Source') === 'default') return;
   sheetId = id;
   try { localStorage.setItem(SHEET_ID_STORE, id); } catch (e) { /* ไม่มีที่เก็บก็ไม่เป็นไร */ }
 }
@@ -187,7 +190,7 @@ function rememberProxySheet(res) {
    แผนฟรีของ Vercel นับโควตาทุกคำขอแม้ CDN ตอบจากแคช — เปิดหนึ่งหน้าเคยขอ 5–6 ครั้ง เหลือครั้งเดียว
    ค่าในรายการ = query ที่ fetchGvizTable สร้างให้แท็บนั้น ต้องตรงกับ BUNDLE ใน api/gviz.js
    แท็บภาพ (img) ไม่อยู่ในชุด: ตอบช้าที่สุด รวมเข้ามาแล้วทุกหน้าต้องรอมันด้วย */
-const BUNDLE_QUERIES = [
+export const BUNDLE_QUERIES = [
   'gid=' + SHEET_MEDAL_TABLE + '&headers=1',
   'gid=' + GID_SPORT_MEDALS + '&headers=0',
   'gid=' + GID_SCHEDULE,
@@ -199,8 +202,9 @@ const BUNDLE_REUSE_MS = 15000;
 let bundleMemo = null;   // { at, promise }
 
 /** @returns {Promise<{tabs: Object, proxyDown: boolean}>} ไม่ throw — ใช้ไม่ได้ได้ tabs ว่าง
-    proxyDown = ตัวกลางไม่ตอบเลย (หมดเวลา/เน็ตตัด) → แท็บในชุดข้ามไปยิง Google ตรง ไม่ต้องรอหมดเวลาซ้ำแท็บละรอบ
-    ตัวกลางตอบแต่ใช้ไม่ได้ (ยังไม่ได้ deploy ฟังก์ชันรุ่นที่มีชุดรวม ฯลฯ) → ขอทีละแท็บจากตัวกลางแบบเดิม */
+    proxyDown = ตัวกลางไม่ตอบเลย (หมดเวลา/เน็ตตัด) หรือตอบ error (502 ดึงชีตไม่ได้ทุกแท็บ / 402·429 Vercel พักโปรเจกต์เพราะเกินโควตา)
+    → แท็บในชุดข้ามไปยิง Google ตรง ไม่ต้องขอตัวกลางซ้ำแท็บละรอบแล้วพังแบบเดิม
+    ตัวกลางตอบ 200 แต่ไม่ใช่ชุดรวม (Vercel ยังไม่ได้ deploy ฟังก์ชันรุ่นที่มีชุดรวม ตอบ index.html) → ขอทีละแท็บจากตัวกลางแบบเดิม */
 function loadBundle() {
   if (bundleMemo && Date.now() - bundleMemo.at < BUNDLE_REUSE_MS) return bundleMemo.promise;
   const label = 'gviz ชุดรวม (ตัวกลาง)';
@@ -213,7 +217,7 @@ function loadBundle() {
     })
     .catch(function (err) {
       console.warn(err.message + ' — ขอแยกทีละแท็บแทน');
-      return { tabs: {}, proxyDown: !err.status };
+      return { tabs: {}, proxyDown: err.status !== 200 };
     });
   bundleMemo = { at: Date.now(), promise: promise };
   return promise;
@@ -414,19 +418,59 @@ function webLink(text) {
   return /^https?:\/\/\S+$/i.test(text) ? text : '';
 }
 
+/**
+ * ชื่อหัวคอลัมน์ของแท็บ · gviz เดาแถวหัวไม่ออก (เช่นแท็บที่ยังไม่มีแถวข้อมูล) จะคืนหัวตารางมาเป็นแถวข้อมูลแถวแรก
+ * แล้วชื่อหัวว่างหมด — กรณีนั้นใช้แถวต้น ๆ ที่มีคำว่า "วันที่" เป็นหัวแทน
+ */
+function tableLabels(table) {
+  const labels = (table.cols || []).map(function (c) { return String(c.label || '').trim(); });
+  if (labels.some(Boolean)) return labels;
+  const head = (table.rows || []).slice(0, 5)
+    .map(function (r) { return (r.c || []).map(cellText); })
+    .filter(function (cells) { return cells.some(function (t) { return /วันที่/.test(t); }); })[0];
+  return head || labels;
+}
+
 /** ตำแหน่งคอลัมน์ที่ไม่บังคับ หาจากชื่อหัวตาราง — ไม่มีหัวนั้นในแท็บ = -1 (ช่องนั้นว่างทุกแถว) */
 function headerIndex(table, pattern) {
-  return (table.cols || []).findIndex(function (c) { return pattern.test(String(c.label || '').trim()); });
+  return tableLabels(table).findIndex(function (l) { return pattern.test(l); });
 }
 
 /**
- * แท็บผลการแข่งขัน: คอลัมน์หลักอยู่ตำแหน่งตายตัวตามผังชีต
- * ส่วน "นักกีฬา" เป็นคอลัมน์เสริม เพิ่มไว้ตรงไหนของแท็บก็ได้ ขอแค่หัวคอลัมน์มีคำว่า "นักกีฬา"
+ * แท็บตารางแข่ง/ผลต้องมีหัว "วันที่" — gid ที่ไม่มีอยู่จริง (แท็บถูกลบ/ชีตใหม่ไม่ได้ทำสำเนา) gviz ส่งแท็บแรกของไฟล์
+ * (ตารางเหรียญรายกีฬา) มาแทนเงียบ ๆ ถ้าอ่านต่อจะได้ตารางมั่ว — หยุดตรงนี้ให้หน้าเว็บใช้ข้อมูลชุดล่าสุด
+ * และให้การซิงก์สำรองล้มแทนการเขียนข้อมูลผิดทับฐานข้อมูล
+ */
+function assertScheduleTab(table, label, gid) {
+  if (headerIndex(table, /วันที่/) > -1) return;
+  throw new Error('แท็บ' + label + ' (gid ' + gid + ') ไม่มีหัวคอลัมน์ "วันที่" — แท็บอาจถูกลบหรือชีตไม่ได้ทำสำเนาจากชีตเดิม ' +
+    '(หัวที่เจอ: ' + tableLabels(table).filter(Boolean).slice(0, 6).join(' / ') + ')');
+}
+
+/**
+ * แท็บผลการแข่งขัน: หาคอลัมน์จากชื่อหัวตาราง (ผังเคยเปลี่ยนแล้ว — ต.ค. 2569 จาก วันที่·กีฬา·ประเภท·เวลา·ระหว่าง·ผล·สถานะ
+ * เป็น วันที่·กีฬา·(ช่องว่าง)·รอบ·สาย·ระหว่าง·ผลการแข่งขัน·สถานะ) ถ้ายึดตำแหน่งตายตัวทีม/ผลจะอ่านผิดช่องทั้งตาราง
+ * หัว "กีฬา" ที่ผสานสองช่อง (กีฬา · ประเภท) gviz ให้ชื่อแค่ช่องแรก — ช่องถัดไปที่ไม่มีชื่อจึงเป็นประเภท
+ * หัว "ระหว่าง" ผสานสามช่อง (ทีม A · VS · ทีม B) = ทีม B อยู่ถัดไปสองช่อง · ช่องเดียว = พิมพ์ทั้งคู่ไว้ในช่องเดียว
+ * หาหัว "วันที่" หรือ "ระหว่าง" ไม่เจอเลย = ถอยไปใช้ตำแหน่งตามผังเดิม (RESULT_COLUMNS)
+ * คอลัมน์เสริม (นักกีฬา / Live / สนาม) เพิ่มไว้ตรงไหนของแท็บก็ได้
  */
 function resultColumns(table) {
-  return Object.assign({}, RESULT_COLUMNS, {
+  const labels = tableLabels(table);
+  const extras = {
     athletes: headerIndex(table, /นักกีฬา/), live: headerIndex(table, LIVE_HEADER), venue: headerIndex(table, VENUE_HEADER)
-  });
+  };
+  function at(pattern) { return labels.findIndex(function (l) { return pattern.test(l); }); }
+  const date = at(/วันที่/), teamA = at(/ระหว่าง/);
+  if (date < 0 || teamA < 0) return Object.assign({}, RESULT_COLUMNS, extras);
+  const sport = at(/^(กีฬา|ชนิดกีฬา|รายการ)/);
+  const kind = at(/ประเภท/) > -1 ? at(/ประเภท/) : (sport > -1 && labels[sport + 1] === '' ? sport + 1 : -1);
+  const merged = labels[teamA + 1] === '' && labels[teamA + 2] === '';
+  return Object.assign({
+    date: date, sport: sport > -1 ? sport : RESULT_COLUMNS.sport, kind: kind, time: at(/เวลา/),
+    round: at(/รอบ/), pool: at(/สาย/), teamA: teamA, teamB: merged ? teamA + 2 : -1,
+    score: at(/^ผล/), status: at(/สถานะ/)
+  }, extras);
 }
 
 /**
@@ -435,7 +479,7 @@ function resultColumns(table) {
  * หาหัวไหนไม่เจอก็ถอยไปใช้ตำแหน่งตามผังปัจจุบันของชีต
  */
 function planColumns(table) {
-  const labels = (table.cols || []).map(function (c) { return String(c.label || '').trim(); });
+  const labels = tableLabels(table);
   function at(pattern, fallback) {
     const i = labels.findIndex(function (l) { return pattern.test(l); });
     return i > -1 ? i : fallback;
@@ -667,6 +711,7 @@ export async function loadStars() {
 export async function loadLive() {
   try {
     const table = await fetchGvizTable(GID_SCHEDULE_PLAN);
+    assertScheduleTab(table, 'ตารางการแข่งขัน', GID_SCHEDULE_PLAN);
     if (headerIndex(table, LIVE_HEADER) < 0) return [];
     return buildDays(table, planColumns(table))
       .map(function (d) {
@@ -702,6 +747,8 @@ export async function loadFromSheets(opts) {
   ]);
   mainDone = true;
   const photos = freshPhotos || opts.prevPhotos || [];
+  assertScheduleTab(scheduleTable, 'ผลการแข่งขัน', GID_SCHEDULE);
+  assertScheduleTab(planTable, 'ตารางการแข่งขัน', GID_SCHEDULE_PLAN);
 
   const medals = buildMedalTable(medalTable);
   const self = medals.filter(function (m) { return m.isSelf; })[0] || null;

@@ -5,6 +5,11 @@
 #
 # ตั้งค่าใน repo: Settings → Pages → Build and deployment → Source = "GitHub Actions"
 # (ไม่ใช่ "Deploy from a branch" ไม่งั้น workflow นี้จะรันจบแต่ Pages ไม่หยิบผลลัพธ์ไปใช้)
+#
+# งาน vercel: deploy ตัวกลางแคช (api/) + สำเนาเว็บขึ้น Vercel พร้อมกันทุกครั้งที่ push
+# เดิมต้องสั่ง vercel --prod เองจากเครื่อง ลืมเมื่อไร Pages ได้ JS ใหม่แต่ตัวกลางยังเป็นรุ่นเก่า (BUNDLE/ALLOWED ไม่ตรงกัน)
+# ต้องมี secret VERCEL_TOKEN (vercel.com → Account Settings → Tokens) — ไม่มี = ข้ามงานนี้ไป Pages ยัง deploy ตามปกติ
+# ทั้งสองงาน build ผ่าน npm run build ซึ่งรัน npm run check ก่อน: ค่าที่ต้องตรงกันข้ามไฟล์ไม่ตรง = ไม่ deploy ทั้งคู่
 
 name: Deploy to GitHub Pages
 
@@ -55,3 +60,29 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  vercel:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: vercel
+      cancel-in-progress: true
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # ค่าเดียวกับ .vercel/project.json (ไม่ใช่ความลับ)
+      VERCEL_ORG_ID: team_luGqcYBcxPvI6za9oxdfpj26
+      VERCEL_PROJECT_ID: prj_Bg8ZZNS6sRaVBwPpr77GrCIsAUxm
+    steps:
+      - if: env.VERCEL_TOKEN == ''
+        run: echo "::notice::ยังไม่ได้ตั้ง secret VERCEL_TOKEN — ข้ามการ deploy Vercel (สั่ง vercel --prod เองจากเครื่องแทน)"
+
+      - if: env.VERCEL_TOKEN != ''
+        uses: actions/checkout@v5
+
+      - if: env.VERCEL_TOKEN != ''
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Vercel build บนเครื่องของมันเอง (vercel.json → npm run build) ส่งไฟล์ตาม .vercelignore
+      - if: env.VERCEL_TOKEN != ''
+        run: npx --yes vercel@62.7.0 deploy --prod --yes --token="$VERCEL_TOKEN"

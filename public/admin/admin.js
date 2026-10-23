@@ -49,7 +49,8 @@ var ICONS = Object.assign({}, UI_ICONS, {
   external: "<path d='M13.5 4.5h6v6M19.5 4.5l-8.5 8.5' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/><path d='M17.5 13.5v4.5a2 2 0 01-2 2h-9.5a2 2 0 01-2-2V8.5a2 2 0 012-2h4.5' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/>",
   logout: "<path d='M14 4.5H6.5a2 2 0 00-2 2v11a2 2 0 002 2H14' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/><path d='M10.5 12h10M17 8.5l3.5 3.5-3.5 3.5' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/>",
   eye: "<path d='M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/><circle cx='12' cy='12' r='3' stroke='%23000' stroke-width='1.7'/>",
-  views: "<path d='M4 19.5V10M10 19.5V4.5M16 19.5v-7M21 19.5H3' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/>"
+  views: "<path d='M4 19.5V10M10 19.5V4.5M16 19.5v-7M21 19.5H3' stroke='%23000' stroke-width='1.7' stroke-linecap='round'/>",
+  shield: "<path d='M12 3.5l7 2.8v5.2c0 4.4-3 7.9-7 9-4-1.1-7-4.6-7-9V6.3z' stroke='%23000' stroke-width='1.7' stroke-linejoin='round'/><path d='M9 12l2.2 2.2L15.5 10' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/>"
 });
 function paintIcons(root) {
   (root || document).querySelectorAll('[data-ic]').forEach(function (elm) {
@@ -80,6 +81,15 @@ var PLACEMENT_OPTIONS = [
   { value: 'all', label: 'หน้าหลัก + แถบบนสุดทุกหน้า' },
   { value: 'home', label: 'หน้าหลักเท่านั้น' }
 ];
+// ระดับสิทธิ์ผู้ดูแล — ต้องตรงกับ check ของ app_admins.role (migration 20261023000001) และ ROLES ใน functions/admin-users
+var ROLE_OPTIONS = [
+  { value: 'admin', label: 'ผู้ดูแล (แก้ข้อมูลได้)' },
+  { value: 'owner', label: 'ผู้ดูแลสูงสุด (แก้ข้อมูล + จัดการบัญชีผู้ดูแล)' }
+];
+var ROLE_SHORT = { owner: 'ผู้ดูแลสูงสุด', admin: 'ผู้ดูแล' };
+// บัญชีที่สร้างโดยไม่ใส่อีเมลได้อีเมลแทนโดเมนนี้ (ส่งเมลไม่ได้ = กู้รหัสผ่านเองไม่ได้) — ตรงกับ functions/admin-users
+var NO_EMAIL_DOMAIN = 'users.pds.invalid';
+function hasRealEmail(email) { return Boolean(email) && !String(email).endsWith('@' + NO_EMAIL_DOMAIN); }
 
 function matchFields() {
   return [
@@ -257,6 +267,28 @@ var VIEWS = [
     id: 'backup', kind: 'backup', icon: 'backup',
     title: 'สำรองและกู้คืนข้อมูล',
     hint: 'ดาวน์โหลดข้อมูลทั้งหมดเก็บไว้ · กู้คืนจากไฟล์ · หรือดึงข้อมูลล่าสุดจาก Google Sheets มาเก็บในฐานข้อมูลนี้'
+  },
+  {
+    // อ่านรายชื่อผ่าน RLS ตามปกติ แต่บันทึก/ลบผ่าน Edge Function admin-users (saveAdmin / removeAdmin)
+    // เพราะการสร้างผู้ใช้ใน Supabase Auth ต้องใช้ service role · เมนูนี้เห็นเฉพาะผู้ดูแลสูงสุด
+    id: 'admins', kind: 'table', table: 'app_admins', pk: 'user_id', icon: 'shield', ownerOnly: true,
+    title: 'ผู้ดูแลระบบ',
+    hint: 'บัญชีที่เข้า CMS นี้ได้ — เพิ่มบัญชีใหม่ เปลี่ยนระดับสิทธิ์ ตั้งรหัสผ่านใหม่ให้ หรือลบบัญชี · ผู้ดูแลเข้าสู่ระบบด้วยชื่อผู้ใช้',
+    order: 'created_at.asc',
+    columns: [
+      { key: 'display_name', label: 'ชื่อที่แสดง' },
+      { key: 'username', label: 'ชื่อผู้ใช้', type: 'key' },
+      { key: 'role', label: 'สิทธิ์', type: 'role' },
+      { key: 'email', label: 'อีเมลกู้รหัสผ่าน', type: 'loginEmail' }
+    ],
+    fields: [
+      { key: 'username', label: 'ชื่อผู้ใช้', type: 'text', required: true, size: 'half', hint: 'ใช้เข้าสู่ระบบ · a-z 0-9 . - _ ยาว 3–32 ตัว' },
+      { key: 'display_name', label: 'ชื่อที่แสดง', type: 'text', size: 'half', hint: 'เช่น ครูกิตติยา' },
+      { key: 'role', label: 'ระดับสิทธิ์', type: 'select', options: ROLE_OPTIONS, noBlank: true },
+      { key: 'email', label: 'อีเมล (ไม่บังคับ)', type: 'text', createOnly: true, hint: 'ไว้กด "ลืมรหัสผ่าน" เอง · เว้นว่างได้ แต่ถ้าลืมรหัสต้องให้ผู้ดูแลสูงสุดตั้งให้ใหม่' },
+      { key: 'password', label: 'รหัสผ่าน', type: 'password', required: true, createOnly: true, hint: 'อย่างน้อย 8 ตัวอักษร — แจ้งเจ้าของบัญชีเอง' },
+      { key: 'password', label: 'ตั้งรหัสผ่านใหม่', type: 'password', editOnly: true, hint: 'เว้นว่าง = ใช้รหัสเดิม' }
+    ]
   }
 ];
 
@@ -279,6 +311,7 @@ var PAGE_NAMES = {
    สถานะของหน้า
    ========================================================= */
 var db = null;
+var me = null;          // แถวของตัวเองใน app_admins (user_id, username, display_name, role) — ตั้งตอนเข้าสู่ระบบ
 var current = null;
 var rows = [];
 var loading = false;    // กำลังโหลดหมวดนี้อยู่ — อย่าเพิ่งขึ้น "ยังไม่มีข้อมูล" ให้คนกรอกตกใจ
@@ -435,6 +468,13 @@ function cellHtml(col, row) {
     var st = bannerState(row);
     return badge(st.label, st.tone);
   }
+  if (col.type === 'role') {
+    return '<span class="flex flex-wrap gap-1.5">' + badge(ROLE_SHORT[row.role] || row.role, row.role === 'owner' ? TONE_BADGE.live : TONE_BADGE.mute) +
+      (me && row.user_id === me.user_id ? badge('บัญชีของคุณ', TONE_BADGE.ok) : '') + '</span>';
+  }
+  if (col.type === 'loginEmail') {
+    return hasRealEmail(row.email) ? esc(row.email) : '<span class="text-fg-mute">ไม่มี</span>';
+  }
   var v = row[col.key];
   return v === '' || v == null ? '<span class="text-fg-mute">—</span>' : esc(v);
 }
@@ -471,7 +511,7 @@ function renderTableView() {
 }
 
 /** คอลัมน์สั้นที่ห้ามตัดบรรทัด ("13 ต.ค." / "2 - 1" ขึ้นสองบรรทัดอ่านยาก) — ตารางกว้างเกินจอก็เลื่อนแนวนอนเอา */
-var NOWRAP = { date: 1, time: 1, score: 1, num: 1, medal: 1, status: 1, photoDate: 1, placement: 1, bannerState: 1, flag: 1 };
+var NOWRAP = { date: 1, time: 1, score: 1, num: 1, medal: 1, status: 1, photoDate: 1, placement: 1, bannerState: 1, flag: 1, role: 1 };
 
 /** แถวว่าง/กำลังโหลด — กินทุกคอลัมน์ ไอคอนตรงกลาง */
 function emptyRow(text, ic) {
@@ -661,9 +701,11 @@ function fieldHtml(f, value) {
   } else if (f.type === 'textarea') {
     input = '<textarea class="textarea min-h-[92px]" id="' + id + '" name="' + f.key + '" rows="3">' + esc(value == null ? '' : value) + '</textarea>';
   } else {
-    var type = { number: 'number', date: 'date', time: 'time', datetime: 'datetime-local' }[f.type] || 'text';
+    var type = { number: 'number', date: 'date', time: 'time', datetime: 'datetime-local', password: 'password' }[f.type] || 'text';
     input = '<input class="input h-10' + (f.upload ? ' min-w-0 flex-1' : '') + '" id="' + id + '" name="' + f.key + '" type="' + type + '"' +
       (f.type === 'number' ? ' min="0" step="1"' : '') + (f.required ? ' required' : '') +
+      // ไม่ให้เบราว์เซอร์เติมรหัสผ่านของตัวเองลงช่องรหัสของบัญชีอื่น
+      (f.type === 'password' ? ' autocomplete="new-password" minlength="8"' : '') +
       ' value="' + esc(value == null ? '' : value) + '" />';
     // ช่องลิงก์รูปที่อัปโหลดจากเครื่องได้ (f.upload = { bucket, maxSide }) — ผูกปุ่มใน bindFieldUploads()
     if (f.upload) {
@@ -694,7 +736,7 @@ function openEditor(row) {
   $('deleteBtn').hidden = isNew;
   setEditorError('');
 
-  $('editorFields').innerHTML = current.fields.filter(function (f) { return !f.createOnly || isNew; }).map(function (f) {
+  $('editorFields').innerHTML = current.fields.filter(function (f) { return isNew ? !f.editOnly : !f.createOnly; }).map(function (f) {
     var v = row ? row[f.key] : defaultValue(f);
     if (f.type === 'time' && v) v = String(v).slice(0, 5);   // 'HH:MM:SS' ของ Postgres → ช่อง time รับแค่ HH:MM
     if (f.type === 'datetime') v = toLocalInput(v);
@@ -703,6 +745,13 @@ function openEditor(row) {
 
   $('editorFields').oninput = $('editorFields').onchange = null;   // ตัวอย่างสดของหมวดข่าวสาร ไม่ติดไปฟอร์มหมวดอื่น
   if (current.id === 'banners') mountNewsPreview();
+  // บัญชีของตัวเอง: ลบ/ลดสิทธิ์ไม่ได้ (Edge Function ก็ปฏิเสธ) — กันผู้ดูแลสูงสุดคนสุดท้ายล็อกตัวเองออก
+  if (current.id === 'admins' && row && me && row.user_id === me.user_id) {
+    $('deleteBtn').hidden = true;
+    $('f_role').disabled = true;
+  }
+  $('deleteBtn').innerHTML = '<i class="icon-mask" data-ic="trash"></i>' + (current.id === 'admins' ? 'ลบบัญชีนี้' : 'ลบรายการนี้');
+  paintIcons($('deleteBtn'));
   current.fields.forEach(function (f) {
     var id = 'f_' + f.key;
     if (f.upload && $(id)) bindUpload(id + 'Up', $(id), f.upload.bucket, f.upload.maxSide, $(id + 'UpMsg'));
@@ -741,9 +790,11 @@ function collectValues(isNew) {
   var out = {};
   current.fields.forEach(function (f) {
     if (f.createOnly && !isNew) return;
+    if (f.editOnly && isNew) return;
     var node = $('f_' + f.key);
     if (!node) return;
     if (f.type === 'checkbox') { out[f.key] = node.checked; return; }
+    if (f.type === 'password') { out[f.key] = node.value; return; }   // ไม่ตัดช่องว่าง — ช่องล็อกอินก็ไม่ตัด
 
     var v = node.value.trim();
     if (f.type === 'number') { out[f.key] = v === '' ? 0 : Number(v); return; }
@@ -759,6 +810,7 @@ function collectValues(isNew) {
 async function save(event) {
   event.preventDefault();
   if (current.kind === 'sheet') return saveSheetRow();
+  if (current.id === 'admins') return saveAdmin();
   var isNew = !editing;
   var values = collectValues(isNew);
 
@@ -796,6 +848,7 @@ async function save(event) {
 async function remove() {
   if (!editing) return;
   if (current.kind === 'sheet') return deleteSheetRow();
+  if (current.id === 'admins') return removeAdmin();
   if (!confirm('ลบรายการนี้ออกจาก "' + current.title + '" ถาวร?\nการลบย้อนกลับไม่ได้ (ถ้าเคยดาวน์โหลดไฟล์สำรองไว้ กู้คืนจากไฟล์นั้นได้)')) return;
   try {
     var res = await db.from(current.table).delete().eq(current.pk, editing[current.pk]);
@@ -805,6 +858,68 @@ async function remove() {
     await refreshTable();
   } catch (err) {
     setEditorError(friendlyError(err));
+  }
+}
+
+/* =========================================================
+   บัญชีผู้ดูแล — เขียนผ่าน Edge Function admin-users (supabase/functions/admin-users)
+   ฟังก์ชันตรวจเองว่าผู้เรียกเป็นผู้ดูแลสูงสุด การซ่อนเมนูในหน้านี้เป็นแค่ความสะดวก
+   ========================================================= */
+
+/** เรียก admin-users → ข้อมูลที่ตอบกลับ · ไม่สำเร็จ = throw ข้อความภาษาไทย */
+async function callAdminUsers(body) {
+  var res = await db.functions.invoke('admin-users', { body: body });
+  if (res.error) {
+    var msg = (res.error && res.error.message) || String(res.error);
+    throw new Error(/failed to send|not found|404/i.test(msg)
+      ? 'ยังเรียกตัวจัดการบัญชีไม่ได้ — ต้อง deploy Edge Function ก่อน: supabase functions deploy admin-users (' + msg + ')'
+      : msg);
+  }
+  if (!res.data || !res.data.ok) throw new Error((res.data && res.data.error) || 'ไม่ได้รับคำตอบจากตัวจัดการบัญชี');
+  return res.data;
+}
+
+async function saveAdmin() {
+  var isNew = !editing;
+  var v = collectValues(isNew);
+  v.username = v.username.toLowerCase();
+  if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(v.username)) {
+    setEditorError('ชื่อผู้ใช้ต้องยาว 3–32 ตัว ใช้ได้เฉพาะ a-z 0-9 จุด ขีดกลาง ขีดล่าง (ไม่มี @ ไม่มีภาษาไทย)');
+    return;
+  }
+  if (v.password && v.password.length < 8) { setEditorError('รหัสผ่านต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+
+  $('saveBtn').disabled = true;
+  setEditorError('');
+  try {
+    await callAdminUsers(isNew
+      ? Object.assign({ action: 'create' }, v)
+      : Object.assign({ action: 'update', user_id: editing.user_id }, v));
+    $('editor').close();
+    setSaveState(isNew ? 'เพิ่มผู้ดูแลแล้ว' : v.password ? 'บันทึกและเปลี่ยนรหัสผ่านแล้ว' : 'บันทึกแล้ว');
+    if (!isNew && editing.user_id === me.user_id) {
+      me.username = v.username;
+      me.display_name = v.display_name || null;
+      paintUser();
+    }
+    await refreshTable();
+  } catch (err) {
+    setEditorError(err.message);
+  } finally {
+    $('saveBtn').disabled = false;
+  }
+}
+
+async function removeAdmin() {
+  var who = editing.display_name || editing.username;
+  if (!confirm('ลบบัญชี "' + who + '" (' + editing.username + ') ถาวร?\nเจ้าของบัญชีจะเข้าสู่ระบบไม่ได้อีก ต้องเพิ่มบัญชีใหม่ถ้าจะให้กลับมา')) return;
+  try {
+    await callAdminUsers({ action: 'delete', user_id: editing.user_id });
+    $('editor').close();
+    setSaveState('ลบบัญชีแล้ว');
+    await refreshTable();
+  } catch (err) {
+    setEditorError(err.message);
   }
 }
 
@@ -1758,6 +1873,10 @@ function renderSourceView() {
       '<form class="' + CARD + ' flex flex-col gap-4" id="srcSheetForm">' +
         (savedId ? notice('ok', '', 'หน้าเว็บอ่านจากชีตที่ตั้งไว้ในหน้านี้')
           : notice('warn', '', 'ยังไม่เคยตั้ง — ตอนนี้ใช้ชีตตั้งต้นในโค้ด (แสดงอยู่ในช่องด้านล่าง)')) +
+        // วันที่ Supabase ล่ม ตัวกลางอ่านลิงก์นี้ไม่ได้ จะกลับไปใช้ชีตตั้งต้นในโค้ด (sync-sheets.yml ก็เตือนด้วยงาน default-sheet)
+        (savedId && savedId !== DEFAULT_SHEET_ID ? notice('warn', '',
+          'ชีตนี้ไม่ใช่ชีตตั้งต้นในโค้ด — แจ้งผู้ดูแลเว็บให้เปลี่ยน DEFAULT_SHEET_ID (public/js/sheets.js และ api/gviz.js) เป็นชีตนี้ ' +
+          'ไม่งั้นวันที่ฐานข้อมูลล่ม หน้าเว็บจะกลับไปแสดงข้อมูลจากชีตเดิม') : '') +
         '<div><label class="label mb-2 fs-14 text-fg-soft" for="srcSheet">ลิงก์ Google Sheets</label>' +
           '<input class="input h-10" id="srcSheet" type="url" placeholder="https://docs.google.com/spreadsheets/d/…" value="' + esc(sheetUrl) + '" />' +
           '<p class="mt-1.5 mb-0 fs-12.5 text-fg-mute">คัดลอกจากแถบที่อยู่ของเบราว์เซอร์ตอนเปิดชีต · เว้นว่างแล้วบันทึก = กลับไปใช้ชีตตั้งต้น</p></div>' +
@@ -1959,8 +2078,11 @@ async function copyScript() {
    สลับหมวด
    ========================================================= */
 
+/** หมวดที่บัญชีนี้เห็น — ownerOnly = เฉพาะผู้ดูแลสูงสุด */
+function canSee(v) { return !v.ownerOnly || (me && me.role === 'owner'); }
+
 function selectView(id) {
-  var views = VIEWS.filter(function (v) { return v.id; });
+  var views = VIEWS.filter(function (v) { return v.id && canSee(v); });
   current = views.filter(function (v) { return v.id === id; })[0] || views[0];
   clearInterval(statsTimer);
   query = '';
@@ -2016,6 +2138,7 @@ function bindGoLinks(root) {
 function renderNav() {
   $('tabNav').innerHTML = VIEWS.map(function (v) {
     if (v.group) return '<p class="' + NAV_GROUP + '">' + esc(v.group) + '</p>';
+    if (!canSee(v)) return '';
     return '<button class="' + NAV_ITEM + '" type="button" data-view="' + v.id + '">' +
       '<i class="icon-mask size-[18px] opacity-75 group-aria-[current=page]/nav:opacity-100" data-ic="' + v.icon + '"></i>' +
       '<span class="min-w-0 leading-snug">' + esc(v.title) + '</span></button>';
@@ -2083,16 +2206,18 @@ function celebrate(from) {
 
 async function onSignedIn(session, fromLogin) {
   // ตรวจสิทธิ์กับฐานข้อมูลเสมอ ไม่เชื่อแค่ว่า "ล็อกอินผ่าน" — คนที่ไม่ใช่ผู้ดูแลได้ลิสต์ว่างกลับมา
-  var res = await db.from('app_admins').select('user_id,display_name').eq('user_id', session.user.id);
+  var res = await db.from('app_admins').select('user_id,username,display_name,role').eq('user_id', session.user.id);
   if (res.error || !res.data || !res.data.length) {
     await db.auth.signOut();
     show('loginScreen');
     showAuthForm('login');
-    showLoginError('บัญชี ' + session.user.email + ' ยังไม่ได้รับสิทธิ์ผู้ดูแล — แจ้งผู้ดูแลระบบให้เพิ่มบัญชีนี้ในตาราง app_admins');
+    showLoginError(res.error ? 'ตรวจสิทธิ์ไม่สำเร็จ: ' + missingSchemaHint(res.error)
+      : 'บัญชี ' + session.user.email + ' ยังไม่ได้รับสิทธิ์ผู้ดูแล — แจ้งผู้ดูแลสูงสุดให้เพิ่มบัญชีในหน้า "ผู้ดูแลระบบ"');
     return;
   }
 
-  var name = res.data[0].display_name || session.user.email;
+  me = res.data[0];
+  var name = me.display_name || me.username;
 
   // เพิ่งกดเข้าสู่ระบบ (ไม่ใช่เปิดหน้ามาแล้วจำ session ไว้) = ฉลองก่อนเข้าหน้าทำงาน
   if (fromLogin) {
@@ -2108,10 +2233,7 @@ async function onSignedIn(session, fromLogin) {
     await celebrate(btn);
   }
 
-  $('userEmail').textContent = name;
-  $('userSub').textContent = res.data[0].display_name ? session.user.email : 'ผู้ดูแล';
-  // วงกลมรูปประจำตัว = ตัวแรกของชื่อที่แสดง
-  $('userAvatar').textContent = Array.from(name.trim())[0] || '?';
+  paintUser();
   show('app');
   await Promise.all([loadSports(), loadSource()]);
   renderNav();
@@ -2121,7 +2243,34 @@ async function onSignedIn(session, fromLogin) {
   selectView(saved || 'stats');
 }
 
+/** กล่องบัญชีท้ายแถบเมนู: ชื่อที่แสดง · ชื่อผู้ใช้ + ระดับสิทธิ์ · วงกลม = ตัวแรกของชื่อ */
+function paintUser() {
+  var name = me.display_name || me.username;
+  $('userEmail').textContent = name;
+  $('userSub').textContent = me.username + ' · ' + (ROLE_SHORT[me.role] || 'ผู้ดูแล');
+  $('userAvatar').textContent = Array.from(name.trim())[0] || '?';
+}
+
 function showLoginError(text) { var n = $('loginError'); n.textContent = text; n.hidden = !text; }
+
+/**
+ * ช่องล็อกอินรับอีเมลเต็ม (ล็อกอินกับ Supabase Auth ตรง) หรือชื่อผู้ใช้ (ไม่มี @)
+ * ชื่อผู้ใช้ให้ Edge Function admin-users ล็อกอินแทน (action login) แล้วส่ง session กลับมา
+ * — อีเมลของบัญชีไม่เคยมาถึงเบราว์เซอร์ คนนอกที่เดาชื่อผู้ใช้ถูกจึงไม่รู้อีเมลทีมงาน
+ * ชื่อไม่มีในระบบ = ตอบแบบเดียวกับรหัสผิด ไม่บอกว่าผิดช่องไหน
+ */
+async function signIn(input, password) {
+  var v = input.trim();
+  if (v.indexOf('@') > -1) {
+    var direct = await db.auth.signInWithPassword({ email: v, password: password });
+    if (direct.error) throw direct.error;
+    return direct.data.session;
+  }
+  var got = await callAdminUsers({ action: 'login', username: v.toLowerCase(), password: password });
+  var res = await db.auth.setSession(got.session);
+  if (res.error) throw res.error;
+  return res.data.session;
+}
 
 async function onLogin(event) {
   event.preventDefault();
@@ -2129,14 +2278,13 @@ async function onLogin(event) {
   $('loginBtn').disabled = true;
   $('loginBtn').textContent = 'กำลังเข้าสู่ระบบ…';
   try {
-    var res = await db.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
-    if (res.error) throw res.error;
+    var session = await signIn($('username').value, $('password').value);
     $('password').value = '';
-    await onSignedIn(res.data.session, true);
+    await onSignedIn(session, true);
   } catch (err) {
     var msg = (err && err.message) || String(err);
     showLoginError(
-      /invalid login credentials/i.test(msg) ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' :
+      /invalid login credentials/i.test(msg) ? 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' :
       /invalid api key|no api key/i.test(msg) ? 'คีย์ใน admin/config.js ไม่ถูกต้อง — ใช้ publishable key จาก Dashboard → Project Settings → API Keys' :
       /email not confirmed/i.test(msg) ? 'บัญชีนี้ยังไม่ได้ยืนยันอีเมล — ติ๊ก "Auto Confirm User" ตอนสร้างผู้ใช้ หรือยืนยันใน Dashboard' :
       /failed to fetch|network/i.test(msg) ? 'เชื่อมต่อฐานข้อมูลไม่ได้ — ตรวจอินเทอร์เน็ต หรือดูว่าโปรเจกต์ Supabase ถูกพักไว้หรือไม่' :
@@ -2199,13 +2347,19 @@ async function onForgot(event) {
   setForgotMsg('');
   $('forgotBtn').disabled = true;
   try {
-    var res = await db.auth.resetPasswordForEmail($('forgotEmail').value.trim(), {
-      // ลิงก์ในอีเมลพากลับมาหน้านี้ — URL นี้ต้องอยู่ใน Redirect URLs ของ Supabase ด้วย (ดู README)
-      redirectTo: location.origin + location.pathname
-    });
-    if (res.error) throw res.error;
-    // ตอบเหมือนกันทุกกรณี ไม่บอกว่าอีเมลนี้มีบัญชีหรือไม่ — กันคนนอกใช้หน้านี้ไล่เดาอีเมลทีมงาน
-    setForgotMsg('ถ้าอีเมลนี้มีบัญชีอยู่ จะได้รับลิงก์ตั้งรหัสผ่านใหม่ภายในไม่กี่นาที (ดูในกล่องจดหมายขยะด้วย)');
+    var v = $('forgotEmail').value.trim();
+    // ลิงก์ในอีเมลพากลับมาหน้านี้ — URL นี้ต้องอยู่ใน Redirect URLs ของ Supabase ด้วย (ดู README)
+    var back = location.origin + location.pathname;
+    if (v.indexOf('@') > -1) {
+      var res = await db.auth.resetPasswordForEmail(v, { redirectTo: back });
+      if (res.error) throw res.error;
+    } else {
+      // ชื่อผู้ใช้ → ให้ admin-users หาอีเมลแล้วส่งลิงก์เอง (ตอบ ok เสมอ ไม่บอกว่ามีบัญชีหรือผูกอีเมลไว้ไหม)
+      await callAdminUsers({ action: 'forgot', username: v.toLowerCase(), redirect_to: back });
+    }
+    // ตอบเหมือนกันทุกกรณี ไม่บอกว่ามีบัญชีนี้หรือไม่ — กันคนนอกใช้หน้านี้ไล่เดาชื่อผู้ใช้/อีเมลทีมงาน
+    setForgotMsg('ถ้ามีบัญชีนี้และผูกอีเมลไว้ จะได้รับลิงก์ตั้งรหัสผ่านใหม่ภายในไม่กี่นาที (ดูในกล่องจดหมายขยะด้วย) · ' +
+      'บัญชีที่ไม่ได้ผูกอีเมล หรือรอแล้วไม่ได้รับ ให้ผู้ดูแลสูงสุดตั้งรหัสผ่านใหม่ให้ในเมนู "ผู้ดูแลระบบ"');
   } catch (err) {
     var msg = (err && err.message) || String(err);
     setForgotMsg(/rate limit|too many|seconds/i.test(msg)
@@ -2276,7 +2430,7 @@ async function init() {
   $('forgotForm').addEventListener('submit', onForgot);
   $('resetForm').addEventListener('submit', onReset);
   $('forgotLink').addEventListener('click', function () {
-    $('forgotEmail').value = $('email').value;
+    $('forgotEmail').value = $('username').value;
     setForgotMsg('');
     showAuthForm('forgot');
   });

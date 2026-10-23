@@ -17,7 +17,14 @@
 # repo นี้เป็น public — นาทีของ GitHub Actions ไม่จำกัด ไม่มีค่าใช้จ่าย (ถ้าเปลี่ยนเป็น private ต้องลด RUN_FOR_MIN ไม่งั้นโควตาฟรีหมดในวันเดียว)
 # หยุดซิงก์ชั่วคราว: แท็บ Actions → Sync Sheets to CMS → ⋯ → Disable workflow
 #
-# หมายเหตุของ GitHub: ถ้า repo ไม่มีความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง (เปิดคืนที่แท็บ Actions)
+# หมายเหตุของ GitHub: ถ้า repo ไม่มีความเคลื่อนไหว 60 วัน GitHub จะปิด schedule เอง
+#   หลังงานจบไม่มีใคร push → ซิงก์หยุด → Supabase แบบฟรีไม่มีใครเรียก ถูกพักโปรเจกต์ (ราว 7 วัน)
+#   → CMS ตัวนับคนเข้า แบนเนอร์ประกาศ และลิงก์ชีตที่ตั้งใน CMS ใช้ไม่ได้ทั้งหมด
+#   ขั้น "กัน schedule ถูกปิด" จึงสั่งเปิด workflow นี้ซ้ำผ่าน API ทุกรอบ (วิธีเดียวกับ keepalive-workflow ไม่ต้อง commit หลอก)
+#   ถ้าถูกปิดไปแล้วจริง ๆ เปิดคืนได้ที่แท็บ Actions → Sync Sheets to CMS → Enable workflow
+#
+# งาน default-sheet: ลิงก์ชีตใน CMS ต้องตรงกับ DEFAULT_SHEET_ID ในโค้ด ไม่งั้นวันที่ Supabase ล่ม
+#   ตัวกลางกับเบราว์เซอร์ที่ไม่เคยเปิดเว็บจะกลับไปอ่านชีตเก่าในโค้ด — ไม่ตรง = ขึ้นสีแดง (GitHub ส่งอีเมล) ทุกรอบจนกว่าจะแก้
 
 name: Sync Sheets to CMS
 
@@ -25,6 +32,11 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:   # กดรันเองจากแท็บ Actions ได้
+    inputs:
+      allow_shrink:
+        description: 'ยอมให้รายการแข่งลดลงเกินครึ่ง (ตั้งใจลบแถวในชีตจำนวนมาก) — ปกติปล่อยว่าง'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,8 +50,18 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    permissions:
+      contents: read
+      actions: write   # ขั้นกัน schedule ถูกปิด
     steps:
       - uses: actions/checkout@v5
+
+      # ไม่สำเร็จก็ไม่เป็นไร ซิงก์ต่อตามปกติ
+      - name: กัน schedule ถูกปิดเมื่อ repo เงียบ 60 วัน
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/sync-sheets.yml/enable"
 
       # สคริปต์ใช้แค่ fetch ของ Node ไม่ต้อง npm install
       - uses: actions/setup-node@v5
@@ -58,6 +80,7 @@ jobs:
           SYNC_EVERY_MIN: 5
           FAIL_STREAK: 3
           RUN_FOR_MIN: ${{ github.event_name == 'schedule' && 330 || 0 }}
+          ALLOW_SHRINK: ${{ inputs.allow_shrink && '1' || '' }}
         run: |
           end=$(( $(date +%s) + RUN_FOR_MIN * 60 ))
           ok=0 streak=0 worst=0
@@ -78,3 +101,17 @@ jobs:
             echo "::error::ข้อมูลสำรองไม่ได้อัปเดต — สำเร็จ $ok รอบ · พังติดกันสูงสุด $worst รอบ"
             exit 1
           fi
+
+  default-sheet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: ลิงก์ชีตใน CMS ตรงกับ DEFAULT_SHEET_ID
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/import-sheets.mjs --check-default

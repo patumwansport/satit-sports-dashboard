@@ -21,13 +21,18 @@
  * >>> ข้อมูลที่แก้ไว้ในหน้า CMS จะหายถ้ารันซ้ำหลังเริ่มใช้งานจริงแล้ว <<<
  */
 
-import { loadFromSheets, useSheet, currentSheetId, SHEET_KEYS } from '../public/js/sheets.js';
+import { loadFromSheets, useSheet, currentSheetId, sheetIdFromUrl, SHEET_KEYS, DEFAULT_SHEET_ID } from '../public/js/sheets.js';
 // กฎแปลงชีต → แถวตาราง ใช้ร่วมกับปุ่ม "ดึงจาก Google Sheets" ในหน้า admin/
 import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from '../public/admin/sheets-sync.js';
 
 // --dry-run: อ่านชีตและแปลงข้อมูลให้ดูว่าจะได้อะไร แต่ไม่เขียนลงฐานข้อมูล
 // ใช้ตรวจว่าวันที่/คู่แข่งขันถูกแปลงถูกต้องก่อนจะไปแตะของจริง
 const DRY = process.argv.includes('--dry-run');
+// --check-default: แค่ตรวจว่าลิงก์ชีตใน CMS ตรงกับ DEFAULT_SHEET_ID (งาน default-sheet ใน sync-sheets.yml) ไม่อ่าน/เขียนข้อมูล
+const CHECK_DEFAULT = process.argv.includes('--check-default');
+// ALLOW_SHRINK=1: ยอมให้รายการแข่งลดลงเกินครึ่ง (ตั้งใจลบแถวในชีตจำนวนมาก) — ปกติด่านนี้กันชีตพังแล้วล้างข้อมูลสำรองทิ้ง
+const ALLOW_SHRINK = process.env.ALLOW_SHRINK === '1';
+const SHRINK_MIN_BEFORE = 20;   // ฐานข้อมูลมีน้อยกว่านี้ (เพิ่งเริ่มใช้) ไม่ต้องตรวจ
 
 const URL_ = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -65,8 +70,13 @@ async function rest(method, path, body, extraPrefer) {
  * ทุกรอบถัดไปก็พังแบบเดิม ข้อมูลสำรองหายในจังหวะที่อาจต้องใช้ จึงจำชุดเดิมไว้ก่อนล้าง แล้วใส่คืนเมื่อพัง
  * อ่านชุดเดิมได้สูงสุดตาม max rows ของ Supabase (ค่าตั้งต้น 1000 แถว · ของจริงราว 400)
  */
-async function replaceAll(table, insert) {
+async function replaceAll(table, insert, newCount) {
   const before = await rest('GET', table + '?select=*');
+  // ด่านกันชีตพังครึ่ง ๆ (แท็บถูกลบ/ย้ายคอลัมน์จนอ่านแถวไม่ออก) — ไม่ว่างจนด่านใน main() จับได้ แต่หายไปเกินครึ่ง
+  if (newCount != null && before && before.length >= SHRINK_MIN_BEFORE && newCount < before.length / 2 && !ALLOW_SHRINK) {
+    throw new Error(table + ' จะลดจาก ' + before.length + ' เหลือ ' + newCount + ' แถว (หายเกินครึ่ง) — ยกเลิกไว้ก่อน ' +
+      'ตรวจชีต ถ้าตั้งใจลบจริงให้กดรัน workflow เองแล้วติ๊ก allow_shrink (หรือรันด้วย ALLOW_SHRINK=1)');
+  }
   await rest('DELETE', table + '?id=neq.00000000-0000-0000-0000-000000000000');
   try {
     await insert();
@@ -96,7 +106,22 @@ async function useConfiguredSheet() {
   console.log('  ชีต: ' + currentSheetId());
 }
 
+/** ลิงก์ใน CMS ≠ DEFAULT_SHEET_ID → throw (workflow ขึ้นสีแดง) · ไม่ได้ตั้งลิงก์ = ผ่าน (ใช้ชีตตั้งต้นอยู่แล้ว) */
+async function checkDefaultSheet() {
+  if (!URL_ || !KEY) throw new Error('ต้องตั้ง SUPABASE_URL และ SUPABASE_SERVICE_KEY');
+  const res = await fetch(BASE + 'site_settings?select=value&key=eq.' + SHEET_KEYS.url, { headers: HEADERS });
+  if (!res.ok) throw new Error('อ่าน site_settings ไม่ได้ (Supabase ' + res.status + ')');
+  const rows = await res.json();
+  const id = sheetIdFromUrl(rows[0] && rows[0].value);
+  if (id && id !== DEFAULT_SHEET_ID) {
+    throw new Error('ลิงก์ชีตใน CMS (' + id + ') ไม่ตรงกับ DEFAULT_SHEET_ID ในโค้ด (' + DEFAULT_SHEET_ID + ')\n' +
+      'วันที่ Supabase ล่ม ตัวกลางจะกลับไปอ่านชีตในโค้ด — แก้ DEFAULT_SHEET_ID ใน public/js/sheets.js และ api/gviz.js ให้เป็น id ใหม่ แล้ว push');
+  }
+  console.log('✓ ลิงก์ชีตใน CMS ตรงกับ DEFAULT_SHEET_ID (' + DEFAULT_SHEET_ID + ')');
+}
+
 async function main() {
+  if (CHECK_DEFAULT) return checkDefaultSheet();
   await useConfiguredSheet();
   console.log('กำลังอ่าน Google Sheets…');
   const data = await loadFromSheets();
@@ -131,7 +156,7 @@ async function main() {
   // neq.<uuid ที่เป็นไปไม่ได้> = "ทุกแถว" — PostgREST ปฏิเสธ DELETE ที่ไม่มีเงื่อนไข
   // เพื่อกันการลบทั้งตารางโดยไม่ตั้งใจ จึงต้องเขียนเงื่อนไขที่จริงเสมอมาหลอกมัน
   const matches = rows.matches;
-  await replaceAll('matches', function () { return matches.length ? rest('POST', 'matches', matches) : null; });
+  await replaceAll('matches', function () { return matches.length ? rest('POST', 'matches', matches) : null; }, matches.length);
   console.log('✓ รายการแข่งขัน ' + matches.length + ' แถว');
 
   // ---- ภาพ ----
@@ -160,6 +185,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('\nย้ายข้อมูลไม่สำเร็จ:', err.message);
+  console.error(CHECK_DEFAULT ? '\n' : '\nย้ายข้อมูลไม่สำเร็จ:', err.message);
   process.exit(1);
 });

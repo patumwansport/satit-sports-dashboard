@@ -86,7 +86,9 @@ git push origin main
    นับโควตาทุกคำขอแม้ตอบจากแคช — รายการแท็บต้องตรงกันสองที่: `BUNDLE` ใน `api/gviz.js` กับ `BUNDLE_QUERIES` ใน `sheets.js`
    ดูยอดใช้ได้ที่ Vercel → โปรเจกต์ → Usage (ดูหลังจบวันแรกของงาน)
    ตัวกลางล่มหรือยังไม่ได้ deploy หน้าเว็บถอยไปยิง Google ตรงเอง (ดู `GVIZ_PROXY` ใน `public/js/sheets.js`)
-   **แก้ `api/gviz.js` แล้วต้อง deploy Vercel แยก** (`vercel --prod`) — push ขึ้น main อัปเดตแค่ GitHub Pages
+   Google ล่ม/จำกัดอัตราชั่วครู่ ตัวกลางตอบชุดล่าสุดที่ดึงสำเร็จ (ไม่เกิน 30 นาที) แทน ผู้ชมทุกคนจะได้ไม่แห่ไปยิง Google ตรงพร้อมกัน
+   push ขึ้น main = deploy ทั้ง GitHub Pages และ Vercel (งาน `vercel` ใน `pages.yml` — ต้องตั้ง secret `VERCEL_TOKEN` ก่อน
+   ดู "ขั้นตอน deploy" · ยังไม่ตั้ง = ต้อง `vercel --prod` เองเหมือนเดิม)
    ถ้าโหลดไม่ได้ทั้งสองทางและเครื่องนั้นไม่เคยมีข้อมูลเก่า หน้าเว็บขึ้นกล่อง "ลองอีกครั้ง"
    (ไม่ถอยไป `data/mock.json` บนเว็บจริง — กันคนเห็นผลปลอม · mock ใช้เฉพาะบน localhost)
    แต่ละเบราว์เซอร์ดึง **ครั้งเดียวตอนเปิดหน้า** รอบละ 2 คำขอ (ชุดรวม + แท็บภาพ)
@@ -104,12 +106,15 @@ git push origin main
 
 ### ขั้นตอน deploy (ทุกครั้งที่แก้โค้ด)
 
-1. `npm run build` (รวม `npm run stamp` แล้ว)
-2. **`vercel --prod` ก่อน** — ตัวกลาง `api/` รุ่นใหม่ต้องขึ้นก่อนหน้าเว็บที่เรียกใช้มัน
-   (สลับลำดับเว็บไม่พัง แต่ช่วงนั้นหน้าเว็บขอข้อมูลทีละแท็บแบบเดิม เปลืองโควตา)
-3. `git add -A` แล้ว commit + push ขึ้น `main` (บัญชี `patumwansport`) → GitHub Pages build เอง
+1. `npm run build` (รวม `npm run check` และ `npm run stamp` แล้ว) — `check` ล้ม = มีค่าที่ต้องตรงกันข้ามไฟล์ไม่ตรง แก้ตามข้อความก่อน
+2. `git add -A` แล้ว commit + push ขึ้น `main` (บัญชี `patumwansport`) → Actions build แล้ว deploy ทั้ง GitHub Pages และ Vercel
    **ใช้ `git add -A` ไม่ใช่ `git commit -a`** — แบบหลังไม่รวมไฟล์ใหม่ หน้าเว็บที่ import ไฟล์ที่ไม่ได้ขึ้นไปจะพังทั้งหน้า
-4. เปิดทั้งสองเว็บดูว่าข้อมูลขึ้น (GitHub Pages อาจใช้เวลา 1–2 นาที)
+3. เปิดทั้งสองเว็บดูว่าข้อมูลขึ้น (อาจใช้เวลา 1–2 นาที) · ดูผล deploy ที่แท็บ Actions → Deploy to GitHub Pages
+4. แก้ Edge Function (`supabase/functions/`) = `supabase functions deploy <ชื่อ>` เอง · แก้ migration = `npm run db:push` เอง (Actions ไม่ทำให้)
+
+**ตั้ง deploy Vercel อัตโนมัติ (ครั้งเดียว)**: vercel.com → Account Settings → Tokens → Create (scope ทีม Yana's projects)
+→ GitHub repo → Settings → Secrets and variables → Actions → New secret ชื่อ `VERCEL_TOKEN`
+ยังไม่ตั้ง = งาน vercel ข้ามไปเอง ต้องสั่ง `vercel --prod` จากเครื่องเองทุกครั้งที่แก้ `api/` หรือ `public/`
 
 ### ก่อนวันงาน
 
@@ -122,15 +127,18 @@ git push origin main
 
 ### ค่าที่ต้องแก้หลายที่พร้อมกัน
 
-แก้ไม่ครบไม่มี error ให้เห็น — เว็บจะใช้ค่าผิดหรือข้ามแคชไปเงียบ ๆ
+แก้ไม่ครบไม่มี error ให้เห็นบนเว็บ — เว็บจะใช้ค่าผิดหรือข้ามแคชไปเงียบ ๆ
+`npm run check` (`scripts/check-consistency.mjs`, อยู่ใน `npm run build`) ตรวจแถวที่มี ✓ ให้ทุกครั้งที่ build — ไม่ตรง = build ล้ม ไม่ deploy
 
 | ค่า | แก้ที่ |
 |---|---|
-| id ชีตตั้งต้น | `DEFAULT_SHEET_ID` ใน `public/js/sheets.js` + `api/gviz.js` (ควรตรงกับลิงก์ชีตที่ตั้งใน CMS ด้วย — วันที่ Supabase ล่ม ตัวกลางถอยไปใช้ค่านี้) |
-| gid ของแท็บ | ค่าคงที่หัว `sheets.js` + `ALLOWED` และ `BUNDLE` ใน `api/gviz.js` + `BUNDLE_QUERIES` ใน `sheets.js` |
-| Google API key | `public/js/gallery-config.js` + `api/drive.js` (หรือ env `GOOGLE_API_KEY` บน Vercel) |
-| Supabase URL / publishable key | `public/admin/config.js` + `api/gviz.js` + `public/admin/apps-script.gs` |
-| ชื่องาน | `meta.title` ใน `sheets.js` + `supabase-data.js` + ข้อความคงที่ในหน้า HTML ทุกหน้า และ `common.js` (ค้นคำว่า "ครั้งที่ 49") |
+| id ชีตตั้งต้น ✓ | `DEFAULT_SHEET_ID` ใน `public/js/sheets.js` + `api/gviz.js` — ต้องตรงกับลิงก์ชีตที่ตั้งใน CMS ด้วย (วันที่ Supabase ล่ม ตัวกลางถอยไปใช้ค่านี้) งาน `default-sheet` ใน `sync-sheets.yml` ขึ้นสีแดงทุกรอบถ้าไม่ตรง และหน้า CMS ขึ้นคำเตือน |
+| gid ของแท็บ ✓ | ค่าคงที่หัว `sheets.js` (`SHEET_TABS`) + `ALLOWED` และ `BUNDLE` ใน `api/gviz.js` + `BUNDLE_QUERIES` ใน `sheets.js` |
+| Google API key (ของเบราว์เซอร์) ✓ | `public/js/gallery-config.js` + `BROWSER_KEY` ใน `api/drive.js` · คีย์ฝั่งเซิร์ฟเวอร์อยู่ใน env `GOOGLE_API_KEY` บน Vercel (ดูหัวข้อประมวลภาพ) |
+| โฟลเดอร์ Drive ตั้งต้น ✓ | `DRIVE_FOLDER` / `DAY_FILES_FOLDER` ใน `gallery-config.js` + `ALLOWED_ROOTS` ใน `api/drive.js` (โฟลเดอร์ที่ตั้งใน CMS ตัวกลางอ่านเอง ไม่ต้องแก้) |
+| Supabase URL / publishable key | `public/admin/config.js` + `api/_settings.js` + `public/admin/apps-script.gs` |
+| ชื่องาน | `meta.title` ใน `sheets.js` + `supabase-data.js` ✓ + ข้อความคงที่ในหน้า HTML ทุกหน้า และ `common.js` (ค้นคำว่า "ครั้งที่ 49") |
+| ระดับสิทธิ์ผู้ดูแล / `NO_EMAIL_DOMAIN` ✓ | `admin.js` + `supabase/functions/admin-users` (+ check ใน migration ถ้าเพิ่มระดับ) |
 | โดเมน Vercel | `public/js/proxy.js` + `REFERER` ใน `api/drive.js` + ข้อจำกัดโดเมนของ API key ใน Google Cloud |
 
 ### เปลี่ยนชีต / เปลี่ยนโฟลเดอร์รูป
@@ -158,9 +166,10 @@ git push origin main
 
 - หน้าผลการแข่งขันเปิดดูได้ต่อตามปกติ ไม่ต้องทำอะไร
 - งานซิงก์ (Actions → Sync Sheets to CMS) วนทุก 5 นาทีไปเรื่อย ๆ — ไม่ใช้แล้วกด Disable workflow ได้
-- GitHub ปิดงานซิงก์เองถ้า repo ไม่มี commit 60 วัน → อีก 7 วัน Supabase แผนฟรีพักโปรเจกต์
-  → CMS, ยอดผู้เข้าชม, แบนเนอร์ใช้ไม่ได้ (หน้าผลยังใช้ได้) · กู้คืน: Supabase Dashboard → Restore project
-  และ GitHub → Actions → Enable workflow
+- GitHub ปิด schedule เองถ้า repo ไม่มีความเคลื่อนไหว 60 วัน — งานซิงก์สั่งเปิดตัวเองซ้ำผ่าน API ทุกรอบเพื่อกันไว้แล้ว
+  แต่ถ้ายังถูกปิด: ซิงก์หยุด → อีก ~7 วัน Supabase แผนฟรีพักโปรเจกต์ → CMS, ยอดผู้เข้าชม, แบนเนอร์ใช้ไม่ได้
+  (หน้าผลยังใช้ได้ ตัวกลางถอยไปใช้ `DEFAULT_SHEET_ID`) · กู้คืน: GitHub → Actions → Sync Sheets to CMS → Enable workflow
+  และ Supabase Dashboard → Restore project · ตรวจได้จาก "ซิงก์ล่าสุด" ในหน้า CMS
 - ชื่อโฟลเดอร์วันที่ไม่มีปี (DayByDay ตอนนี้เป็น `23Oct`, `24Oct`) พอขึ้นปีใหม่จะอ่านเป็นปีหน้า — เก็บไว้ใช้ต่อให้เติมปี
 
 ### งานครั้งถัดไป (ครั้งที่ 50)
@@ -215,20 +224,39 @@ SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_KEY=<service_role key> np
 
 ### เพิ่มผู้ดูแล
 
-สมัครผู้ใช้ไม่ได้จากหน้าเว็บโดยตั้งใจ — ต้องเพิ่มให้ทีละคน สองขั้นตอน
+สมัครผู้ใช้เองจากหน้าเว็บไม่ได้โดยตั้งใจ — ผู้ดูแลเข้าสู่ระบบด้วย **ชื่อผู้ใช้** (ไม่ต้องพิมพ์ `@…` แต่พิมพ์อีเมลเต็มก็ได้)
+และมีสองระดับสิทธิ์
 
-1. Dashboard → **Authentication → Users → Add user** ใส่อีเมลกับรหัสผ่าน
-2. Dashboard → **SQL Editor** รันคำสั่งนี้เพื่อให้สิทธิ์แก้ข้อมูล
+| ระดับ (`role`) | ทำอะไรได้ |
+|---|---|
+| ผู้ดูแลสูงสุด (`owner`) | ทุกอย่าง + เมนู **ผู้ดูแลระบบ**: เพิ่ม/ลบบัญชี เปลี่ยนระดับสิทธิ์ ตั้งรหัสผ่านใหม่ให้คนอื่น |
+| ผู้ดูแล (`admin`) | แก้ข้อมูลทุกหมวด แต่ไม่เห็นเมนูผู้ดูแลระบบ |
+
+**วิธีปกติ** — ผู้ดูแลสูงสุดเปิด CMS → ผู้ดูแลระบบ → เพิ่มรายการ กรอกชื่อผู้ใช้ ชื่อที่แสดง ระดับสิทธิ์ และรหัสผ่าน
+- อีเมลไม่บังคับ: ไม่ใส่ = บัญชีได้อีเมลแทน `<ชื่อผู้ใช้>@users.pds.invalid` กด "ลืมรหัสผ่าน" เองไม่ได้ ต้องให้ผู้ดูแลสูงสุดตั้งรหัสใหม่ให้
+- ผู้ดูแลสูงสุดลดสิทธิ์หรือลบบัญชีตัวเองไม่ได้ (กันไม่ให้เหลือผู้ดูแลสูงสุดเป็นศูนย์)
+- หน้านี้เขียนผ่าน Edge Function `supabase/functions/admin-users` (สร้างผู้ใช้ใน Auth ต้องใช้ service role ซึ่งห้ามอยู่ในเบราว์เซอร์)
+  แก้ไฟล์นั้นแล้ว deploy ด้วย `supabase functions deploy admin-users`
+
+**วิธีสำรอง (SQL)** — ใช้ตอนยังไม่มีผู้ดูแลสูงสุดเลย
+1. Dashboard → **Authentication → Users → Add user** ใส่อีเมลกับรหัสผ่าน (ติ๊ก Auto Confirm User)
+2. Dashboard → **SQL Editor**
 
 ```sql
-insert into public.app_admins (user_id, email, display_name)
-select id, email, 'ชื่อที่จะให้แสดง' from auth.users where email = 'someone@example.com';
+insert into public.app_admins (user_id, email, username, display_name, role)
+select id, email, 'ชื่อผู้ใช้', 'ชื่อที่จะให้แสดง', 'owner' from auth.users where email = 'someone@example.com';
 ```
+
+ชื่อผู้ใช้: a-z 0-9 `.` `-` `_` ยาว 3–32 ตัว ห้ามซ้ำ · บัญชีที่มีก่อนระบบนี้ได้ชื่อผู้ใช้ = ส่วนหน้า @ ของอีเมล และเป็นผู้ดูแลสูงสุดทั้งหมด
 
 ล็อกอินได้แต่ยังไม่ได้อยู่ใน `app_admins` = เข้าหน้า CMS ไม่ได้ และต่อให้เรียก API เอง
 ฐานข้อมูลก็ปฏิเสธ เพราะ RLS ตรวจที่ตารางนี้ทุกครั้ง
 
-**ถอนสิทธิ์** ลบแถวออกจาก `app_admins` (บัญชียังอยู่แต่แก้อะไรไม่ได้แล้ว)
+**ล็อกอินด้วยชื่อผู้ใช้ทำฝั่งเซิร์ฟเวอร์** — หน้าเข้าสู่ระบบส่งชื่อผู้ใช้+รหัสให้ Edge Function `admin-users` (action `login`)
+ฟังก์ชันหาอีเมลและล็อกอินแทน แล้วส่งกลับแค่ session · "ลืมรหัสผ่าน" ด้วยชื่อผู้ใช้ก็ทำในฟังก์ชัน (action `forgot`) และตอบเหมือนกันทุกกรณี
+อีเมลจึงไม่เคยออกไปถึงเบราว์เซอร์ คนนอกที่เดาชื่อผู้ใช้ถูกไม่รู้อีเมลทีมงาน (เดิมใช้ RPC `login_email()` ซึ่งตอบอีเมลให้ทุกคน — ลบแล้วใน migration `20261023000002`)
+ข้อแลกเปลี่ยน: Supabase Auth จำกัดความถี่ตาม IP ซึ่งตอนนี้คือ IP ของฟังก์ชัน (ใช้โควตาร่วมกันทุกคน) — ถ้ามีคนไล่เดารหัส
+การล็อกอินด้วยชื่อผู้ใช้จะติด "ลองถี่เกินไป" ชั่วคราว ระหว่างนั้น **พิมพ์อีเมลเต็มแทนชื่อผู้ใช้** ยังเข้าได้ตามปกติ
 
 ### ความปลอดภัย
 
@@ -405,7 +433,13 @@ API key อยู่ในไฟล์นั้นเท่านั้น (ไ�
 ข้อจำกัดของ Drive API แบบไม่ล็อกอิน: ถามทีละโฟลเดอร์ได้เท่านั้น — โควตาฟรี 12,000 คำขอ/นาที
 ทุกคำขอจึงผ่านตัวกลางแคช `api/drive.js` บน Vercel (CDN เก็บรายชื่อไฟล์ของแต่ละโฟลเดอร์ไว้ 60 วินาที)
 ผู้ชมกี่คนก็ใช้โควตาเท่าเดิม · รูปที่อัปโหลดใหม่ขึ้นเว็บช้าสุดราว 1 นาที · ตัวกลางใช้ไม่ได้ = ถาม Drive ตรง (รับได้ ~300 คน/นาที)
-ตัวกลางใช้คีย์ตัวเดียวกับ `gallery-config.js` (แก้คีย์ = แก้ทั้งสองไฟล์ แล้ว `vercel --prod`)
+ตัวกลางตอบเฉพาะโฟลเดอร์ของเรา (`ALLOWED_ROOTS` + โฟลเดอร์ที่ตั้งใน CMS และโฟลเดอร์ย่อย) อย่างอื่นได้ 403 — คนนอกเอาไปไล่อ่าน Drive อื่นด้วยโควตาเราไม่ได้
+
+**คีย์ฝั่งเซิร์ฟเวอร์ (แนะนำ)**: คีย์ใน `gallery-config.js` อยู่ในเบราว์เซอร์ ใครก็คัดลอกได้ และข้อจำกัดโดเมนกันได้แค่เบราว์เซอร์
+(โปรแกรมปลอมหัว Referer ได้) ถ้ามีคนเอาไปใช้จนโควตาหมด ตัวกลางที่ใช้คีย์เดียวกันก็พังตาม — ให้ตัวกลางใช้คีย์ของตัวเอง:
+Google Cloud → **สร้างโปรเจกต์ใหม่** (โควตานับแยกโปรเจกต์) → เปิด Google Drive API → สร้าง API key
+→ API restrictions = Google Drive API (ไม่ต้องตั้ง Website restrictions) → Vercel → โปรเจกต์ → Settings → Environment Variables
+→ `GOOGLE_API_KEY` = คีย์ใหม่ (Production) → redeploy · คีย์นี้ห้ามใส่ในไฟล์ใด ๆ ใน repo
 
 ต้องมี Google API key: Google Cloud Console → สร้างโปรเจกต์ → APIs & Services → Library → เปิด
 **Google Drive API** → Credentials → Create credentials → API key → แก้คีย์: API restrictions = Google Drive API,

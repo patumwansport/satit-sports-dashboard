@@ -18,13 +18,24 @@
  * ตัวแปลงโครงโฟลเดอร์ยังอยู่ที่ public/js/drive-photos.js ที่เดียว — ที่นี่แค่ถามแทนและแคช
  * ตัวกลางล่ม/ยังไม่ได้ deploy = drive-photos.js ถาม Drive ตรงแบบเดิม
  *
- * คีย์: ตัวเดียวกับ public/js/gallery-config.js (เปิดเผยอยู่แล้ว · จำกัดเฉพาะ Drive API + โดเมนเรา)
- * คีย์จำกัดตาม referer — ฟังก์ชันไม่มี referer ของตัวเอง จึงแนบโดเมน Vercel ของเราไป (อยู่ใน Website restrictions)
- * เปลี่ยนคีย์ = แก้ทั้งสองไฟล์ หรือตั้ง env GOOGLE_API_KEY ใน Vercel
+ * ตอบเฉพาะโฟลเดอร์ของเรา (ALLOWED_ROOTS + โฟลเดอร์ภาพที่ตั้งใน CMS และโฟลเดอร์ย่อยทุกชั้นของมัน) อย่างอื่นได้ 403
+ *   ไม่งั้นใครก็ใช้ตัวกลางนี้ไล่อ่านโฟลเดอร์ Drive สาธารณะอื่นได้ โดยกินโควตา Drive ของคีย์เรา
+ *   403 = drive-photos.js ถาม Drive ตรงเอง (เช่นปุ่มตรวจลิงก์โฟลเดอร์ใหม่ในหน้า CMS ที่ยังไม่ได้บันทึก)
+ *
+ * คีย์: ใช้ env GOOGLE_API_KEY ของ Vercel ถ้าตั้งไว้ (ควรตั้ง — ดู README หัวข้อคีย์ Google Drive)
+ *   คีย์ฝั่งเซิร์ฟเวอร์ตัวนี้ไม่อยู่ในโค้ดที่ใครก็เปิดดูได้ จำกัดได้แค่ API restrictions = Google Drive API
+ *   ถ้าอยู่คนละโปรเจกต์ Google Cloud กับคีย์ของเบราว์เซอร์ โควตาจะแยกกัน คนที่เอาคีย์ในเบราว์เซอร์ไปใช้ก็ทำให้ตัวกลางนี้ช้าไม่ได้
+ * ไม่ได้ตั้ง = ใช้คีย์ตัวเดียวกับ public/js/gallery-config.js (BROWSER_KEY — เปิดเผยอยู่แล้ว จำกัด Drive API + โดเมนเรา)
+ *   คีย์นั้นจำกัดตาม referer — ฟังก์ชันไม่มี referer ของตัวเอง จึงแนบโดเมน Vercel ของเราไป (อยู่ใน Website restrictions)
+ * check-consistency.mjs ตรวจว่า BROWSER_KEY และ ALLOWED_ROOTS ตรงกับ gallery-config.js ทุกครั้งที่ build
  */
 
+const crypto = require('crypto');
+const { readSetting } = require('./_settings');
+
 const API = 'https://www.googleapis.com/drive/v3/files';
-const API_KEY = process.env.GOOGLE_API_KEY || 'AIzaSyC0PsQnP8AasWwvVA668cD7roOuWDHTGuA';
+const BROWSER_KEY = 'AIzaSyC0PsQnP8AasWwvVA668cD7roOuWDHTGuA';
+const API_KEY = process.env.GOOGLE_API_KEY || BROWSER_KEY;
 const REFERER = 'https://satit-sports-dashboard-one.vercel.app/';
 const FOLDER = 'application/vnd.google-apps.folder';
 const TIMEOUT_MS = 10000;
@@ -46,7 +57,52 @@ const TREE_CDN_CACHE = 'max-age=60, stale-while-revalidate=60';
    และฟังก์ชันอยู่ภูมิภาคเดียว ผู้ชมทุกประเทศ/ทุก edge ที่แคช CDN ยังเย็นจึงได้คำตอบทันทีแทนการไล่ Drive ใหม่
    เก่ากว่า TREE_FRESH_MS จะเริ่มโหลดใหม่และรอผล · ใช้ pending ร่วมกันไม่ให้คำขอพร้อมกันไล่ Drive ซ้ำ */
 const TREE_FRESH_MS = 5 * 60 * 1000;
-const treeMemo = new Map();   // root id → { at, body, pending }
+const treeMemo = new Map();   // root id → { at, body, pending, ids }
+
+/* โฟลเดอร์แม่ที่ตอบให้ — ตรงกับ DRIVE_FOLDER และ DAY_FILES_FOLDER ใน public/js/gallery-config.js
+   บวกโฟลเดอร์ภาพที่ผู้ดูแลตั้งใน CMS (site_settings key gallery_drive_folder) จำไว้ 1 นาทีเหมือน api/gviz.js */
+const ALLOWED_ROOTS = ['16HYOVkIChgupBn3Z-LMXj5P1gkOmOugW', '1NA19U4btn25-GEucSH2jyXomKYw2VdGV'];
+const ROOTS_MEMO_MS = 60 * 1000;
+let rootsMemo = { ids: ALLOWED_ROOTS, at: 0 };
+
+function folderIdFromUrl(url) {
+  const s = String(url || '').trim();
+  const m = /\/folders\/([\w-]{10,})/.exec(s) || /[?&]id=([\w-]{10,})/.exec(s);
+  return m ? m[1] : /^[\w-]{10,100}$/.test(s) ? s : '';
+}
+
+async function allowedRoots() {
+  if (Date.now() - rootsMemo.at < ROOTS_MEMO_MS) return rootsMemo.ids;
+  try {
+    const cms = folderIdFromUrl(await readSetting('gallery_drive_folder'));
+    rootsMemo = { ids: cms && ALLOWED_ROOTS.indexOf(cms) < 0 ? ALLOWED_ROOTS.concat(cms) : ALLOWED_ROOTS, at: Date.now() };
+  } catch (err) {
+    // อ่าน CMS ไม่ได้ = ใช้ชุดที่จำไว้ล่าสุด ลองใหม่ใน 10 วินาที
+    rootsMemo = { ids: rootsMemo.ids, at: Date.now() - ROOTS_MEMO_MS + 10 * 1000 };
+  }
+  return rootsMemo.ids;
+}
+
+/** โฟลเดอร์นี้เป็นของเราไหม: เป็นโฟลเดอร์แม่ หรืออยู่ในต้นไม้ของโฟลเดอร์แม่ (ใช้ต้นไม้ชุดเดียวกับ ?tree= ที่จำไว้) */
+async function isOurFolder(id) {
+  const roots = await allowedRoots();
+  if (roots.indexOf(id) > -1) return true;
+  for (const root of roots) {
+    const body = await treeBody(root).catch(function () { return null; });
+    if (body && folderIds(root, body).has(id)) return true;
+  }
+  return false;
+}
+
+/** รหัสโฟลเดอร์ทุกชั้นในต้นไม้ (สร้างครั้งเดียวต่อชุด) */
+function folderIds(root, body) {
+  const entry = treeMemo.get(root);
+  if (entry && entry.body === body && entry.ids) return entry.ids;
+  const ids = new Set();
+  (function walk(node) { ids.add(node.id); node.folders.forEach(walk); })(body.root);
+  if (entry && entry.body === body) entry.ids = ids;
+  return ids;
+}
 
 class DriveError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -128,6 +184,22 @@ async function treeBody(rootId) {
   return refresh();
 }
 
+/** ส่ง JSON พร้อม ETag · เบราว์เซอร์ที่มีชุดเดิมอยู่แล้ว (ส่ง If-None-Match ตรงกัน) ได้ 304 ไม่ต้องโหลดทั้งคลัง ~200 KB ซ้ำ */
+function sendJson(req, res, body, cdnCache) {
+  const text = JSON.stringify(body);
+  const etag = '"' + crypto.createHash('sha1').update(text).digest('base64url') + '"';
+  res.setHeader('ETag', etag);
+  res.setHeader('Cache-Control', BROWSER_CACHE);
+  res.setHeader('Vercel-CDN-Cache-Control', cdnCache);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  if ((req.headers || {})['if-none-match'] === etag) return res.status(304).end();
+  return res.status(200).send(text);
+}
+
+function notOurs(res) {
+  return res.status(403).json({ error: { message: 'ตัวกลางตอบเฉพาะโฟลเดอร์ภาพ/DayByDay ของเว็บนี้ (ALLOWED_ROOTS ใน api/drive.js หรือโฟลเดอร์ที่ตั้งใน CMS)' } });
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
@@ -135,11 +207,9 @@ module.exports = async function handler(req, res) {
   const query = req.query || {};
   if (typeof query.tree === 'string') {
     if (!/^[\w-]{10,100}$/.test(query.tree)) return res.status(400).json({ error: { message: 'tree ต้องเป็นรหัสโฟลเดอร์ Google Drive' } });
+    if ((await allowedRoots()).indexOf(query.tree) < 0) return notOurs(res);
     try {
-      const body = await treeBody(query.tree);
-      res.setHeader('Cache-Control', BROWSER_CACHE);
-      res.setHeader('Vercel-CDN-Cache-Control', TREE_CDN_CACHE);
-      return res.status(200).json(body);
+      return sendJson(req, res, await treeBody(query.tree), TREE_CDN_CACHE);
     } catch (err) {
       if (err instanceof DriveError) return res.status(err.status).json({ error: { message: err.message } });
       return res.status(502).json({ error: { message: err.name === 'TimeoutError' ? 'Drive ไม่ตอบภายใน ' + TIMEOUT_MS / 1000 + ' วินาที' : String(err.message || err) } });
@@ -149,6 +219,7 @@ module.exports = async function handler(req, res) {
   if (!/^[\w-]{10,100}$/.test(parent)) {
     return res.status(400).json({ error: { message: 'ต้องระบุ parent เป็นรหัสโฟลเดอร์ Google Drive' } });
   }
+  if (!(await isOurFolder(parent))) return notOurs(res);
   const inParent = "'" + parent + "' in parents and trashed = false";
 
   let body;
@@ -168,7 +239,7 @@ module.exports = async function handler(req, res) {
     return res.status(502).json({ error: { message: err.name === 'TimeoutError' ? 'Drive ไม่ตอบภายใน ' + TIMEOUT_MS / 1000 + ' วินาที' : String(err.message || err) } });
   }
 
-  res.setHeader('Cache-Control', BROWSER_CACHE);
-  res.setHeader('Vercel-CDN-Cache-Control', CDN_CACHE);
-  return res.status(200).json(body);
+  return sendJson(req, res, body, CDN_CACHE);
 };
+
+module.exports.internals = { BROWSER_KEY: BROWSER_KEY, ALLOWED_ROOTS: ALLOWED_ROOTS };
