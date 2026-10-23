@@ -1380,12 +1380,12 @@ async function runGalleryCheck() {
       r.folders.map(function (f) {
         var tag = f.hidden ? '<span class="badge badge-upcoming">ซ่อน</span>'
           : f.days ? '<span class="badge badge-done">' + f.days + ' วัน</span>'
-          : '<span class="badge badge-secondary">แท็บของตัวเอง</span>';
+          : '<span class="badge badge-secondary">ภาพอื่น ๆ</span>';
         return '<li class="flex items-center gap-3 px-3.5 py-2 text-[14.5px]' + (f.hidden ? ' text-fg-mute line-through' : '') + '">' +
           '<span class="min-w-0 flex-1 truncate">' + esc(f.name) + '</span>' + tag + '</li>';
       }).join('') +
     '</ul>' +
-    '<p class="mt-2 mb-0 text-[13px] text-fg-mute">"N วัน" = มีโฟลเดอร์วันข้างใน (รวมเข้าแท็บวัน) · "แท็บของตัวเอง" = ไม่มีโฟลเดอร์วัน (เช่น พิธีเปิด) เป็นแท็บชื่อโฟลเดอร์</p>';
+    '<p class="mt-2 mb-0 text-[13px] text-fg-mute">"N วัน" = มีโฟลเดอร์วันข้างใน (รวมเข้าแท็บวัน) · "ภาพอื่น ๆ" = ไม่มีโฟลเดอร์วัน (เช่น พิธีเปิด) รูปไปอยู่แท็บภาพอื่น ๆ · แท็บแบ่งตามวัน ข้างในแยกตามโฟลเดอร์กีฬา</p>';
   return r;
 }
 

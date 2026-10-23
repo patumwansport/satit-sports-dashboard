@@ -7,8 +7,11 @@
        │     ├── 21 ธันวาคม 2568        ← โฟลเดอร์วัน (ชื่อเขียนได้หลายแบบ ดู parseThaiDate)
        │     │     └── รูป…  (หรือแบ่งโฟลเดอร์ย่อยอีกชั้น เช่น 01, 02 / ม.ต้น, ม.ปลาย — นับรวมเป็นวันนั้น)
        │     └── 22 ธันวาคม 2568
-       ├── ลีลาศ                        ← ไม่มีโฟลเดอร์วัน วางรูปไว้ตรง ๆ = เป็นแท็บชื่อ "ลีลาศ"
+       ├── 24 ตุลาคม 2569                ← โฟลเดอร์วันวางที่ชั้นบนสุดเลยก็ได้ (ไม่ต้องมีโฟลเดอร์กีฬา)
+       ├── ลีลาศ                        ← ไม่มีโฟลเดอร์วัน วางรูปไว้ตรง ๆ = ไปอยู่แท็บ "ภาพอื่น ๆ"
        └── พิธีเปิดการแข่งขัน            ← เหมือนกัน
+   แท็บแบ่งตามวันอย่างเดียว (ผู้ดูแลขอ ต.ค. 2569) ข้างในแท็บแยกตามโฟลเดอร์กีฬา
+   โฟลเดอร์กีฬา/โฟลเดอร์วันที่ยังไม่มีรูปไม่ขึ้นเป็นแท็บ (สร้างโฟลเดอร์วันรอไว้ล่วงหน้าได้ ไม่แย่งที่วันล่าสุดที่มีรูป)
    ชื่อโฟลเดอร์ขึ้นต้นด้วย _ หรืออยู่ใน HIDDEN_FOLDERS = ซ่อนจากเว็บ (เช่น การประชุมคณะกรรมการ)
 
    ทางหลัก: ขอ "ทั้งคลัง" จากตัวกลางในคำขอเดียว (api/drive?tree=) — ได้โครงโฟลเดอร์และรหัสรูปทุกรูปพร้อมกัน
@@ -163,11 +166,18 @@ function hidden(name, list) {
   return /^[_#]/.test(n) || (list || cfg.hidden).some(function (h) { return String(h).trim() === n; });
 }
 
+/** มีรูปอยู่ใต้โฟลเดอร์นี้ไหม (ทุกชั้น) — รู้ได้เฉพาะเมื่อมีดัชนีทั้งคลัง · ไม่มีดัชนี = null (ไม่รู้) */
+function hasImagesUnder(id) {
+  var node = treeIndex && treeIndex[id];
+  if (!node) return null;
+  return node.images.length > 0 || node.folders.some(function (f) { return !hidden(f.name) && hasImagesUnder(f.id); });
+}
+
 /**
  * อ่านโครงโฟลเดอร์ระดับกีฬา → วัน (ไม่อ่านรูป) แล้วจัดเป็น "หน่วย" — หน่วยละหนึ่งกีฬาในหนึ่งวัน
  * ใช้ 1 + จำนวนโฟลเดอร์กีฬา คำขอ (ยิงพร้อมกัน) — พอรู้ว่ามีวันไหนก็สร้างแท็บได้แล้ว
  * @returns {Promise<Array<{ key, sport, roots, exclude, order }>>}
- *   key = 'YYYY-MM-DD' · 'f:ชื่อโฟลเดอร์' (โฟลเดอร์ที่ไม่มีโฟลเดอร์วันข้างใน) · 'none' (ไม่ระบุวัน)
+ *   key = 'YYYY-MM-DD' · 'none' (ไม่ระบุวัน — โฟลเดอร์ที่ไม่มีโฟลเดอร์วันข้างใน / รูปที่วางนอกโฟลเดอร์วัน)
  *   roots = โฟลเดอร์ที่ต้องไล่อ่านรูป (รวมโฟลเดอร์ย่อยทุกชั้น) · exclude = โฟลเดอร์ที่ห้ามไล่เข้า
  */
 export async function loadDriveTree() {
@@ -185,14 +195,24 @@ export async function loadDriveTree() {
 
   tops.forEach(function (t, i) {
     var name = t.name.trim();
+    // โฟลเดอร์วันที่ชั้นบนสุด (ไม่มีโฟลเดอร์กีฬาครอบ)
+    if (parseThaiDate(name)) {
+      if (hasImagesUnder(t.id) !== false) units.push({ key: parseThaiDate(name), sport: '', roots: [t.id], exclude: [], order: order++ });
+      return;
+    }
     var kids = kidsOf[i].folders.filter(function (k) { return !hidden(k.name); });
     var dated = kids.filter(function (k) { return parseThaiDate(k.name); });
     if (!dated.length) {
-      // ไม่มีโฟลเดอร์วัน (พิธีเปิด / ลีลาศ / การประชุม …) — ทั้งโฟลเดอร์เป็นแท็บของมันเอง
-      units.push({ key: 'f:' + name, sport: name, roots: [t.id], exclude: [], order: order++ });
+      // ไม่มีโฟลเดอร์วัน (พิธีเปิด / ลีลาศ …) → "ภาพอื่น ๆ" · โฟลเดอร์กีฬาที่ยังว่างไม่ต้องมีหน่วย (ไม่งั้นได้แท็บว่าง)
+      var any = hasImagesUnder(t.id);
+      if (any === null ? kidsOf[i].images || kids.length > 0 : any) {
+        units.push({ key: 'none', sport: name, roots: [t.id], exclude: [], order: order++ });
+      }
       return;
     }
     dated.forEach(function (d) {
+      // โฟลเดอร์วันที่สร้างรอไว้แต่ยังว่าง — ไม่ทำหน่วย ไม่งั้นได้แท็บว่าง (ไม่มีดัชนีทั้งคลัง = ไม่รู้ ทำไว้ก่อน)
+      if (hasImagesUnder(d.id) === false) return;
       units.push({ key: parseThaiDate(d.name), sport: name, roots: [d.id], exclude: [], order: order++ });
     });
     // ของในโฟลเดอร์กีฬาที่ไม่อยู่ในโฟลเดอร์วันไหน (รูปวางตรง ๆ / โฟลเดอร์ชื่ออื่น) → "ภาพอื่น ๆ"

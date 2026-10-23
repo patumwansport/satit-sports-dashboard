@@ -1,6 +1,9 @@
 /* =========================================================
    gallery.js — หน้า "ประมวลภาพ" แยกตามวัน
 
+   แท็บแบ่งตามวันอย่างเดียว (ผู้ดูแลขอ ต.ค. 2569) ส่วนข้างในแท็บวันแยกตามชนิดกีฬา (หัวข้อกีฬา + ตัวกรอง)
+   TRACK_SPORTS = false → normalize() ตัดชื่อกีฬาออกจากทุกภาพ ข้างในแท็บวันเป็นกริดรวมกริดเดียว
+
    แหล่งภาพหลัก: โฟลเดอร์ Google Drive ของฝ่ายประชาสัมพันธ์ (กีฬา → วัน → รูป ดู drive-photos.js)
    เปิดหน้า = อ่านแค่โครงโฟลเดอร์มาทำแท็บวัน · กดวันไหนค่อยโหลดรูปของวันนั้น (วันหนึ่งมีได้เป็นพันรูป)
    ไม่ได้ตั้งค่า Drive / Drive อ่านไม่ได้ → ใช้แท็บ "img" ในชีตแทน (ดู buildPhotos ใน sheets.js)
@@ -24,6 +27,7 @@ var ALL_SPORTS = '';
 var GRID_PAGE = 48;           // ภาพต่อหน้า ในโหมดดูทั้งหมดของกีฬา (48 ลงตัวทั้ง 2 / 3 / 4 คอลัมน์)
 var SAMPLES = 8;              // ภาพตัวอย่างต่อกีฬา ในมุมมอง "ทุกกีฬา"
 var HIGHLIGHTS = 12;          // ภาพในสไลด์ภาพเด่นของวัน
+var TRACK_SPORTS = true;      // true = ข้างในแท็บวันแยกตามกีฬา · false = กริดรวมไม่มีชื่อกีฬา
 
 var state = {
   data: null,
@@ -84,16 +88,19 @@ function normalize(p, data) {
     iso = (day && day.iso) || '';
   }
   var sport = (p.sportId && data ? sportName(data, p.sportId) : '') || p.sportText || '';
-  // ภาพจาก Drive ใช้ชื่อโฟลเดอร์กีฬาเป็นคำบรรยาย — ตรงกับชื่อกีฬาเป๊ะก็ไม่ต้องมีคำบรรยายซ้ำ
+  // ภาพจาก Drive ใช้ชื่อโฟลเดอร์กีฬาเป็นคำบรรยาย ("เทนนิส · ม.ต้น") — ตัดชื่อกีฬาออก เหลือแค่ส่วนที่บอกอะไรเพิ่ม
   // (ไม่งั้นการ์ดขึ้น "เทนนิส" สองที่ และหน้าดูเต็มจอขึ้น "เทนนิส · เทนนิส")
-  var caption = p.caption && p.caption !== sport && p.caption !== p.sportText ? p.caption : '';
+  var caption = String(p.caption || '');
+  [sport, p.sportText].forEach(function (s) {
+    if (s && caption.indexOf(s) === 0) caption = caption.slice(s.length).replace(/^\s*·\s*/, '');
+  });
   return {
     link: p.link || p.src,
     iso: iso,
     folder: p.folder || '',
     caption: caption,
-    sportId: p.sportId || sportIdOf(p.sportText || ''),
-    sport: sport
+    sportId: TRACK_SPORTS ? p.sportId || sportIdOf(p.sportText || '') : '',
+    sport: TRACK_SPORTS ? sport : ''
   };
 }
 
@@ -244,22 +251,27 @@ function fallbackAttr(link, width) {
   return fb ? ' data-fb="' + esc(fb) + '"' : '';
 }
 
-function tileHtml(p, i, inSection) {
+/** @param {boolean} [noTag] - ไม่ต้องมีป้ายชื่อกีฬาบนรูป (อยู่ใต้หัวข้อกีฬาแล้ว / ทั้งกริดเป็นหมวดเดียวกัน) */
+function tileHtml(p, i, noTag) {
   var label = [p.caption, p.sport].filter(Boolean).join(' · ') || 'ภาพบรรยากาศ ภาพที่ ' + (i + 1);
   return '<button class="group/tile relative block aspect-[4/3] cursor-zoom-in overflow-hidden rounded-lg border-0 bg-surface-soft p-0 shadow-panel' +
       ' focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-label="ดูภาพเต็มจอ: ' + esc(label) + '">' +
     // no-referrer: Drive ตอบ 429 แทนรูปเมื่อเห็น Referer ข้ามโดเมน
     '<img class="block h-full w-full object-cover transition-transform duration-300 group-hover/tile:scale-[1.04] motion-reduce:transition-none"' +
       ' src="' + esc(imageUrlAt(p.link, 640)) + '"' + fallbackAttr(p.link, 640) + ' alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />' +
-    (p.sport && !inSection ? '<span class="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-[oklch(16%_0.02_260/.62)] px-2.5 py-1 fs-12.5 text-white">' +
+    // บรรทัดเดียวเสมอ — ชื่อโฟลเดอร์ยาว (เช่นชื่อการประชุมเต็มชื่อ) เคยตัดขึ้นหลายบรรทัดจนป้ายบังครึ่งรูป
+    (p.sport && !noTag ? '<span class="absolute top-2 left-2 block max-w-[calc(100%-1rem)] truncate rounded-full bg-[oklch(16%_0.02_260/.62)] px-2.5 py-1 fs-12.5 text-white">' +
       esc(p.sport) + '</span>' : '') +
     (p.caption ? '<span class="absolute inset-x-0 bottom-0 bg-linear-to-t from-[oklch(16%_0.02_260/.85)] to-[oklch(16%_0.02_260/0)] px-3 pt-8 pb-2.5 text-left fs-14 leading-[1.4] text-white line-clamp-2">' +
       esc(p.caption) + '</span>' : '') +
   '</button>';
 }
 
+/** ป้ายชื่อกีฬาบนรูปมีประโยชน์เฉพาะตอนกริดมีหลายกีฬาปนกัน — หมวดเดียว (กรองกีฬาแล้ว / แท็บโฟลเดอร์เดียว) ป้ายเดิมซ้ำทุกรูปเปล่า ๆ */
 function gridHtml(from, to) {
-  return state.shown.slice(from, to).map(function (p, j) { return tileHtml(p, from + j); }).join('');
+  var first = state.shown[0] && state.shown[0].sport;
+  var oneSport = state.shown.every(function (p) { return p.sport === first; });
+  return state.shown.slice(from, to).map(function (p, j) { return tileHtml(p, from + j, oneSport); }).join('');
 }
 function bindTiles(root) {
   root.querySelectorAll('[data-i]:not([data-bound])').forEach(function (b) {
@@ -326,7 +338,8 @@ function renderBody() {
   $('galleryBody').innerHTML =
     '<h2 class="m-0 mb-4 fs-17 font-semibold text-fg">' + esc(heading) + '</h2>' +
     carouselHtml(highlights) +
-    (bySport ? sports.map(sectionHtml).join('') : fullGridHtml(dated));
+    // "ของวันนี้" เฉพาะแท็บวันที่ — แท็บโฟลเดอร์ (เช่นการประชุม) และกลุ่มไม่ระบุวันใช้ "ภาพทั้งหมด"
+    (bySport ? sports.map(sectionHtml).join('') : fullGridHtml(dated && group.key !== NO_DATE && !isFolderKey(group.key)));
 
   if (bySport) {
     bindTiles($('galleryBody'));
