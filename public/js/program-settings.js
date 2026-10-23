@@ -1,3 +1,5 @@
+import { MONTHS_TH } from './format.js';
+
 /* สถานะโปรแกรมแข่งขันแยกวัน: site_settings หนึ่ง key ต่อวันที่ ไม่ส่ง Final ข้ามวัน */
 export function programStatusKey(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) throw new Error('วันที่ไม่ถูกต้อง');
@@ -9,8 +11,7 @@ export function programStatus(value) { return value === 'final' ? 'final' : 'pen
 export function programDateLabel(iso) {
   programStatusKey(iso);
   var parts = iso.split('-');
-  var months = ['มกรา', 'กุมภา', 'มีนา', 'เมษา', 'พฤษภา', 'มิถุนา', 'กรกฎา', 'สิงหา', 'กันยา', 'ตุลา', 'พฤศจิกา', 'ธันวา'];
-  return +parts[2] + ' ' + months[+parts[1] - 1] + ' ' + parts[0].slice(-2);
+  return +parts[2] + ' ' + MONTHS_TH[+parts[1] - 1] + ' ' + String(+parts[0] + 543).slice(-2);
 }
 
 function bangkokParts(now) {

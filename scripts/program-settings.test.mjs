@@ -6,7 +6,7 @@ import { programStatusKey, programStatus, programDateLabel, programDateAt, progr
 test('status is scoped to a valid calendar day, unknown values stay pending', () => {
   assert.notEqual(programStatusKey('2026-10-24'), programStatusKey('2026-10-25'));
   for (const day of ['2026-02-30', '2026-13-01', '', '2026-1-1']) assert.throws(() => programStatusKey(day));
-  assert.equal(programDateLabel('2026-10-24'), '24 ตุลา 26');
+  assert.equal(programDateLabel('2026-10-24'), '24 ต.ค. 69');
   assert.equal(programStatus('final'), 'final');
   for (const value of [null, '', 'FINAL', 'pending', '<script>']) assert.equal(programStatus(value), 'pending');
 });
@@ -155,7 +155,7 @@ test('noon clears the old Final and old link before loading the exact new folder
   assert.equal(n.nextDate.dateTime, '2026-10-25');
   await settle();
   assert.match(n.nextDl.href, /folder25$/);
-  assert.equal(n.nextDate.textContent, '25 ตุลา 26');
+  assert.equal(n.nextDate.textContent, '25 ต.ค. 69');
   assert.deepEqual(calls, [['2026-10-24', true], ['2026-10-25', true]]);
 });
 test('an old folder response cannot overwrite the new day; a missing folder stays disabled and retries', async () => {
@@ -168,7 +168,7 @@ test('an old folder response cannot overwrite the new day; a missing folder stay
   await settle();
   assert.equal(n.nextDl.href, undefined);
   assert.equal(n.nextLinkCaption.textContent, 'กำลังเตรียมโปรแกรม');
-  assert.equal(n.nextDate.textContent, '25 ตุลา 26');
+  assert.equal(n.nextDate.textContent, '25 ต.ค. 69');
   showNext('2026-10-25', true);
   await settle();
   assert.equal(n.nextDl.attrs['aria-disabled'], 'true');
