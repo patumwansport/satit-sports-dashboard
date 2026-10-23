@@ -23,6 +23,7 @@ import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from './sheets-syn
 import { checkDriveFolder, driveFolderId } from '../js/drive-photos.js';
 import { newsCard, NEWS_TONE, safeUrl } from '../js/news.js';
 import { HERO_SLOTS } from '../js/hero-settings.js';
+import { programStatusKey, programStatus, programDateLabel, programDateAt } from '../js/program-settings.js';
 import { GALLERY_KEYS, parseHiddenFolders } from '../js/gallery-settings.js';
 import { DRIVE_FOLDER, HIDDEN_FOLDERS } from '../js/gallery-config.js';
 
@@ -246,6 +247,11 @@ var VIEWS = [
       { key: 'active', label: 'เปิดใช้งาน', type: 'checkbox', default: true, hint: 'ไม่ติ๊ก = เก็บเป็นฉบับร่าง ยังไม่ขึ้นบนเว็บ' },
       { key: 'sort_order', label: 'ลำดับ', type: 'number', hint: 'เลขน้อยขึ้นก่อน' }
     ]
+  },
+  {
+    id: 'program', kind: 'program', icon: 'calendar',
+    title: 'โปรแกรมการแข่งขัน',
+    hint: 'สถานะบนแบนเนอร์โปรแกรมรายวัน (เปลี่ยนเป็นวันพรุ่งนี้ตอน 12:01 น. เวลาไทย) แยกตามวันที่แข่งขัน — บันทึกแล้วผู้ชมรีเฟรชหน้าก็เห็นผล'
   },
   {
     id: 'heroes', kind: 'heroes', icon: 'photo',
@@ -1418,6 +1424,64 @@ async function saveGallerySettings(event) {
    เก็บใน site_settings · admin/site.js บนหน้าเว็บสาธารณะอ่านแล้วสลับรูป · ว่าง = รูปเดิมใน assets/hero/
    ========================================================= */
 
+/** สถานะแยกวัน เก็บ key ต่อวัน ไม่ทับวันที่อื่นและไม่เกี่ยวกับสถานะผลแต่ละแมตช์ */
+function renderProgramView() {
+  $('viewBody').innerHTML = '<form class="' + CARD + ' flex max-w-[640px] flex-col gap-4" id="programForm">' +
+    '<div><label class="label" for="programDate">วันที่แข่งขัน</label>' +
+      '<input class="input" type="date" id="programDate" required value="' + programDateAt() + '" /></div>' +
+    '<div><label class="label" for="programStatus">สถานะโปรแกรม</label>' +
+      '<select class="input" id="programStatus" required disabled><option value="pending">ยังไม่เป็นทางการ (กะพริบ)</option><option value="final">Final (สีเขียว)</option></select></div>' +
+    '<p class="m-0 text-[14px] text-fg-soft">แบนเนอร์หน้าแรกแสดงวันนี้ก่อนเที่ยง และพรุ่งนี้ตั้งแต่ 12:01 น. ตามเวลาไทย เลือกวันที่ที่ต้องการแก้ วันที่ยังไม่เคยตั้งค่าจะแสดง “ยังไม่เป็นทางการ” เสมอ</p>' +
+    '<div class="rounded-md bg-surface-soft p-4" aria-live="polite"><span id="programPreviewDate"></span> · ' +
+      '<span class="next-program-status motion-ok" style="font-size:16px" id="programPreviewStatus" hidden></span></div>' +
+    '<p class="m-0 text-[14px] text-fg-soft" id="programMessage" role="status"></p>' +
+    '<button class="btn self-start" id="programSave" type="submit" disabled>บันทึกสถานะ</button></form>';
+  var form = $('programForm'), date = $('programDate'), status = $('programStatus'), save = $('programSave');
+  var message = $('programMessage'), revision = 0;
+  function preview() {
+    $('programPreviewDate').textContent = programDateLabel(date.value);
+    var badge = $('programPreviewStatus');
+    badge.dataset.status = status.value;
+    badge.textContent = status.value === 'final' ? 'Final' : 'ยังไม่เป็นทางการ';
+    badge.hidden = false;
+  }
+  async function readDay() {
+    var token = ++revision;
+    save.disabled = status.disabled = true;
+    $('programPreviewStatus').hidden = true;
+    $('programPreviewDate').textContent = '';
+    message.textContent = 'กำลังโหลด…';
+    try {
+      var key = programStatusKey(date.value);
+      var result = await db.from('site_settings').select('value').eq('key', key).maybeSingle();
+      if (token !== revision || current.id !== 'program') return;
+      if (result.error) throw result.error;
+      status.value = programStatus(result.data && result.data.value);
+      preview();
+      message.textContent = '';
+      save.disabled = status.disabled = false;
+    } catch (err) {
+      if (token === revision && current.id === 'program') message.textContent = 'โหลดสถานะไม่สำเร็จ: ' + friendlyError(err);
+    }
+  }
+  status.addEventListener('change', preview);
+  date.addEventListener('change', readDay);
+  form.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    if (save.disabled) return;
+    save.disabled = date.disabled = status.disabled = true;
+    message.textContent = 'กำลังบันทึก…';
+    try {
+      var result = await db.from('site_settings').upsert({ key: programStatusKey(date.value), value: programStatus(status.value) }, { onConflict: 'key' });
+      if (result.error) throw result.error;
+      message.textContent = 'บันทึกสถานะวันที่ ' + programDateLabel(date.value) + ' แล้ว ผู้ชมรีเฟรชหน้าก็เห็นผล';
+      setSaveState('บันทึกแล้ว');
+    } catch (err) { message.textContent = 'บันทึกไม่สำเร็จ: ' + friendlyError(err); }
+    finally { save.disabled = date.disabled = status.disabled = false; }
+  });
+  readDay();
+}
+
 async function renderHeroView() {
   $('viewBody').innerHTML = '<div class="' + CARD + ' text-[14.5px] text-fg-mute">กำลังโหลด…</div>';
   var res = await db.from('site_settings').select('key,value').in('key', HERO_SLOTS.map(function (s) { return s.key; }));
@@ -2119,6 +2183,8 @@ function selectView(id) {
     renderBackupView();
   } else if (current.kind === 'gallery') {
     renderGalleryView();
+  } else if (current.kind === 'program') {
+    renderProgramView();
   } else if (current.kind === 'heroes') {
     renderHeroView();
   } else if (current.kind === 'sheet') {

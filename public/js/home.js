@@ -14,9 +14,11 @@ import {
 } from './common.js';
 import { total } from './charts.js';
 import { MONTHS_TH, WEEKDAYS_TH, isoDate } from './format.js';
-import { dayFolder, nextDayFolder, dayRootUrl, driveFolderUrl } from './day-files.js';
+import { dayFolder, driveFolderUrl } from './day-files.js';
 import { venueInfo } from './venues.js';
 import { loadNews, newsCard } from './news.js';
+import { programStatusKey, programStatus, programDateLabel, programDateAt, programTitleAt, watchProgramDate } from './program-settings.js';
+import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from '../admin/config.js';
 
 var chrome = initChrome('home');
 var NEWS_SLOTS = 5;    // กล่องเทาจองที่ระหว่างโหลดแถบข่าวสาร (แถวเดียว 5 ใบตามภาพแบบ)
@@ -537,41 +539,77 @@ function downloadCsv(name, lines) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-/* ===================== แถบโปรแกรมวันแข่งขันถัดไป =====================
-   วันถัดไป = โฟลเดอร์วันแรกหลังวันนี้ในโฟลเดอร์ DayByDay ของ Drive (day-files.js) — ผู้ดูแลสร้างโฟลเดอร์ 24Oct, 25Oct … ไว้ล่วงหน้า
-   ก่อนชีตมีรายการของวันนั้น (ผู้ดูแลขอ ต.ค. 2569: ให้ปุ่มไปโฟลเดอร์ 24Oct ก่อน แม้ชีตเริ่มที่ 27 ต.ค.)
-   ระหว่างรอ Drive / อ่าน Drive ไม่ได้ = ใช้วันแรกหลังวันนี้ที่มีรายการในชีต แทน
-   พรุ่งนี้พอดี = "วันพรุ่งนี้" · เว้นวัน = "วันถัดไป" · ไม่มีวันถัดไปทั้งใน Drive และชีต = ซ่อนแถบ
-   ปุ่มเปิดโฟลเดอร์ของวันนั้น · ยังไม่รู้โฟลเดอร์ / ไม่มีโฟลเดอร์ของวัน = เปิดโฟลเดอร์ DayByDay ทั้งโฟลเดอร์ */
-var nextIso = null;      // วันที่แถบชี้อยู่ตอนนี้ — กันคำตอบ Drive ที่มาช้าทับวันที่ใหม่กว่า
-var nextFromDrive = false;
-function renderNext() {
-  var today = isoDate(new Date());
-  var sheetDay = state.days.filter(function (d) { return d.iso && d.iso > today && d.items.length; })[0] || null;
-  if (!nextFromDrive) showNext(sheetDay ? sheetDay.iso : null, null);
-  nextDayFolder(today).then(function (folder) {
-    if (!folder || (sheetDay && today.slice(0, 5) + folder.md > sheetDay.iso)) return;   // ชีตมีวันที่มาก่อนโฟลเดอร์ = ใช้วันจากชีตต่อ
-    nextFromDrive = true;
-    showNext(today.slice(0, 5) + folder.md, folder);
-  }).catch(function (err) { console.error('โฟลเดอร์โปรแกรมรายวันใน Drive:', err.message); });
-}
-/** วาดแถบให้ชี้วัน iso · folder = โฟลเดอร์ของวันนั้น (รู้แล้ว) · ไม่มี = ถาม Drive เอง */
-function showNext(iso, folder) {
+/* ===================== โปรแกรมรายวัน: เปลี่ยนวันตอน 12:01 น. เวลาไทย =====================
+   ไม่เลือกวันจากชีต/โฟลเดอร์ที่อยู่ใกล้ที่สุด วันที่ ป้ายสถานะ และลิงก์ต้องเป็นวันเดียวกันเสมอ */
+var nextIso = null;
+var nextFolderReady = false;
+var nextFolderLoading = false;
+var nextFolderRequest = 0;
+function renderNext() { var now = new Date(); showNext(programDateAt(now), false, now); }
+/** อ่านเฉพาะสถานะของวันในแบนเนอร์ หากอ่านไม่ได้ไม่แสดงว่าเป็น Final */
+async function loadNextProgramStatus(iso) {
+  var badge = document.getElementById('nextStatus');
+  var value = 'pending';
+  try {
+    if (hasSupabase()) {
+      var response = await fetch(SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/site_settings?select=value&key=eq.' + encodeURIComponent(programStatusKey(iso)), {
+        headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }, cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('อ่านสถานะโปรแกรมไม่สำเร็จ');
+      var rows = await response.json();
+      value = programStatus(rows[0] && rows[0].value);
+    }
+  } catch (err) { console.error('สถานะโปรแกรมการแข่งขัน:', err.message); }
   var band = document.getElementById('nextBand');
-  band.hidden = !iso;
-  if (!iso) { nextIso = null; return; }
-  var now = new Date();
-  var tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  setText('nextTitle', 'โปรแกรมการแข่งขัน' + (iso === tomorrow ? 'วันพรุ่งนี้' : 'วันถัดไป'));
+  if (band.hidden || band.dataset.programDate !== iso) return;
+  badge.dataset.status = value;
+  badge.textContent = value === 'final' ? 'Final' : 'ยังไม่เป็นทางการ';
+  badge.hidden = false;
+}
+/** วาดแถบให้ชี้วัน iso · เปลี่ยนวันที่พร้อมรีเซ็ตลิงก์และสถานะ ไม่ให้ข้อมูลวันเก่าติดมา */
+function showNext(iso, retry, now = new Date()) {
+  // หัวข้อเปลี่ยนกลับเป็นวันนี้ตอนข้ามเที่ยงคืน แม้วันที่เป้าหมายยังเป็นวันเดิม
+  setText('nextTitle', programTitleAt(now));
+  var band = document.getElementById('nextBand');
   var link = document.getElementById('nextDl');
-  if (folder) { nextIso = iso; link.href = driveFolderUrl(folder.id); return; }
-  if (iso === nextIso) return;
-  nextIso = iso;
-  var root = dayRootUrl();
-  if (root) link.href = root;
-  dayFolder(iso).then(function (f) {
-    if (f && nextIso === iso) link.href = driveFolderUrl(f.id);   // ไม่มีโฟลเดอร์ของวัน / วันเปลี่ยนระหว่างรอ = คงลิงก์เดิม
-  }).catch(function (err) { console.error('โฟลเดอร์โปรแกรมรายวันใน Drive:', err.message); });
+  var caption = document.getElementById('nextLinkCaption');
+  var changed = nextIso !== iso;
+  if (!changed && (!retry || nextFolderReady || nextFolderLoading)) return;
+  if (changed) {
+    nextIso = iso;
+    nextFolderReady = nextFolderLoading = false;
+    band.hidden = false;
+    band.dataset.programDate = iso;
+    setText('nextDate', programDateLabel(iso));
+    document.getElementById('nextDate').dateTime = iso;
+    var badge = document.getElementById('nextStatus');
+    badge.dataset.status = 'pending';
+    badge.textContent = 'ยังไม่เป็นทางการ';
+    badge.hidden = false;
+    loadNextProgramStatus(iso);
+    link.removeAttribute('href');
+    link.setAttribute('aria-disabled', 'true');
+    link.setAttribute('aria-label', 'ดูโปรแกรมการแข่งขัน ' + programDateLabel(iso));
+    caption.textContent = 'กำลังโหลดโปรแกรม…';
+  }
+  var request = ++nextFolderRequest;
+  nextFolderLoading = true;
+  // ไม่ใช้รายชื่อเก่าที่โหลดก่อนเที่ยง เพราะผู้ดูแลอาจเพิ่งสร้างโฟลเดอร์ของวันใหม่
+  dayFolder(iso, true).then(function (folder) {
+    if (request !== nextFolderRequest || nextIso !== iso) return;
+    if (folder) {
+      nextFolderReady = true;
+      link.href = driveFolderUrl(folder.id);
+      link.removeAttribute('aria-disabled');
+      caption.textContent = 'คลิกเพื่อดูรายละเอียด';
+    } else caption.textContent = 'กำลังเตรียมโปรแกรม';
+  }).catch(function (err) {
+    if (request !== nextFolderRequest || nextIso !== iso) return;
+    caption.textContent = 'โหลดไม่สำเร็จ กำลังลองใหม่';
+    console.error('โฟลเดอร์โปรแกรมรายวัน:', err.message);
+  }).finally(function () {
+    if (request === nextFolderRequest) nextFolderLoading = false;
+  });
 }
 
 /* ===================== ข่าวสารและไฮไลต์ =====================
@@ -649,6 +687,8 @@ function renderAll(data) {
   paintUiIcons(document.getElementById('main'));
   chrome.onData(data);
 }
+
+watchProgramDate(function (iso, now) { showNext(iso, true, now); });
 
 loadData().then(function (data) {
   renderAll(data);

@@ -1,13 +1,13 @@
 /* =========================================================
    day-files.js — โฟลเดอร์โปรแกรมการแข่งขันรายวันในโฟลเดอร์ "DayByDay" ของ Google Drive (DAY_FILES_FOLDER ใน gallery-config.js)
-   ใช้กับปุ่มในแถบ "โปรแกรมการแข่งขันวันถัดไป" ของหน้าหลัก — ปุ่มตามวันแข่งขันถัดไปเอง และเปิดโฟลเดอร์ของวันนั้นใน Drive
+   ใช้กับปุ่มโปรแกรมรายวันของหน้าหลัก — ก่อนเที่ยงไทยแสดงวันนี้ ตั้งแต่เที่ยงแสดงพรุ่งนี้
 
    โครงโฟลเดอร์:
      DayByDay
        ├── 24Oct        ← โฟลเดอร์ละวัน ชื่ออ่านด้วย parseThaiDate ("24Oct", "24 ต.ค.", "24/10/2569" …)
        ├── 25Oct
        └── Checklist    ← ไฟล์อื่นในโฟลเดอร์แม่ไม่เกี่ยว
-   ยังไม่มีโฟลเดอร์ของวันนั้น = เปิดโฟลเดอร์ DayByDay ทั้งโฟลเดอร์แทน
+   ยังไม่มีโฟลเดอร์ของวันนั้น = หน้าเว็บแจ้งกำลังเตรียมโปรแกรมและลองใหม่ภายหลัง
    ถามผ่านตัวกลางแคช api/drive ก่อน (ล่ม = ถาม Drive ตรง) · ชื่อขึ้นต้นด้วย _ หรือ # = ไม่นับ
    ========================================================= */
 import { DAY_FILES_FOLDER, GOOGLE_API_KEY } from './gallery-config.js';
@@ -33,9 +33,10 @@ var rootList = null;
  * โฟลเดอร์วันทั้งหมดใน DayByDay → [{ id, name, md: 'MM-DD' }] เรียงตามวัน · ไม่ได้ตั้งค่า = [] · อ่าน Drive ไม่ได้ = reject
  * เก็บแค่เดือน-วัน: ชื่อโฟลเดอร์มักไม่มีปี (parseThaiDate เติมปีปัจจุบันให้ ซึ่งอาจไม่ตรงปีของงานช่วงข้ามปี)
  */
-async function dayFolders() {
+async function dayFolders(refresh) {
   var root = driveFolderId(DAY_FILES_FOLDER);
   if (!root || !GOOGLE_API_KEY) return [];
+  if (refresh) rootList = null;
   if (!rootList) rootList = listFolder(root).catch(function (err) { rootList = null; throw err; });
   return (await rootList).filter(function (f) {
     return f.mimeType === FOLDER && !/^[_#]/.test(String(f.name || '').trim()) && parseThaiDate(f.name);
@@ -45,9 +46,11 @@ async function dayFolders() {
 }
 
 /** โฟลเดอร์ของวัน (iso 'YYYY-MM-DD') → { id, name, md } · ไม่มี / ไม่ได้ตั้งค่า = null · อ่าน Drive ไม่ได้ = reject */
-export async function dayFolder(iso) {
+export async function dayFolder(iso, refresh) {
   if (!iso) return null;
-  return (await dayFolders()).filter(function (f) { return f.md === iso.slice(5); })[0] || null;
+  // ชื่อไม่มีปีให้ใช้ปีเป้าหมาย ส่วนชื่อที่มีปี (25Oct26) ต้องตรงทั้งวันและปี
+  var year = new Date(+iso.slice(0, 4), 0, 1);
+  return (await dayFolders(refresh)).filter(function (f) { return parseThaiDate(f.name, year) === iso; })[0] || null;
 }
 
 /** โฟลเดอร์วันแรกที่เลยวันนี้ (iso) ไปแล้ว → { id, name, md } · ไม่มีแล้ว = null — ผู้ดูแลสร้างโฟลเดอร์ล่วงหน้า (24Oct…) ก่อนชีตมีรายการ */
