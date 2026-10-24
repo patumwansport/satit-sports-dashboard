@@ -100,10 +100,14 @@ function timeMin(t) {
 }
 function byTime(a, b) { return timeMin(a.time) - timeMin(b.time); }
 
-/** รายการของวันที่เลือก (กรองตามกีฬาที่เลือก) เรียงตามเวลา */
+/** รายการของวันที่เลือก (กรองตามกีฬาที่เลือก): กำลังแข่งขันบนสุด · รอแข่งขัน · เสร็จสิ้นล่างสุด (ผู้ดูแลขอ ต.ค. 2569)
+    ในกลุ่มเดียวกันเรียงตามเวลา · กลุ่มตาม toneOf (ป้าย "เสร็จสิ้น"/"รอยืนยันผล" คือ status = done ทั้งคู่) */
+var TONE_ORDER = { live: 0, upcoming: 1, done: 2 };
 function rowsOf(day, sportId) {
   if (!day) return [];
-  return day.items.filter(function (i) { return sportId === 'all' || i.sportId === sportId; }).slice().sort(byTime);
+  return day.items.filter(function (i) { return sportId === 'all' || i.sportId === sportId; }).slice().sort(function (a, b) {
+    return TONE_ORDER[toneOf(a)] - TONE_ORDER[toneOf(b)] || byTime(a, b);
+  });
 }
 
 /* ===================== แถบสรุปของโรงเรียนเรา =====================
