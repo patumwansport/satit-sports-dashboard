@@ -644,7 +644,7 @@ var MT_GRID = 'grid grid-cols-[40px_minmax(7rem,1fr)_repeat(4,minmax(58px,76px))
 
 /** ไอคอนกำกับชนิดเหรียญ (คอลัมน์รวมเป็นข้อความ) ใช้ทั้งในหัวตาราง (จอกว้าง) และในช่องตัวเลข (จอแคบ) */
 function medalTag(col, micSize) {
-  // ไอคอนคือวงเหรียญที่ครอปจากรูปเหรียญบนโพเดียม (assets/medals/coin-N.webp) ให้เป็นชุดเดียวกันทั้งหน้า
+  // ไอคอนคือวงเหรียญที่ครอปจากรูปเหรียญบนโพเดียม (assets/medals/coin-N.webp — วงเหรียญจริงของงาน) ให้เป็นชุดเดียวกันทั้งหน้า
   // ชนิดเหรียญบอกด้วยรูปเหรียญอย่างเดียว ไม่มีข้อความ — ชื่อชนิดอยู่ใน title (ชี้เมาส์) และ aria-label ของแถว
   if (col.plain) return col.label;
   return '<img class="flex-none ' + micSize + '" src="assets/medals/coin-' + col.coin + '.webp" alt="" title="' + col.label + '" width="64" height="64" decoding="async" />';

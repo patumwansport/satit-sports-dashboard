@@ -37,8 +37,10 @@ function selfRow(data) { return (data.medalTable || []).filter(function (m) { re
    โปรแกรมการแข่งขัน = แท็บ "ตารางการแข่งขัน" ในชีตเท่านั้น (ผู้ดูแลขอ ต.ค. 2569) แยกตามวันที่ในปฏิทิน (iso)
    วันและรายการมาจากแท็บนี้แท็บเดียว — แถว/วันที่มีแค่ในแท็บ "ผลการแข่งขัน" ไม่ถูกเพิ่มเข้ามา
    แท็บผลใช้แค่เติมสถานะ/สกอร์ให้แถวที่ตรงกันพอดี (วันที่ กีฬา ประเภท เวลา คู่แข่งขัน เดียวกัน) ป้ายสถานะ/สรุปผลจึงยังบอกได้ว่าจบหรือยัง */
+/* คู่แข่งขันเทียบแบบไม่สนลำดับทีม: สองแท็บพิมพ์คู่เดียวกันสลับข้างได้ (บาสฯ หญิง 24 ต.ค. ผัง "มศว พบ ม.เกษตร" ผล "ม.เกษตร พบ มศว") */
+function teamKey(teams) { return teamSides(teams).sort().join('|'); }
 function sameMatch(a, b) {
-  return a.sportId === b.sportId && a.event === b.event && a.time === b.time && a.teams === b.teams;
+  return a.sportId === b.sportId && a.event === b.event && a.time === b.time && teamKey(a.teams) === teamKey(b.teams);
 }
 function mergedDays(data) {
   var map = {};
@@ -52,6 +54,7 @@ function mergedDays(data) {
       for (var k = 0; k < t.items.length; k++) {
         var p = t.items[k];
         if (sameMatch(p, r)) {
+          // teams ใช้ของแท็บผล (r) เสมอ: สกอร์ "15 : 69" เรียงตามลำดับทีมของแท็บนั้น การ์ดสรุปผลจับคู่เลขกับฝั่งจากลำดับนี้
           t.items[k] = Object.assign({}, p, r, { liveUrl: p.liveUrl || r.liveUrl, venue: p.venue || r.venue });
           return;
         }
@@ -105,7 +108,7 @@ function medalTile(img, label, value, labelCls, first) {
       '<span class="font-display fs-36 leading-[1.05] text-brand-strong tabular-nums max-[560px]:fs-26">' + value + '</span></span>' +
   '</div>';
 }
-/* ภาพเหรียญ = เหรียญ Flat UI (MIT) ไม่มีตัวเลข ปรับสีเป็น ทอง/เงิน/ทองแดง (assets/summary/medal-*.svg) มีข้อความกำกับเสมอ
+/* ภาพเหรียญ = เหรียญคำมอกหลวงเกมส์ของจริง (ภาพที่ผู้ดูแลส่งมา ต.ค. 2569) ครอปเหลือปลายสาย + ตัวเหรียญ สูง 168px (assets/summary/medal-*.webp) มีข้อความกำกับเสมอ
    รวม = ภาพถ้วยที่ผู้ดูแลเลือก (pngtree, assets/summary/trophy.webp) */
 function renderStrip() {
   var data = state.data, s = data.school, me = selfRow(data) || { gold: 0, silver: 0, bronze: 0 };
@@ -122,9 +125,9 @@ function renderStrip() {
       '<span class="font-display fs-44 leading-none tabular-nums max-[560px]:fs-34" aria-hidden="true">' + esc(rank) + '</span>' +
       '<span class="fs-12 leading-[1.3] whitespace-nowrap text-white/80 max-[560px]:fs-11" aria-hidden="true">จาก ' + esc(s.totalSchools || '—') + ' โรงเรียน</span>' +
     '</div>' +
-    medalTile('assets/summary/medal-gold.svg', 'ทอง', me.gold || 0, 'text-gold-ink', true) +
-    medalTile('assets/summary/medal-silver.svg', 'เงิน', me.silver || 0, 'text-silver-ink') +
-    medalTile('assets/summary/medal-bronze.svg', 'ทองแดง', me.bronze || 0, 'text-bronze-ink') +
+    medalTile('assets/summary/medal-gold.webp', 'ทอง', me.gold || 0, 'text-gold-ink', true) +
+    medalTile('assets/summary/medal-silver.webp', 'เงิน', me.silver || 0, 'text-silver-ink') +
+    medalTile('assets/summary/medal-bronze.webp', 'ทองแดง', me.bronze || 0, 'text-bronze-ink') +
     medalTile('assets/summary/trophy.webp', 'รวม', total(me), 'text-brand-ink') +
     // วันที่วันนี้ — จอใหญ่ปิดท้ายแถว · จอ ≤1180px เป็นแถบบางเต็มความกว้างใต้เหรียญ
     '<div class="flex min-w-0 items-center gap-3 bg-[linear-gradient(135deg,var(--color-navy),var(--color-navy-2))] px-5 text-white max-[1180px]:col-span-4 max-[1180px]:justify-center max-[1180px]:py-2.5">' +
@@ -184,30 +187,30 @@ function statusText(cls, label, dot) {
 }
 var DOT = '<span class="size-2 flex-none rounded-full bg-current" aria-hidden="true"></span>';
 var DOT_HOLLOW = '<span class="size-2 flex-none rounded-full ring-[1.5px] ring-current ring-inset" aria-hidden="true"></span>';
-var STATUS_TEXT = { ended: 'text-done-ink', finished: 'text-done-ink', unofficial: 'text-fg-mute' };
 /** ลิงก์ถ่ายทอดสด (ผ่าน webLink() ใน sheets.js มาแล้ว = http/https เท่านั้น) — ป้ายเส้นเล็ก ๆ ไม่ใช่พื้นทึบ */
 function liveLink(url) {
   return '<a class="inline-flex h-6 items-center rounded-full px-2 fs-12 font-semibold text-brand-ink no-underline ring-1 ring-current ring-inset hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="' + esc(url) +
     '" target="_blank" rel="noopener noreferrer" title="ดูถ่ายทอดสด" aria-label="ดูถ่ายทอดสด">LIVE</a>';
 }
+/* โปรแกรมบอกแค่ว่าแข่งแล้วหรือยัง: จบแล้วทุกแบบ (จบการแข่งขัน / เสร็จสิ้น / ยังไม่เป็นทางการ) ขึ้น "เสร็จสิ้น" สีเขียว (ผู้ดูแลขอ ต.ค. 2569)
+   ผลเป็นทางการหรือยังเป็นรายละเอียดของหน้าผลการแข่งขัน (resultChip ใน matches.js ยังแยกสามแบบ) */
 function statusPill(i) {
-  var r = resultStatusOf(i);
   var out = i.status === 'live' ? statusText('font-semibold text-brand-ink', 'กำลังแข่งขัน', LIVE_DOT.replace('size-1.5', 'size-2'))
-    : r ? statusText(STATUS_TEXT[r], RESULT_STATUS[r].label, DOT)
+    : resultStatusOf(i) ? statusText('text-done-ink', RESULT_STATUS.finished.label, DOT)
     : statusText('text-fg-mute', 'รอแข่งขัน', DOT_HOLLOW);
   return out + (i.liveUrl && i.status !== 'done' ? liveLink(i.liveUrl) : '');
 }
 function toneOf(i) { return i.status === 'live' ? 'live' : i.status === 'done' ? 'done' : 'upcoming'; }
 
-/** "ชื่อ ตรา  VS  ตรา ชื่อ" — ฝั่งแรกชิดขวาเข้าหากลาง · มีสกอร์ "ตัวเลข-ตัวเลข" แล้วแทน VS ด้วยสกอร์ (เลขฝั่งเราสีชมพู)
-    ชื่อโรงเรียนเราสีชมพู · อีกฝั่งสีเข้ม */
+/** "ชื่อ ตรา  VS  ตรา ชื่อ" — ฝั่งแรกชิดขวาเข้าหากลาง · ชื่อโรงเรียนเราสีชมพู · อีกฝั่งสีเข้ม
+    ไม่แสดงสกอร์ (ผู้ดูแลขอ ต.ค. 2569): แถวที่จบแล้วบอกด้วยป้ายสถานะ สกอร์อยู่ที่ "สรุปผลการแข่งขันที่ชนะวันนี้"
+    และหน้าผลการแข่งขันแล้ว ขึ้นซ้ำในโปรแกรมอีกที่ดูซ้ำซ้อน */
 function teamsCell(i, isSelf) {
   var sides = teamSides(i.teams);
   if (sides.length !== 2) {
-    return '<span class="block line-clamp-2 text-center fs-14.5 text-fg-soft @max-[639px]:text-left">' + (i.teams ? esc(i.teams) : '-') +
-      (i.score ? '<span class="block fs-13.5 text-fg-mute">' + esc(i.score) + '</span>' : '') + '</span>';
+    return '<span class="block line-clamp-2 text-center fs-14.5 text-fg-soft @max-[639px]:text-left">' + (i.teams ? esc(i.teams) : '-') + '</span>';
   }
-  var mine = sides.map(isSelf), any = mine[0] !== mine[1];
+  var mine = sides.map(isSelf);
   function side(k) {
     var m = schoolByText(state.data, sides[k]) || { school: sides[k] };
     var crest = schoolCrest(m, 'size-10 flex-none p-[1px]! @max-[639px]:size-8');
@@ -215,14 +218,8 @@ function teamsCell(i, isSelf) {
     return '<span class="flex min-w-0 items-center gap-2' + (k === 0 ? ' justify-end text-right' : '') + '" title="' + esc(sides[k]) + '">' +
       (k === 0 ? label + crest : crest + label) + '</span>';
   }
-  var s = splitScore(i.score);
-  function num(k) { return '<span class="' + (any && mine[k] ? 'text-brand-ink' : 'text-brand-strong') + '">' + esc(s[k]) + '</span>'; }
-  var mid = s
-    ? '<span class="font-display fs-24 leading-none whitespace-nowrap tabular-nums">' + num(0) + '<span class="px-1 text-fg-mute">-</span>' + num(1) + '</span>'
-    : '<span class="font-display fs-15 text-brand-ink">VS</span>';
-  return '<span class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5 @max-[639px]:gap-2 @max-[639px]:rounded-[12px] @max-[639px]:bg-surface-soft @max-[639px]:px-2.5 @max-[639px]:py-2">' + side(0) + mid + side(1) + '</span>' +
-    // ผลแบบข้อความ (เช่น ประกาศอันดับ) ขึ้นบรรทัดใต้คู่แข่ง
-    (i.score && !s ? '<span class="mt-1 block text-center fs-13.5 text-fg-soft">' + esc(i.score) + '</span>' : '');
+  return '<span class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5 @max-[639px]:gap-2 @max-[639px]:rounded-[12px] @max-[639px]:bg-surface-soft @max-[639px]:px-2.5 @max-[639px]:py-2">' +
+    side(0) + '<span class="font-display fs-15 text-brand-ink">VS</span>' + side(1) + '</span>';
 }
 
 function rowHtml(i, isSelf, extra) {
@@ -492,7 +489,7 @@ function winCard(i, isSelf) {
 }
 /** ยังไม่มีรายการที่ชนะ: ภาพเหรียญ (Flat UI) + ข้อความ กลางพื้นที่ ไม่มีกล่องเทา */
 function winsEmpty(title, sub) {
-  return '<div class="col-span-full flex h-full flex-col items-center justify-center gap-2 text-center">' +
+  return '<div class="col-span-full flex flex-col items-center justify-center gap-2 py-4 text-center">' +
     '<img class="size-14 object-contain" src="assets/summary/medal.svg" alt="" width="56" height="56" decoding="async" />' +
     '<p class="m-0 fs-15.5 font-semibold text-brand-strong">' + title + '</p>' +
     '<p class="m-0 fs-13.5 text-fg-mute">' + sub + '</p></div>';

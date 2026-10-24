@@ -63,7 +63,7 @@ const GID_SCHEDULE = '2119468784';     // แท็บ "ผลการแข่
  *   วันที่ / รายการแข่งขัน (ชนิดกีฬา) / ประเภท / รอบ / สาย / เวลา / ระหว่าง (ทีม A · VS · ทีม B สามช่อง)
  * ลำดับคอลัมน์ต่างจากแท็บผลการแข่งขัน (มีรอบกับสายแทรกก่อนเวลา) จึงหาคอลัมน์จากชื่อหัวตาราง
  * ไม่ใช่ตำแหน่งตายตัว — ย้ายคอลัมน์ในชีตทีหลังหน้าเว็บก็ยังอ่านถูก ดู planColumns()
- * แท็บนี้ไม่มีช่องผล/สถานะ — ทุกรายการจึงออกมาเป็น "รอเริ่ม" ตามความจริงของผัง
+ * แท็บนี้ไม่มีช่องผล ส่วนช่อง "สถานะ" (ถ้ามี) อ่านด้วย: ว่าง = "รอเริ่ม" · "เสร็จสิ้น"/"จบ" = จบแล้ว · "กำลังแข่ง" = สด
  */
 const GID_SCHEDULE_PLAN = '1146003336';
 /**
@@ -417,6 +417,9 @@ const RESULT_COLUMNS = { date: 0, sport: 1, kind: 2, time: 3, teamA: 4, teamB: 6
 const LIVE_HEADER = /^live$|ถ่ายทอด|ไลฟ์/i;
 /** คอลัมน์เสริม "สนาม" / "สถานที่" — เพิ่มไว้ตรงไหนของแท็บก็ได้ ไม่มีหัวนี้ = ตารางบนเว็บไม่มีคอลัมน์สนาม */
 const VENUE_HEADER = /สนาม|สถานที่/;
+/** คอลัมน์รายชื่อนักกีฬา — หัว "นักกีฬา"/"รายชื่อนักกีฬา" หรือ "รายชื่อ" เฉย ๆ (แท็บผลการแข่งขันใช้ "รายชื่อ" ต.ค. 2569
+    เดิมจับแค่คำว่า "นักกีฬา" รายชื่อจึงไม่ขึ้นเว็บทั้งที่กรอกไว้ในชีตแล้ว) */
+const ATHLETE_HEADER = /นักกีฬา|^รายชื่อ/;
 /** คอลัมน์ "ซ่อนจากเว็บ" ในแท็บตารางแข่ง/ผล — ช่องนี้มีค่าอะไรก็ได้ = ไม่แสดงแถวนั้นบนเว็บ
     ใช้แทนตัวกรองของชีต (ตัวกรองใช้ร่วมกันทุกคน ใครล้างตัวกรองแถวที่ซ่อนก็ขึ้นเว็บ) · ต้องตรงกับ HIDE_HEADER ใน api/gviz.js */
 const HIDE_HEADER = /ซ่อน/;
@@ -465,7 +468,7 @@ function assertScheduleTab(table, label, gid) {
 function resultColumns(table) {
   const labels = tableLabels(table);
   const extras = {
-    athletes: headerIndex(table, /นักกีฬา/), live: headerIndex(table, LIVE_HEADER), venue: headerIndex(table, VENUE_HEADER),
+    athletes: headerIndex(table, ATHLETE_HEADER), live: headerIndex(table, LIVE_HEADER), venue: headerIndex(table, VENUE_HEADER),
     hidden: headerIndex(table, HIDE_HEADER)
   };
   function at(pattern) { return labels.findIndex(function (l) { return pattern.test(l); }); }
@@ -496,8 +499,9 @@ function planColumns(table) {
   return {
     date: at(/วันที่/, 0), sport: at(/รายการ|กีฬา/, 1), kind: at(/ประเภท/, 2),
     round: at(/รอบ/, 3), pool: at(/สาย/, 4), time: at(/เวลา/, 5),
-    teamA: teamA, teamB: teamA + 2, score: -1, status: -1,
-    athletes: headerIndex(table, /นักกีฬา/),
+    // ช่อง "สถานะ" (ไม่ใช่ "สถานที่") — กรอก "เสร็จสิ้น" แล้วแถวในโปรแกรมขึ้นว่าจบ แม้แท็บผลยังไม่มีแถวคู่กัน
+    teamA: teamA, teamB: teamA + 2, score: -1, status: at(/สถานะ/, -1),
+    athletes: headerIndex(table, ATHLETE_HEADER),
     live: headerIndex(table, LIVE_HEADER),
     venue: headerIndex(table, VENUE_HEADER),
     hidden: headerIndex(table, HIDE_HEADER)
@@ -565,8 +569,10 @@ function buildDays(table, cols, guessDates) {
       });
     }
 
-    const teamA = cellText(cell(c, cols.teamA));
-    const teamB = cellText(cell(c, cols.teamB));
+    // ยุบช่องว่างซ้อน/แท็บเป็นเว้นวรรคเดียว: มีแถวที่วางทั้ง "ทีม A ⇥ พบ ⇥ ทีม B" ลงช่องเดียว (ต.ค. 2569)
+    // ถ้าไม่ยุบ teamSides แยกสองฝั่งไม่ได้ และจับคู่กับแถวในแท็บตารางการแข่งขันไม่ติด
+    const teamA = cellText(cell(c, cols.teamA)).replace(/\s+/g, ' ');
+    const teamB = cellText(cell(c, cols.teamB)).replace(/\s+/g, ' ');
     const statusText = notPlaceholder(cellText(cell(c, cols.status)));
     const score = notPlaceholder(cellText(cell(c, cols.score)));
 

@@ -303,7 +303,8 @@ function loopCarousel(o) {
    การ์ดละหนึ่งแมตช์ (ผู้ดูแลขอให้ไม่มีข้อความถูกตัด "…"): ทุกบรรทัดตัดบรรทัดได้
    หัวการ์ดพื้นเทาอ่อน (ชมพูเหลือแค่ป้ายชนะ — ผู้ดูแลว่าชมพูเยอะไป): มาสคอต · ชื่อกีฬา · ประเภท (ได้ความกว้างเต็ม ไม่ต้องแบ่งที่กับป้าย)
    กลาง: แต้ม (ของเราก่อน เป็นสีชมพู แต้มคู่แข่งสีกรมท่า แบบเดียวกับตาราง) ตัวโต + ป้ายชนะชิดขวา แล้ว "พบ ตรา ชื่อคู่แข่ง" บรรทัดถัดไป
-   ท้าย: รายชื่อนักกีฬา WIN_NAMES คนแรก ที่เหลือกดเปิดดูได้ (details) — คำนำหน้าชื่อตัวเล็กจาง */
+   ท้าย: รายชื่อนักกีฬา WIN_NAMES คนแรก ที่เหลือกด "ดูอีก N คน" เปิดต่อท้ายในคอลัมน์เดียวกัน แล้วกด "ย่อรายชื่อ" ปิดกลับได้
+   (ผู้ดูแลขอ ต.ค. 2569 — เดิมเป็น details เปิดแล้วปุ่มหายไป ย่อกลับไม่ได้) · ปุ่มผูกครั้งเดียวที่ winList (toggleNames) */
 var WIN_NAMES = 5;
 var WIN_MIN = 250, WIN_GAP = 12, WIN_MS = 4000;
 var winCar = null;
@@ -344,12 +345,21 @@ function winCard(r, i, n, k, data, allDays) {
     (names.length ? '<div class="mt-auto border-t border-line px-4 pt-3 pb-3.5">' +
       '<p class="m-0 mb-1.5 fs-13 text-fg-mute">นักกีฬา · ' + names.length + ' คน</p>' +
       '<ol class="' + LIST + '">' + names.slice(0, WIN_NAMES).map(winName).join('') + '</ol>' +
-      (rest.length ? '<details class="group/more mt-1">' +
-        '<summary class="cursor-pointer list-none pl-[26px] fs-13.5 text-brand-ink hover:underline group-open/more:hidden [&::-webkit-details-marker]:hidden">ดูอีก ' + rest.length + ' คน</summary>' +
-        '<ol class="' + LIST + '">' + rest.map(function (n, i) { return winName(n, i + WIN_NAMES); }).join('') + '</ol>' +
-      '</details>' : '') +
+      (rest.length ? '<ol class="' + LIST + ' mt-1" hidden data-more>' + rest.map(function (n, i) { return winName(n, i + WIN_NAMES); }).join('') + '</ol>' +
+        '<button class="group/more mt-1.5 inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0 pl-[26px] font-body fs-13.5 text-brand-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" type="button" aria-expanded="false" data-names-toggle>' +
+          '<span class="group-aria-expanded/more:hidden">ดูอีก ' + rest.length + ' คน</span><span class="hidden group-aria-expanded/more:inline">ย่อรายชื่อ</span>' +
+          '<svg class="flex-none transition-transform duration-150 group-aria-expanded/more:rotate-180 motion-reduce:transition-none" viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+        '</button>' : '') +
     '</div>' : '') +
   '</article></li>';
+}
+/** ปุ่ม "ดูอีก N คน" / "ย่อรายชื่อ" ในการ์ดผลที่ชนะ — การ์ดถูกวาดใหม่ (และทำซ้ำสามชุดตอนเลื่อนวน) จึงผูกที่ track ทีเดียว */
+function toggleNames(e) {
+  var btn = e.target.closest('[data-names-toggle]');
+  if (!btn) return;
+  var open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.previousElementSibling.hidden = !open;
+  btn.setAttribute('aria-expanded', String(open));
 }
 function renderWins(ctx) {
   // ชีตเรียงวัน/เวลาจากเก่าไปใหม่ — กลับด้านให้ล่าสุดก่อน
@@ -363,6 +373,7 @@ function renderWins(ctx) {
   var empty = document.getElementById('winEmpty');
   empty.hidden = Boolean(wins.length);
   empty.textContent = 'ยังไม่มีรายการ' + ctx.sportName + 'ที่ชนะ' + (ctx.day ? (isToday(ctx.day) ? 'ในวันนี้' : 'ในวันนี้ของการแข่งขัน') : '');
+  if (!winCar) document.getElementById('winList').addEventListener('click', toggleNames);
   winCar = winCar || loopCarousel({
     box: 'wins', viewport: 'winViewport', track: 'winList', ms: WIN_MS,
     perView: function (vp) { return Math.floor((vp.clientWidth + WIN_GAP) / (WIN_MIN + WIN_GAP)); }
