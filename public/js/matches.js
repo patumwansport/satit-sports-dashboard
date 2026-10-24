@@ -321,6 +321,9 @@ function winName(n, i) {
     ใบละ 3 แถวของกริด winList (subgrid: หัว · สกอร์ · รายชื่อ) — หัวทุกใบสูงเท่าใบที่ประเภทยาวสุด แถบสกอร์/รายชื่อจึงตรงแนวกันทุกใบ
     (ผู้ดูแลขอ ต.ค. 2569 — ประเภทยาวตัดเป็น 3 บรรทัดแล้วแถบสกอร์ใบนั้นต่ำกว่าใบอื่น)
     หัวการ์ดตัวเล็กลง (ชื่อกีฬา 17 · ประเภท/ป้ายชนะ 12.5 · มาสคอต 40px) ให้ประเภทยาว ๆ เหลือสองบรรทัด หัวไม่สูงเกิน (ผู้ดูแลขอ ต.ค. 2569)
+    ประเภทไม่เกิน 3 บรรทัด (ประเภทจริงยาวสุดก็ 3 บรรทัด): กันแถวที่วางรายชื่อนักกีฬาผิดลงช่อง "ประเภท" (หมากกระดาน 24 ต.ค.)
+    ทำหัวใบนั้นยาวครึ่งจอ แล้วหัวทุกใบในแถวยืดตาม · ข้อความเต็มอยู่ใน title
+    ตัดแค่แนวตั้ง (overflow-y-clip ไม่ใช่ line-clamp): คำยาว "มัธยมศึกษาตอนปลาย" กว้างเกินช่องบนการ์ดแคบ line-clamp ตัดท้ายคำทิ้ง
     grid-cols-1 (= minmax(0,1fr)) ต้องมี: คอลัมน์ auto ขยายตามเนื้อหา แถบสกอร์/ป้ายชนะล้นขอบการ์ดแล้วโดนตัด */
 function winCard(r, i, n, k, data, allDays) {
   var names = athleteNames(r.athletes), rest = names.slice(WIN_NAMES);
@@ -331,7 +334,7 @@ function winCard(r, i, n, k, data, allDays) {
     '<div class="flex items-start gap-2.5 bg-surface-soft px-4 py-3">' + sportArt(r.sportId, 'size-10') +
       '<div class="min-w-0 flex-1">' +
         '<p class="m-0 font-display fs-17 leading-[1.25] text-brand-strong">' + esc(r.sport) + '</p>' +
-        (r.kind ? '<p class="m-0 fs-12.5 leading-[1.4] text-fg-soft">' + wordsNoBreak(r.kind) + '</p>' : '') +
+        (r.kind ? '<p class="m-0 max-h-[4.2em] overflow-y-clip fs-12.5 leading-[1.4] text-fg-soft" title="' + esc(r.kind) + '">' + wordsNoBreak(r.kind) + '</p>' : '') +
         (allDays ? '<p class="m-0 fs-13 leading-[1.4] text-fg-mute">' + esc(dayLabel(r.day)) + '</p>' : '') +
       '</div>' +
       '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-12.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span>' +
