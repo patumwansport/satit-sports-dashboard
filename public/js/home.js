@@ -9,7 +9,7 @@
    ========================================================= */
 import {
   esc, setText, paintUiIcons, loadData, onFreshData, initChrome, sportName, resultStatusOf, RESULT_STATUS,
-  isToday, teamSides, splitScore, schoolByText, schoolCrest, eventParts, EMPTY_TEXT, showLoadError, selfSideTester,
+  isToday, teamSides, schoolByText, schoolCrest, scoreStrip, eventParts, EMPTY_TEXT, showLoadError, selfSideTester,
   matchOutcome, LIVE_DOT, sportMascot
 } from './common.js';
 import { total } from './charts.js';
@@ -55,7 +55,10 @@ function mergedDays(data) {
         var p = t.items[k];
         if (sameMatch(p, r)) {
           // teams ใช้ของแท็บผล (r) เสมอ: สกอร์ "15 : 69" เรียงตามลำดับทีมของแท็บนั้น การ์ดสรุปผลจับคู่เลขกับฝั่งจากลำดับนี้
-          t.items[k] = Object.assign({}, p, r, { liveUrl: p.liveUrl || r.liveUrl, venue: p.venue || r.venue });
+          // แถวในแท็บผลที่ยังไม่กรอกสถานะ/ผล ไม่ลบสถานะที่กรอกไว้ในแท็บตาราง ("เสร็จสิ้น" ในแท็บตารางยังขึ้นว่าจบ)
+          var keep = !r.statusText && !r.score && (p.statusText || p.status === 'done')
+            ? { status: p.status, statusText: p.statusText, unofficial: p.unofficial } : {};
+          t.items[k] = Object.assign({}, p, r, keep, { liveUrl: p.liveUrl || r.liveUrl, venue: p.venue || r.venue });
           return;
         }
       }
@@ -175,9 +178,10 @@ var HEAD = '<div class="' + ROW + ' rounded-[12px] bg-surface-soft py-2 fs-13.5 
   '<span class="' + C_EVENT + '" role="columnheader">รายการ</span><span class="text-center" role="columnheader">คู่แข่งขัน</span>' +
   '<span class="' + C_VENUE + '" role="columnheader">สนาม</span><span role="columnheader">สถานะ</span><span role="columnheader"><span class="sr-only">รายละเอียด</span></span></div>';
 
-/** สีตามสถานะ — เขียนชื่อคลาสเต็มทุกตัว (Tailwind อ่านสตริงในไฟล์นี้) */
+/** สีตามสถานะ — เขียนชื่อคลาสเต็มทุกตัว (Tailwind อ่านสตริงในไฟล์นี้)
+    แถวกำลังแข่งพื้นขาวเหมือนแถวอื่น (ผู้ดูแลขอ ต.ค. 2569 — เดิมพื้นชมพู) บอกด้วยเวลาสีชมพู + ป้าย "กำลังแข่งขัน" */
 var TONE = {
-  live:     { time: 'text-brand-ink', row: 'bg-brand-100/45' },
+  live:     { time: 'text-brand-ink', row: '' },
   done:     { time: 'text-fg', row: '' },
   upcoming: { time: 'text-fg', row: '' }
 };
@@ -356,25 +360,26 @@ function renderVenues() {
   setText('venueTitle', !day || isToday(day) ? 'สนามแข่งขันวันนี้' : 'สนามแข่งขันวันที่ ' + tabLabel(day));
   var host = document.getElementById('venues');
   if (!list.length) {
-    host.innerHTML = '<div class="col-span-full w-full rounded-[16px] bg-brand-100 p-[26px] text-center fs-14.5 text-brand-ink">' + (day ? 'ยังไม่มีข้อมูลสนามของวันนี้' : 'ยังไม่มีตารางการแข่งขัน') + '</div>';
+    host.innerHTML = '<div class="col-span-full w-full rounded-[16px] bg-surface-soft/70 p-[26px] text-center fs-14.5 text-fg-mute">' + (day ? 'ยังไม่มีข้อมูลสนามของวันนี้' : 'ยังไม่มีตารางการแข่งขัน') + '</div>';
     return;
   }
   host.innerHTML = list.map(function (v) {
     var info = venueInfo(v.name);
-    /* แถวละสนาม โทนชมพู (ผู้ดูแลขอ ต.ค. 2569): ภาพเล็กซ้าย · ชื่อ (ไม่ตัดคำ) + จำนวนรายการ · กีฬา · ปุ่มนำทางกลมขวา
+    /* แถวละสนาม (ผู้ดูแลขอ ต.ค. 2569): ภาพเล็กซ้าย · ชื่อ (ไม่ตัดคำ) + จำนวนรายการ · กีฬา · ไอคอนนำทางขวา
+       หน้าตาแบบเดียวกับการ์ด "สรุปผลการแข่งขันที่ชนะ" (พื้นเทาอ่อน · ชื่อสีกรม · ไอคอนสีแบรนด์ไม่มีวงกลม) — เดิมโทนชมพู + ปุ่มกลมทึบ
        เดิมเป็นการ์ดสองคอลัมน์ บนมือถือชื่อสนามกับคำว่า "นำทาง" ล้นขอบจนถูกตัด */
-    return '<a class="group flex min-w-0 items-center gap-3 rounded-[14px] bg-brand-100 p-2 pr-2.5 no-underline ring-1 ring-transparent hover:ring-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="' + esc(info.mapUrl) +
+    return '<a class="group flex min-w-0 items-center gap-3 rounded-[16px] bg-surface-soft/70 p-2 pr-3 no-underline ring-1 ring-transparent transition-shadow duration-150 hover:ring-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none" href="' + esc(info.mapUrl) +
         '" target="_blank" rel="noopener noreferrer" aria-label="นำทางไป ' + esc(v.name) + ' ด้วย Google Maps (' + v.n + ' รายการ' + (v.live ? ' กำลังแข่ง' : '') + ')">' +
       '<span class="relative block size-[60px] flex-none overflow-hidden rounded-[10px] bg-surface">' + venueVisual(v, 'size-6') + '</span>' +
       '<span class="flex min-w-0 flex-1 flex-col gap-0.5">' +
-        '<span class="fs-14.5 leading-[1.3] font-semibold text-brand-ink">' + esc(v.name) + '</span>' +
-        '<span class="flex min-w-0 items-center gap-1.5 fs-13 text-fg-soft">' +
+        '<span class="fs-14.5 leading-[1.3] font-semibold text-brand-strong">' + esc(v.name) + '</span>' +
+        '<span class="flex min-w-0 items-center gap-1.5 fs-13 text-fg-mute">' +
           (v.live ? '<span class="inline-flex flex-none items-center gap-1 font-semibold text-brand-ink">' + LIVE_DOT + 'กำลังแข่ง</span><span aria-hidden="true">·</span>' : '') +
           '<span class="flex-none whitespace-nowrap">' + v.n + ' รายการ</span>' +
           (v.sports.length ? '<span aria-hidden="true">·</span><span class="truncate">' + esc(sportsText(v, 2)) + '</span>' : '') +
         '</span>' +
       '</span>' +
-      '<span class="flex size-10 flex-none items-center justify-center rounded-full bg-brand text-white group-hover:bg-brand-ink" aria-hidden="true">' + NAV_SVG + '</span>' +
+      '<span class="flex flex-none text-brand-ink transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true">' + NAV_SVG + '</span>' +
     '</a>';
   }).join('');
   paintUiIcons(host);
@@ -467,25 +472,25 @@ document.getElementById('venueAll').addEventListener('click', function () {
 
 /* ===================== สรุปผลที่ชนะของวันที่เลือก =====================
    นับเฉพาะแมตช์ที่จบแล้วและโรงเรียนเราแต้มมากกว่า (matchOutcome = 'win') — ผลแบบข้อความ เช่น ประกาศอันดับ ไม่นับ ไม่เดา
-   การ์ด: ชื่อกีฬา/ประเภท (ไม่มีภาพมาสคอต) · ป้าย "ชนะ" · ตราเรา สกอร์ (ฝั่งเราก่อน) ตราคู่แข่ง + ชื่อคู่แข่ง
-   ดาวน์โหลดเป็น CSV (มี BOM ให้ Excel อ่านภาษาไทยถูก) สร้างในเบราว์เซอร์ ไม่มีไฟล์บนเซิร์ฟเวอร์ */
+   การ์ด: ชื่อกีฬา/ประเภท (ไม่มีภาพมาสคอต) · ป้าย "ชนะ" · แถบสกอร์ scoreStrip() "PDS (ตรา) 69 - 15 (ตรา) KUS" (ฝั่งเราก่อน · ใช้ร่วมกับหน้าผลการแข่งขัน)
+   กดการ์ด = หน้าผลการแข่งขันที่กรองกีฬานั้นไว้ (เปิดมาที่วันนี้เอง) ดูรายชื่อนักกีฬา/รายละเอียดต่อได้ (ผู้ดูแลขอ ต.ค. 2569)
+   ท้ายการ์ดมีบรรทัด "ดูผลและรายชื่อนักกีฬา ›" เห็นตลอด — ขอบจางตอนชี้เมาส์อย่างเดียวคนไม่รู้ว่ากดได้ และจอสัมผัสไม่มีการชี้
+   ไม่มีปุ่มดาวน์โหลด CSV แล้ว (ผู้ดูแลขอเอาออก ต.ค. 2569) */
 function winsOf(d, isSelf) {
   return d ? d.items.filter(function (i) { return matchOutcome(i, isSelf) === 'win'; }).sort(byTime) : [];
 }
 function winCard(i, isSelf) {
-  var data = state.data, sides = teamSides(i.teams), s = splitScore(i.score);
-  var us = isSelf(sides[0]) ? 0 : 1, them = 1 - us;
-  var p = eventParts(sportName(data, i.sportId), i.event);
-  function crest(k) { return schoolCrest(schoolByText(data, sides[k]) || { school: sides[k] }, 'size-9 flex-none p-[1px]!'); }
-  return '<div class="flex min-w-0 flex-col justify-between gap-2 rounded-[16px] bg-surface-soft/70 p-4">' +
+  var data = state.data, p = eventParts(sportName(data, i.sportId), i.event);
+  var href = 'matches.html' + (i.sportId ? '?sport=' + encodeURIComponent(i.sportId) : '');
+  return '<a class="flex min-w-0 flex-col justify-between gap-3 rounded-[16px] bg-surface-soft p-4 text-fg no-underline ring-1 ring-line transition-shadow duration-150 hover:ring-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none group/win" href="' + href + '">' +
     '<div class="flex items-start gap-2">' +
       '<span class="min-w-0 flex-1"><span class="block truncate fs-15.5 font-semibold text-brand-strong">' + esc(p.sport || sportName(data, i.sportId) || '-') + '</span>' +
         '<span class="block truncate fs-13 text-fg-mute" title="' + esc(p.kind) + '">' + esc(p.kind || i.time || '') + '</span></span>' +
       '<span class="inline-flex flex-none items-center gap-1 fs-13 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span></div>' +
-    '<div class="flex items-center gap-2">' + crest(us) +
-      '<span class="font-display fs-28 leading-none whitespace-nowrap tabular-nums"><span class="text-brand-ink">' + esc(s[us]) + '</span><span class="px-1 text-fg-mute">-</span><span class="text-brand-strong">' + esc(s[them]) + '</span></span>' +
-      crest(them) + '<span class="min-w-0 truncate fs-14 text-fg-soft" title="' + esc(sides[them]) + '">' + esc(sides[them]) + '</span></div>' +
-  '</div>';
+    scoreStrip(data, i.teams, i.score, isSelf) +
+    '<span class="flex items-center justify-between gap-2 border-t border-line pt-2.5 fs-13.5 font-semibold text-brand-ink group-hover/win:underline">ดูผลและรายชื่อนักกีฬา' +
+      '<svg class="flex-none transition-transform duration-150 group-hover/win:translate-x-0.5 motion-reduce:transition-none" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+  '</a>';
 }
 /** ยังไม่มีรายการที่ชนะ: ภาพเหรียญ (Flat UI) + ข้อความ กลางพื้นที่ ไม่มีกล่องเทา */
 function winsEmpty(title, sub) {
@@ -500,42 +505,11 @@ function renderWins() {
   setText('winsTitle', 'สรุปผลการแข่งขันที่ชนะ' + (isToday(day) ? 'วันนี้' : ''));
   setText('winsDate', day ? longDayLabel(day) : 'ยังไม่มีตารางการแข่งขัน');
   setText('winsCount', String(wins.length));
-  var dl = document.getElementById('winsDl');
-  dl.disabled = !wins.length;
-  dl.setAttribute('aria-label', 'ดาวน์โหลดไฟล์ผลที่ชนะ' + (day ? ' ' + fullDate(day) : ''));
   var now = isoDate(new Date());
   document.getElementById('winsList').innerHTML = wins.length ? wins.map(function (i) { return winCard(i, isSelf); }).join('')
     : day && day.iso && day.iso > now ? winsEmpty('ยังไม่ถึงวันแข่งขัน', 'ผลที่โรงเรียนเราชนะจะขึ้นที่นี่เมื่อจบการแข่งขัน')
     : winsEmpty('ยังไม่มีรายการที่ชนะ', 'ผลที่โรงเรียนเราชนะจะขึ้นที่นี่เมื่อจบการแข่งขัน');
 }
-document.getElementById('winsDl').addEventListener('click', function () {
-  var day = selectedDay(), data = state.data, isSelf = selfSideTester(data);
-  if (!day) return;
-  downloadCsv('ผลที่ชนะ-' + (day.iso || day.date) + '.csv',
-    [['วันที่', 'เวลา', 'กีฬา', 'ประเภท', 'คู่แข่งขัน', 'ผลการแข่งขัน', 'สนาม']].concat(winsOf(day, isSelf).map(function (i) {
-      var p = eventParts(sportName(data, i.sportId), i.event);
-      return [fullDate(day), i.time, p.sport, p.kind, teamSides(i.teams).join(' vs '), i.score, i.venue];
-    })));
-});
-
-/** กันสูตร Excel: ช่องที่ขึ้นต้นด้วย = + - @ ใส่ ' นำหน้า (ข้อมูลมาจากชีตที่คนภายนอกแก้ได้) */
-function csvCell(v) {
-  v = String(v == null ? '' : v);
-  if (/^[=+\-@]/.test(v)) v = "'" + v;
-  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
-}
-function downloadCsv(name, lines) {
-  var csv = '﻿' + lines.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n');
-  var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-}
-
 /* ===================== โปรแกรมรายวัน: เปลี่ยนวันตอน 12:01 น. เวลาไทย =====================
    ไม่เลือกวันจากชีต/โฟลเดอร์ที่อยู่ใกล้ที่สุด วันที่ ป้ายสถานะ และลิงก์ต้องเป็นวันเดียวกันเสมอ */
 var nextIso = null;

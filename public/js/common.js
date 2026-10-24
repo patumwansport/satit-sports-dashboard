@@ -206,7 +206,54 @@ var pending = null;      // ชุดใหม่ที่รอผู้ใช�
 function fingerprint(data) {
   return JSON.stringify(data, function (k, v) { return k === 'syncedAt' ? undefined : v; });
 }
+/* ---------- "กำลังแข่งขัน" ตามเวลาจริง (ผู้ดูแลขอ ต.ค. 2569) ----------
+   รายการของวันนี้ที่ถึงเวลาแข่งแล้ว แต่ช่องสถานะ/ผลในชีตยังว่าง = กำลังแข่งขัน
+   จบเมื่อไรให้ชีตเป็นคนบอกเท่านั้น (กรอก "เสร็จสิ้น" / ผล / "ไม่เป็นทางการ") — เว็บไม่เดาว่าจบ
+   คิดตอนส่งข้อมูลให้หน้าเท่านั้น ไม่เขียนลง cache (lastGood/localStorage เก็บสถานะตามชีตล้วน ๆ)
+   และไม่อยู่ใน sheets.js เพราะ scripts/import-sheets.mjs ใช้ไฟล์นั้นเขียนลง Supabase — สถานะตามนาฬิกาจะค้างอยู่ในฐานข้อมูล */
+function startMin(t) {
+  var m = /^(\d{1,2})[:.](\d{2})/.exec(String(t || '').trim());
+  return m ? +m[1] * 60 + +m[2] : -1;
+}
+function clockLive(i, nowMin) {
+  if (i.status !== 'upcoming' || i.statusText || i.score) return false;
+  var t = startMin(i.time);
+  return t > -1 && t <= nowMin;
+}
+function withClockStatus(data) {
+  if (!data) return data;
+  var now = new Date(), today = isoDate(now), nowMin = now.getHours() * 60 + now.getMinutes();
+  function mapDays(days) {
+    return (days || []).map(function (d) {
+      if (d.iso !== today || !(d.items || []).some(function (i) { return clockLive(i, nowMin); })) return d;
+      return Object.assign({}, d, { items: d.items.map(function (i) {
+        return clockLive(i, nowMin) ? Object.assign({}, i, { status: 'live' }) : i;
+      }) });
+    });
+  }
+  var out = Object.assign({}, data, { days: mapDays(data.days) });
+  if (data.schedule) out.schedule = mapDays(data.schedule);
+  return out;
+}
+/* ถึงเวลาเริ่มของรายการถัดไปของวันนี้ = ส่งข้อมูลชุดเดิมผ่าน deliver อีกรอบ
+   สถานะเปลี่ยน → ขึ้นปุ่ม "อัปเดต" ตามปกติ ไม่วาดทับหน้าที่คนกำลังอ่าน */
+var clockTimer = null;
+function armClock(data) {
+  clearTimeout(clockTimer);
+  var now = new Date(), today = isoDate(now), nowMin = now.getHours() * 60 + now.getMinutes(), next = Infinity;
+  (data.days || []).concat(data.schedule || []).forEach(function (d) {
+    if (d.iso !== today) return;
+    (d.items || []).forEach(function (i) {
+      var t = startMin(i.time);
+      if (t > nowMin && t < next && i.status === 'upcoming' && !i.statusText && !i.score) next = t;
+    });
+  });
+  if (next === Infinity) return;
+  var wait = (next - nowMin) * 60000 - now.getSeconds() * 1000 - now.getMilliseconds() + 1000;
+  clockTimer = setTimeout(function () { if (lastGood) publish(lastGood); armClock(lastGood || data); }, wait);
+}
 function deliver(onData, data, auto) {
+  data = withClockStatus(data);
   var fp = fingerprint(data);
   if (fp === shownFp) {
     pending = null;
@@ -278,7 +325,12 @@ function fetchFresh() {
 }
 
 export function loadData() {
-  return loadFirst().then(function (data) { shownFp = fingerprint(data); return data; });
+  return loadFirst().then(function (data) {
+    armClock(data);
+    data = withClockStatus(data);
+    shownFp = fingerprint(data);
+    return data;
+  });
 }
 function loadFirst() {
   if (firstLoad) {
@@ -422,7 +474,7 @@ var LOGO_KEYWORDS = [
   ['รามคำแหง', 'สธ.มร.'], ['ศิลปากร', 'มศก.'],
   ['พิบูลบำเพ็ญ', 'พมบ.'], ['บูรพา', 'พมบ.'],
   ['เชียงใหม่', 'สมช.'], ['นเรศวร', 'สมน.'], ['พะเยา', 'สมพ.'], ['มหาสารคาม', 'สมค.'],
-  ['ปัตตานี', 'ปมอ.'], ['สงขลานครินทร์', 'ปมอ.']
+  ['ปัตตานี', 'ปมอ.'], ['สงขลานครินทร์', 'ปมอ.'], ['ทักษิณ', 'ส.มทษ.']
 ];
 
 export function schoolAbbr(m) {
@@ -454,6 +506,65 @@ export function schoolNickname(m) {
     if (text.indexOf(NICKNAMES[i][0]) > -1) return NICKNAMES[i][1];
   }
   return m.school || m.name || m.fullName || '';
+}
+/* ---------- ตัวย่อภาษาอังกฤษ + ธงสีของโรงเรียน ----------
+   การ์ดผลที่ชนะ (หน้าแรก + หน้าผลการแข่งขัน) ใช้แถบสกอร์ "PDS (ตรา) 69 - 15 (ตรา) KUS" แทนชื่อเต็มที่ยาวจนตัดบนมือถือ (ผู้ดูแลขอ ต.ค. 2569)
+   ตัวย่อและสี Main/Sub ตามตารางที่ผู้ดูแลส่งมา (ต.ค. 2569): ธง = แถบนอนสองสีเหนือตัวย่อ ซ้าย = Main, ขวา = Sub
+   เรียงคำเจาะจงก่อนคำกว้างเหมือน LOGO_KEYWORDS (กำแพงแสน ก่อน เกษตร · หนองคาย ก่อน ขอนแก่น)
+   โรงเรียนที่ไม่อยู่ในรายการคืน null ให้ผู้เรียกใช้ชื่อเรียกสั้นแทน */
+var TAGS = [
+  ['กำแพงแสน', 'KUSK', '#613385', '#00573F'], ['เกษตร', 'KUS', '#613385', '#00573F'],
+  ['หนองคาย', 'NKCDS', '#A73B24', '#005A5B'], ['ขอนแก่น', 'KKUDS', '#808080', '#F15A24'],
+  ['จุฬา', 'CUDS', '#DE5C8E', '#DE5C8E'], ['เชียงใหม่', 'CMUDS', '#43C7F4', '#9E76B4'],
+  ['นเรศวร', 'NUD', '#F58220', '#A7A9AC'], ['พิบูลบำเพ็ญ', 'PBU', '#EBEBEB', '#FFCE00'], ['บูรพา', 'PBU', '#EBEBEB', '#FFCE00'],
+  ['มหาสารคาม', 'DMSU', '#FFCD22', '#7F7F7F'], ['รามคำแหง', 'DSRU', '#002060', '#F2A900'],
+  ['ศิลปากร', 'DSU', '#002D62', '#007A6D'], ['ปทุมวัน', 'PDS', '#32365D', '#EDB7D4'],
+  ['ประสานมิตร', 'SPSM', '#626467', '#D92128'], ['องครักษ์', 'ODS', '#69317D', '#636467'],
+  ['สงขลา', 'PSUDS', '#003399', '#F15A24'], ['ปัตตานี', 'PSUDS', '#003399', '#F15A24'],
+  ['ทักษิณ', 'S.TSU', '#717171', '#358CCB'], ['พะเยา', 'DeSUP', '#8D38C9', '#C4996C']
+];
+/** { code, left, right } หรือ null */
+export function schoolTag(m) {
+  if (!m) return null;
+  var text = [m.fullName, m.school, m.name].filter(Boolean).join(' ');
+  for (var i = 0; i < TAGS.length; i++) {
+    var t = TAGS[i];
+    if (text.indexOf(t[0]) > -1) return { code: t[1], left: t[2], right: t[3] };
+  }
+  return null;
+}
+/**
+ * แถบสกอร์ผลที่ชนะ: [ธง/ตัวย่อ] (ตรา) แต้มเรา - แต้มคู่แข่ง (ตรา) [ธง/ตัวย่อ] — ฝั่งเราก่อนเสมอ
+ * ขนาดทุกชิ้นคิดจากความกว้างแถบ (cqi) มีเพดานไม่ให้โตเกินบนจอกว้าง · แถบแคบกว่า 17rem (การ์ดบนมือถือ) ซ่อนตรา
+ *   ให้ตัวย่อกับแต้มตัวโตอ่านออก (ผู้ดูแลว่าเล็กจนมองไม่เห็น ต.ค. 2569) — ธงสีเหนือตัวย่อยังบอกโรงเรียนได้
+ * ตัวย่อยาวกว่า 3 ตัว (KKUDS, PSUDS) ย่อตามสัดส่วน (--k) และแต้มรวมเกิน 4 หลัก (บาส 100 - 108) ย่อด้วย --s ให้ไม่ล้นแถบ
+ * ธงมีขอบเข้มบาง ๆ สีชิดขอบ (ช่องขาวยังเห็นบนพื้นขาว) · สีธงตายตัว ไม่เปลี่ยนตามธีม
+ * โปรแกรมอ่านหน้าจออ่าน "ชื่อเต็ม แต้ม ต่อ แต้ม ชื่อเต็ม" ไม่สะกดตัวย่อ · แต้มไม่ใช่ตัวเลข (ผลแบบข้อความ) คืน ''
+ */
+export function scoreStrip(data, teams, score, isSelf) {
+  var sides = teamSides(teams), sc = splitScore(score);
+  if (!sc || sides.length < 2) return '';
+  var us = isSelf(sides[0]) ? 0 : 1, them = 1 - us;
+  function side(k) {
+    var m = schoolByText(data, sides[k]) || { school: sides[k] }, t = schoolTag(m);
+    var label = t
+      ? '<span class="inline-flex flex-none flex-col gap-[clamp(3px,1.4cqi,6px)]" title="' + esc(sides[k]) + '">' +
+          '<span class="flex h-[clamp(8px,3.2cqi,13px)] border border-[#1a1f4d]"><span class="flex-1" style="background:' + t.left + '"></span>' +
+          '<span class="flex-1 border-l border-[#1a1f4d]" style="background:' + t.right + '"></span></span>' +
+          '<span class="font-bold leading-none tracking-tight whitespace-nowrap text-brand-strong text-[length:clamp(11px,calc(11cqi*var(--k)),30px)] @min-[17rem]:text-[length:clamp(11px,calc(7.5cqi*var(--k)),30px)]"' +
+            ' style="--k:' + Math.min(1, 3.4 / t.code.length).toFixed(2) + '">' + esc(t.code) + '</span></span>'
+      : '<span class="min-w-0 truncate fs-12 font-semibold text-brand-strong" title="' + esc(sides[k]) + '">' + esc(schoolNickname(m)) + '</span>';
+    var crest = schoolCrest(m, 'hidden size-[clamp(26px,13cqi,54px)] p-[2px]! @min-[17rem]:block');
+    return k === us ? label + crest : crest + label;
+  }
+  return '<div class="@container rounded-[12px] bg-surface px-[clamp(8px,3cqi,16px)] py-2.5 ring-1 ring-line">' +
+    '<div class="flex items-center justify-between gap-[clamp(3px,1.6cqi,10px)]" role="img"' +
+    ' aria-label="' + esc(sides[us]) + ' ' + esc(sc[us]) + ' ต่อ ' + esc(sc[them]) + ' ' + esc(sides[them]) + '">' +
+    side(us) +
+    '<span class="flex-none font-bold leading-none whitespace-nowrap text-brand-strong tabular-nums text-[length:clamp(16px,calc(16cqi*var(--s)),48px)] @min-[17rem]:text-[length:clamp(16px,calc(11cqi*var(--s)),48px)]"' +
+      ' style="--s:' + Math.min(1, 4 / (sc[0].length + sc[1].length)).toFixed(2) + '">' +
+      esc(sc[us]) + '<span class="px-[0.12em]">-</span>' + esc(sc[them]) + '</span>' +
+    side(them) + '</div></div>';
 }
 /** พาธรูปโลโก้ ('' = ไม่รู้จักโรงเรียนนี้ ให้ผู้เรียกใช้ตัวอักษรย่อแทน) */
 export function schoolLogo(m) {

@@ -669,7 +669,9 @@ body:has(#cookieNotice) #toTop { display: none; }
 @media (max-width: 1000px) {
   .next-program-content { margin-inline: 0; gap: 16px; padding: 24px 16px; }
   .next-program-heading { max-width: 680px; flex-wrap: wrap; gap: 12px 20px; padding: 0; }
-  .next-program-heading h2 { font-size: 36px; }
+  /* "โปรแกรมการแข่งขันวันพรุ่งนี้" บรรทัดเดียวบนมือถือ (ผู้ดูแลขอ ต.ค. 2569): ข้อความยาวราว 10.5 เท่าของขนาดตัวอักษร
+     ย่อตามความกว้างแถบ (cqw ของ #nextBand ลบขอบ 16px สองข้าง) เพดาน 36px เท่าเดิมบนแท็บเล็ต */
+  .next-program-heading h2 { font-size: clamp(18px, calc((100cqw - 32px) / 11), 36px); white-space: nowrap; }
   .next-program-meta { width: 210px; border-radius: 12px; }
   .next-program-meta time { padding: 4px 8px; font-size: 32px; }
   .next-program-status { font-size: 14px; }

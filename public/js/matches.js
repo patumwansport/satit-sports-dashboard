@@ -11,11 +11,10 @@
    ========================================================= */
 import {
   RESULT_STATUS, resultStatusOf, resultChip, statusChip, CHIP, LIVE_DOT, esc, teamSides, splitScore,
-  dayLabel, isToday, schoolByText, schoolCrest, schoolNickname, sportMascotImg, sportIcon, paintUiIcons,
+  dayLabel, isToday, schoolByText, schoolCrest, schoolNickname, scoreStrip, sportMascotImg, sportIcon, paintUiIcons,
   matchOutcome, sportName
 } from './common.js';
 import { mountFixtureTable, renderSportIntro, orDash, TD_TIME, TH_TEAMS, teamsHtml, isSelfFor, SCORE_LINE, venueHtml } from './fixture-table.js';
-import { photoUnits, photosOfDay, photoDates } from './day-photos.js';
 import { imageUrlAt, imageFallbackAt } from './format.js';
 import { loadStars, sportIdOf } from './sheets.js';
 
@@ -302,7 +301,7 @@ function loopCarousel(o) {
    ล่าสุดก่อน: ผลใหม่ที่เพิ่งลงชีตขึ้นเป็นใบแรก · เห็นพร้อมกันตามความกว้างกล่อง (ใบละอย่างน้อย WIN_MIN px — จอมือถือใบเดียว)
    การ์ดละหนึ่งแมตช์ (ผู้ดูแลขอให้ไม่มีข้อความถูกตัด "…"): ทุกบรรทัดตัดบรรทัดได้
    หัวการ์ดพื้นเทาอ่อน (ชมพูเหลือแค่ป้ายชนะ — ผู้ดูแลว่าชมพูเยอะไป): มาสคอต · ชื่อกีฬา · ประเภท (ได้ความกว้างเต็ม ไม่ต้องแบ่งที่กับป้าย)
-   กลาง: แต้ม (ของเราก่อน เป็นสีชมพู แต้มคู่แข่งสีกรมท่า แบบเดียวกับตาราง) ตัวโต + ป้ายชนะชิดขวา แล้ว "พบ ตรา ชื่อคู่แข่ง" บรรทัดถัดไป
+   หัวการ์ดชิดขวามีป้าย "• ชนะ" · กลาง: แถบสกอร์ scoreStrip() "PDS (ตรา) 69 - 15 (ตรา) KUS" แบบเดียวกับหน้าแรก (ผู้ดูแลขอ ต.ค. 2569 — เดิมแต้มตัวโต + "พบ ตรา ชื่อคู่แข่ง")
    ท้าย: รายชื่อนักกีฬา WIN_NAMES คนแรก ที่เหลือกด "ดูอีก N คน" เปิดต่อท้ายในคอลัมน์เดียวกัน แล้วกด "ย่อรายชื่อ" ปิดกลับได้
    (ผู้ดูแลขอ ต.ค. 2569 — เดิมเป็น details เปิดแล้วปุ่มหายไป ย่อกลับไม่ได้) · ปุ่มผูกครั้งเดียวที่ winList (toggleNames) */
 var WIN_NAMES = 5;
@@ -320,8 +319,6 @@ function winName(n, i) {
 }
 /** ใบหนึ่งในแถวเลื่อน: กว้าง = (กล่อง − ช่องไฟ) / จำนวนใบที่เห็น (--per ตั้งโดย loopCarousel) · ใบในแถวสูงเท่ากัน */
 function winCard(r, i, n, k, data, allDays) {
-  var sides = teamSides(r.teams), sc = splitScore(r.score);
-  var usAt = r.isSelf(sides[0]) ? 0 : 1, opp = sideInfo(data, sides[1 - usAt]);
   var names = athleteNames(r.athletes), rest = names.slice(WIN_NAMES);
   // ชื่อบรรทัดเดียวเสมอ (ผู้ดูแลขอ ต.ค. 2569): ตัวเล็กลงพอให้ชื่อยาวทั่วไปพอดีการ์ด · ยาวเกินจริง ๆ ตัดท้ายเป็น … (ชื่อเต็มอยู่ใน title)
   var LIST = 'm-0 flex list-none flex-col gap-1 p-0 fs-13 leading-[1.45] text-fg';
@@ -333,15 +330,9 @@ function winCard(r, i, n, k, data, allDays) {
         (r.kind ? '<p class="m-0 fs-13.5 leading-[1.4] text-fg-soft">' + wordsNoBreak(r.kind) + '</p>' : '') +
         (allDays ? '<p class="m-0 fs-13 leading-[1.4] text-fg-mute">' + esc(dayLabel(r.day)) + '</p>' : '') +
       '</div>' +
+      '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-13.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span>' +
     '</div>' +
-    '<div class="flex flex-col gap-2.5 px-4 py-3.5">' +
-      '<div class="flex items-center gap-3">' +
-        '<span class="font-display fs-36 leading-none whitespace-nowrap text-brand-strong tabular-nums"><span class="text-brand-ink">' + esc(sc[usAt]) + '</span> - ' + esc(sc[1 - usAt]) + '</span>' +
-        '<span class="ml-auto flex-none rounded-full bg-brand px-3 py-0.5 fs-13.5 text-white">ชนะ</span>' +
-      '</div>' +
-      '<p class="m-0 flex items-center gap-2 fs-15 leading-[1.35] text-fg"><span class="flex-none fs-13.5 text-fg-mute">พบ</span>' +
-        schoolCrest(opp.m, 'size-8 flex-none') + '<span class="min-w-0">' + wordsNoBreak(opp.name) + '</span></p>' +
-    '</div>' +
+    '<div class="px-4 py-3.5">' + scoreStrip(data, r.teams, r.score, r.isSelf) + '</div>' +
     (names.length ? '<div class="mt-auto border-t border-line px-4 pt-3 pb-3.5">' +
       '<p class="m-0 mb-1.5 fs-13 text-fg-mute">นักกีฬา · ' + names.length + ' คน</p>' +
       '<ol class="' + LIST + '">' + names.slice(0, WIN_NAMES).map(winName).join('') + '</ol>' +
@@ -418,6 +409,10 @@ function renderSummary(ctx) {
    สุ่มภาพครั้งเดียวต่อ วัน×กีฬา วาดซ้ำชุดเดิม (ข้อมูลซิงก์ใหม่) ได้ภาพเดิม ไม่สลับใต้สายตาผู้อ่าน */
 var HL_COUNT = 5;
 var hl = { key: null, picks: [], token: 0 };
+/* ปิดการ์ดนี้ไว้ (ผู้ดูแลขอ ต.ค. 2569) — การ์ดใน matches.html มี hidden อยู่แล้วจึงไม่ขึ้นเลย
+   day-photos.js จึง import ตอนเปิดใช้เท่านั้น ไม่ให้หน้าไปอ่านโฟลเดอร์ Drive ทั้งที่ไม่ได้แสดง · เปิดกลับ = true */
+var SHOW_HIGHLIGHT = false;
+var dayPhotos = null;
 /** ตัวกรองชื่อกีฬาของภาพ ตามกีฬาที่เลือก · ไม่ได้เลือก = null (ทุกภาพ) */
 function sportTest(ctx) {
   return ctx.sportId ? function (name) { return sportIdOf(name) === ctx.sportId; } : null;
@@ -426,7 +421,7 @@ var EVEN_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid
 /** วันของภาพ: วันที่เลือกอยู่ · ดูทุกวัน = วันล่าสุดในรายการแข่งที่มีภาพแล้ว (ของกีฬาที่เลือก) */
 function highlightIso(ctx, units) {
   if (ctx.day) return ctx.day.iso || '';
-  var withPhotos = photoDates(units, ctx.data, sportTest(ctx));
+  var withPhotos = ctx.photos.photoDates(units, ctx.data, sportTest(ctx));
   var days = (ctx.data.days || []).filter(function (d) { return d.iso && withPhotos.indexOf(d.iso) > -1; });
   return days.length ? days[days.length - 1].iso : '';
 }
@@ -444,14 +439,18 @@ function shuffledUnique(list) {
 }
 
 function renderHighlight(ctx) {
+  if (!SHOW_HIGHLIGHT) return;
   var token = ++hl.token;
-  photoUnits.then(function (units) {
+  (dayPhotos || (dayPhotos = import('./day-photos.js'))).then(function (m) {
+    ctx = Object.assign({}, ctx, { photos: m });
+    return m.photoUnits;
+  }).then(function (units) {
     if (token !== hl.token) return;
     var iso = highlightIso(ctx, units);
     var box = document.getElementById('highlight');
     // ยังไม่มีวันไหนมีภาพ: มีโฟลเดอร์ Drive = การ์ดขึ้นข้อความรอภาพ · ไม่มีแหล่งภาพเลย = ซ่อนทั้งการ์ด
     if (!iso) { box.hidden = !units; if (!box.hidden) showPhotos([], ctx.day, '', ctx); return; }
-    photosOfDay(units, ctx.data, iso).then(function (list) {
+    ctx.photos.photosOfDay(units, ctx.data, iso).then(function (list) {
       if (token !== hl.token) return;
       var test = sportTest(ctx);
       if (test) list = list.filter(function (p) { return test(p.sportText || ''); });
