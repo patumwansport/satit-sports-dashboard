@@ -37,6 +37,9 @@ same('แท็บที่หน้าเว็บอ่าน (SHEET_TABS) ↔
   { gid: sorted(gviz.ALLOWED.gid), sheet: sorted(gviz.ALLOWED.sheet) },
   'แท็บที่ไม่อยู่ใน ALLOWED จะข้ามแคชไปยิง Google ตรงทุกครั้ง');
 same('BUNDLE_QUERIES (sheets.js) ↔ BUNDLE (api/gviz.js)', BUNDLE_QUERIES, gviz.BUNDLE, 'ชุดรวมไม่ตรง = แท็บนั้นขอแยกเอง เปลืองโควตา Vercel');
+same('HIDE_HEADER คอลัมน์ "ซ่อนจากเว็บ" (sheets.js ↔ api/gviz.js)',
+  grab('public/js/sheets.js', /const HIDE_HEADER = \/(.+)\/;/, 'HIDE_HEADER'), gviz.HIDE_HEADER.source,
+  'ไม่ตรง = ตัวกลางกับเส้นทางยิง Google ตรงซ่อนแถวคนละแบบ');
 
 // ---- Google Drive: public/js/gallery-config.js ↔ api/drive.js ----
 same('คีย์ Drive ของเบราว์เซอร์ (gallery-config.js ↔ BROWSER_KEY ใน api/drive.js)', GOOGLE_API_KEY, drive.BROWSER_KEY, 'แก้ให้ตรงกัน');

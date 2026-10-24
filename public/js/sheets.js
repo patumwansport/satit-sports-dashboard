@@ -256,8 +256,12 @@ async function fetchGvizTable(source, headers) {
 function parseSheetDate(cell) {
   if (!cell || cell.v == null) return null;
   const m = /^Date\((\d+),(\d+),(\d+)\)/.exec(cell.v);
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+  if (m) return new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+  // วันที่ที่ชีตเก็บเป็นข้อความ "24/10/2026" หรือ "24/10/2569" (คอลัมน์ที่ gviz ถือเป็นข้อความ / ตัวกลางเติมจาก CSV)
+  const t = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(cellText(cell));
+  if (!t) return null;
+  const year = Number(t[3]) > 2400 ? Number(t[3]) - 543 : Number(t[3]);
+  return new Date(year, Number(t[2]) - 1, Number(t[1]));
 }
 
 function formatTimeValue(cell) {
@@ -413,6 +417,9 @@ const RESULT_COLUMNS = { date: 0, sport: 1, kind: 2, time: 3, teamA: 4, teamB: 6
 const LIVE_HEADER = /^live$|ถ่ายทอด|ไลฟ์/i;
 /** คอลัมน์เสริม "สนาม" / "สถานที่" — เพิ่มไว้ตรงไหนของแท็บก็ได้ ไม่มีหัวนี้ = ตารางบนเว็บไม่มีคอลัมน์สนาม */
 const VENUE_HEADER = /สนาม|สถานที่/;
+/** คอลัมน์ "ซ่อนจากเว็บ" ในแท็บตารางแข่ง/ผล — ช่องนี้มีค่าอะไรก็ได้ = ไม่แสดงแถวนั้นบนเว็บ
+    ใช้แทนตัวกรองของชีต (ตัวกรองใช้ร่วมกันทุกคน ใครล้างตัวกรองแถวที่ซ่อนก็ขึ้นเว็บ) · ต้องตรงกับ HIDE_HEADER ใน api/gviz.js */
+const HIDE_HEADER = /ซ่อน/;
 /** รับเฉพาะลิงก์เว็บจริง (http/https) — ข้อความอื่นที่พิมพ์ไว้ในช่อง เช่น "รอลิงก์" หรือ javascript: ไม่เอามาทำเป็นลิงก์ */
 function webLink(text) {
   return /^https?:\/\/\S+$/i.test(text) ? text : '';
@@ -458,7 +465,8 @@ function assertScheduleTab(table, label, gid) {
 function resultColumns(table) {
   const labels = tableLabels(table);
   const extras = {
-    athletes: headerIndex(table, /นักกีฬา/), live: headerIndex(table, LIVE_HEADER), venue: headerIndex(table, VENUE_HEADER)
+    athletes: headerIndex(table, /นักกีฬา/), live: headerIndex(table, LIVE_HEADER), venue: headerIndex(table, VENUE_HEADER),
+    hidden: headerIndex(table, HIDE_HEADER)
   };
   function at(pattern) { return labels.findIndex(function (l) { return pattern.test(l); }); }
   const date = at(/วันที่/), teamA = at(/ระหว่าง/);
@@ -491,7 +499,8 @@ function planColumns(table) {
     teamA: teamA, teamB: teamA + 2, score: -1, status: -1,
     athletes: headerIndex(table, /นักกีฬา/),
     live: headerIndex(table, LIVE_HEADER),
-    venue: headerIndex(table, VENUE_HEADER)
+    venue: headerIndex(table, VENUE_HEADER),
+    hidden: headerIndex(table, HIDE_HEADER)
   };
 }
 
@@ -544,7 +553,7 @@ function buildDays(table, cols, guessDates) {
     }
     inBlock = true;
     const date = parseSheetDate(cell(c, cols.date)) || (guessDates === false ? null : provisionalDate(block));
-    if (isSportNotEntered(sportName)) return;
+    if (isSportNotEntered(sportName) || cellText(cell(c, cols.hidden))) return;
 
     const key = date ? date.getFullYear() + '-' + date.getMonth() + '-' + date.getDate() : '';
     if (date && !byDate.has(key)) {

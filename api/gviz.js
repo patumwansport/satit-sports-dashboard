@@ -101,12 +101,18 @@ async function fetchFresh(sheetId, query) {
   return raw;
 }
 
-/* แท็บตารางแข่ง/ผลการแข่งขัน: เติมช่องที่ gviz ส่งมาว่างจาก CSV export ของแท็บเดียวกัน
+/* เติมช่องที่ gviz ส่งมาว่างจาก CSV export ของแท็บเดียวกัน
    gviz ถือว่าคอลัมน์หนึ่งมีชนิดเดียว ช่องที่ชนิดไม่ตรงกับส่วนใหญ่ได้ null (ต.ค. 2569: เวลา 8:30 ที่เก็บเป็น "ข้อความ"
-   ในคอลัมน์เวลาหายไป 123 ช่อง หน้าเว็บขึ้น "-") · CSV export ให้ข้อความตามที่เห็นทุกช่อง แต่รวมแถวที่ซ่อน/กรองไว้ด้วย
-   (ผู้ดูแลตั้งใจซ่อนแถวพวกนั้นจากเว็บ) จึงใช้แถวของ gviz เป็นหลัก แล้วจับคู่กับแถว CSV ตามลำดับเพื่อเติมเฉพาะช่องว่าง
-   จับคู่ไม่ครบ / CSV โหลดไม่ได้ = ส่ง gviz เดิม ไม่ทำให้แท็บพัง */
-const CSV_FILL_GIDS = ['2119468784', '1146003336'];
+   ในคอลัมน์เวลาหายไป 123 ช่อง หน้าเว็บขึ้น "-" · จำนวนเหรียญที่พิมพ์เป็นข้อความจะกลายเป็น 0)
+   CSV export ให้ข้อความตามที่เห็นทุกช่อง แต่รวมแถวที่ซ่อน/กรองไว้ด้วย จึงใช้แถวของ gviz เป็นหลัก
+   แล้วจับคู่กับแถว CSV ตามลำดับเพื่อเติมเฉพาะช่องว่าง · จับคู่ไม่ครบ / CSV โหลดไม่ได้ = ส่ง gviz เดิม ไม่ทำให้แท็บพัง */
+const CSV_FILL_GIDS = ['1195929060', '1253612074', '2119468784', '1146003336'];
+/* แท็บตารางแข่ง/ผล: ผู้ดูแลซ่อนแถวที่ไม่ให้ขึ้นเว็บ เดิมใช้ตัวกรองของชีต (gviz ไม่ส่งแถวที่ถูกกรอง)
+   แต่ตัวกรองใช้ร่วมกันทุกคน ใครล้าง/เปลี่ยนตัวกรอง แถวบนเว็บก็เปลี่ยนตาม — มีคอลัมน์หัว HIDE_HEADER เมื่อไร
+   ใช้ทุกแถวจาก CSV แทน (ไม่สนตัวกรอง/การซ่อนแถว) แล้วตัดแถวที่ช่องนั้นมีค่า · ไม่มีคอลัมน์นี้ = ใช้ตัวกรองแบบเดิม
+   ต้องตรงกับ HIDE_HEADER ใน public/js/sheets.js (เส้นทางยิง Google ตรงตัดแถวเองที่นั่น) */
+const HIDE_GIDS = ['2119468784', '1146003336'];
+const HIDE_HEADER = /ซ่อน/;
 
 function parseCsv(text) {
   const rows = [];
@@ -167,13 +173,50 @@ function fillFromCsv(raw, csvText) {
   return { raw: filled ? m[1] + JSON.stringify(json) + m[3] : raw, filled: filled };
 }
 
+/** ช่องของ CSV ในรูปช่อง gviz · วันที่ "24/10/2026" → "Date(2026,9,24)" แบบที่ gviz ส่ง (sheets.js อ่านวันที่จากรูปนี้)
+    วันที่ที่อ่านไม่ออกคงเป็นข้อความ (gviz เองก็ส่งช่องแบบนั้นมาว่าง sheets.js จึงทำเหมือนเดิม) และนับไว้ใน bad */
+function csvCell(col, text, bad) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  if (col.type === 'date') {
+    const d = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t);
+    if (d) return { v: 'Date(' + d[3] + ',' + (d[2] - 1) + ',' + Number(d[1]) + ')', f: t };
+    bad.n++;
+  }
+  return { v: col.type === 'number' && !isNaN(Number(t)) ? Number(t) : t, f: t };
+}
+
+/** มีคอลัมน์ HIDE_HEADER = สร้างแถวทั้งแท็บจาก CSV (ไม่สนตัวกรองในชีต) โดยตัดแถวที่ช่องนั้นมีค่า
+    ไม่มีคอลัมน์ / วันที่ส่วนใหญ่อ่านไม่ออก (รูปแบบวันที่ในชีตเปลี่ยน ไม่ใช่ วว/ดด/ปปปป แล้ว) = null → ใช้ fillFromCsv แบบเดิม */
+function rowsFromCsv(raw, csvText) {
+  const m = raw.match(/^([\s\S]*?setResponse\()([\s\S]*)(\);?\s*)$/);
+  const json = JSON.parse(m[2]);
+  const cols = json.table.cols;
+  const csv = parseCsv(csvText);
+  const head = csv.slice(0, 10).findIndex(function (r) { return r.some(function (x) { return x.trim() === 'วันที่'; }); });
+  if (head < 0) return null;
+  const hide = csv[head].findIndex(function (x) { return HIDE_HEADER.test(x); });
+  if (hide < 0) return null;
+  // gviz ที่จับหัวตารางได้ไม่ส่งแถวหัวมาในข้อมูล · จับไม่ได้ (หัวว่างหมด) ส่งมาเป็นแถวแรก sheets.js หาหัวจากแถวนั้นเอง
+  const labelled = cols.some(function (c) { return c.label; });
+  const rows = [], bad = { n: 0 };
+  for (const r of csv.slice(labelled ? head + 1 : head)) {
+    if (String(r[hide] || '').trim()) continue;
+    rows.push({ c: cols.map(function (col) { return csvCell(col, r[colIndex(col.id)], bad); }) });
+  }
+  if (bad.n > rows.length / 10) return null;
+  json.table.rows = rows;
+  return m[1] + JSON.stringify(json) + m[3];
+}
+
 async function withCsvFill(sheetId, query, raw) {
-  const gid = /^gid=(\d+)$/.exec(query);
+  const gid = /^gid=(\d+)(?:&headers=[01])?$/.exec(query);
   if (!gid || CSV_FILL_GIDS.indexOf(gid[1]) < 0) return raw;
   try {
     const res = await fetch('https://docs.google.com/spreadsheets/d/' + sheetId + '/export?format=csv&gid=' + gid[1], { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error('CSV ตอบกลับ ' + res.status);
-    return fillFromCsv(raw, await res.text()).raw;
+    const csv = await res.text();
+    return (HIDE_GIDS.indexOf(gid[1]) > -1 && rowsFromCsv(raw, csv)) || fillFromCsv(raw, csv).raw;
   } catch (err) {
     console.warn(query + ': เติมช่องว่างจาก CSV ไม่สำเร็จ — ' + err.message);
     return raw;
@@ -258,4 +301,4 @@ module.exports = async function handler(req, res) {
   return sendCached(req, res, got.raw, 'text/plain; charset=utf-8', current.known && !got.stale ? CDN_CACHE : CDN_CACHE_SHORT);
 };
 
-module.exports.internals = { DEFAULT_SHEET_ID: DEFAULT_SHEET_ID, ALLOWED: ALLOWED, BUNDLE: BUNDLE, fillFromCsv: fillFromCsv };
+module.exports.internals = { DEFAULT_SHEET_ID: DEFAULT_SHEET_ID, ALLOWED: ALLOWED, BUNDLE: BUNDLE, HIDE_HEADER: HIDE_HEADER, fillFromCsv: fillFromCsv, rowsFromCsv: rowsFromCsv };
