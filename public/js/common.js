@@ -102,23 +102,31 @@ export var STATUS = {
      จบการแข่งขัน = แดงเข้ม — มีผลแล้ว ช่องสถานะในชีตว่าง (หรือกรอกว่า "จบ…")
      เสร็จสิ้น       = เขียว   — ชีตกรอกว่า "เสร็จสิ้น"
      ยังไม่เป็นทางการ = เทา    — ชีตกรอกว่า "ไม่เป็นทางการ"
+     รอยืนยันผล… = ส้มตัวหนา — ชีตกรอกว่า "รอยืนยัน…" ป้ายขึ้นข้อความตามที่กรอกในชีต (ผู้ดูแลขอ ต.ค. 2569)
    รายการที่ยังไม่มีผลไม่มีป้าย */
 export var RESULT_STATUS = {
   ended:      { label: 'จบการแข่งขัน',     tone: 'bg-ended-bg text-ended ring-1 ring-inset ring-ended/30' },
   finished:   { label: 'เสร็จสิ้น',         tone: 'bg-done-bg text-done-ink ring-1 ring-inset ring-done/30' },
-  unofficial: { label: 'ยังไม่เป็นทางการ', tone: 'bg-upcoming-bg text-upcoming ring-1 ring-inset ring-line-strong/50' }
+  unofficial: { label: 'ยังไม่เป็นทางการ', tone: 'bg-upcoming-bg text-upcoming ring-1 ring-inset ring-line-strong/50' },
+  pending:    { label: 'รอยืนยันผลการแข่งขัน', tone: 'bg-pending-bg font-semibold text-pending ring-1 ring-inset ring-pending/30' }
 };
-/** สถานะผลของรายการหนึ่ง ('ended' / 'finished' / 'unofficial') หรือ '' เมื่อยังไม่มีผล */
+/** สถานะผลของรายการหนึ่ง ('ended' / 'finished' / 'unofficial' / 'pending') หรือ '' เมื่อยังไม่มีผล */
 export function resultStatusOf(i) {
   var text = String(i.statusText || '');
+  if (/รอ\s*ยืนยัน/.test(text)) return 'pending';
   if (i.unofficial || /ไม่เป็นทางการ|unofficial/i.test(text)) return 'unofficial';
   if (/เสร็จ/.test(text)) return 'finished';
   return i.status === 'done' ? 'ended' : '';
 }
+/** ข้อความบนป้าย — "รอยืนยัน…" ใช้คำที่กรอกในชีต ที่เหลือใช้คำมาตรฐานใน RESULT_STATUS */
+export function resultLabel(i) {
+  var k = resultStatusOf(i);
+  return k === 'pending' ? String(i.statusText).trim() : k ? RESULT_STATUS[k].label : '';
+}
 /** ป้ายสถานะผล — ยังไม่มีผลคืนสตริงว่าง · cls แทนขนาดป้ายตั้งต้น (CHIP) ได้ */
 export function resultChip(i, cls) {
   var s = RESULT_STATUS[resultStatusOf(i)];
-  return s ? '<span class="' + (cls || CHIP) + ' ' + s.tone + '">' + s.label + '</span>' : '';
+  return s ? '<span class="' + (cls || CHIP) + ' ' + s.tone + '">' + esc(resultLabel(i)) + '</span>' : '';
 }
 
 /** ป้ายสถานะสำเร็จรูป — ป้าย "สด" พ่วงจุดกะพริบมาด้วยเสมอ */

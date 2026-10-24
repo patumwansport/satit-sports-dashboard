@@ -10,7 +10,7 @@
    เลือกกีฬาจากเมนูซ้าย = ทั้งหน้าเป็นเรื่องของกีฬานั้น: การ์ดแนะนำกีฬา · ภาพ · ผลที่ชนะ · สรุป · นักกีฬาดีเด่น · ตาราง
    ========================================================= */
 import {
-  RESULT_STATUS, resultStatusOf, resultChip, statusChip, CHIP, LIVE_DOT, esc, teamSides, splitScore,
+  RESULT_STATUS, resultStatusOf, resultLabel, resultChip, statusChip, CHIP, LIVE_DOT, esc, teamSides, splitScore,
   dayLabel, isToday, schoolByText, schoolCrest, schoolNickname, scoreStrip, sportMascotImg, sportIcon, paintUiIcons,
   matchOutcome, sportName
 } from './common.js';
@@ -317,23 +317,27 @@ function winName(n, i) {
     '<span class="w-4 flex-none text-right font-mono fs-12.5 text-fg-mute tabular-nums">' + (i + 1) + '</span>' +
     '<span class="min-w-0 truncate" title="' + esc(n) + '">' + (prefix ? esc(prefix) + ' ' : '') + esc(name) + '</span></li>';
 }
-/** ใบหนึ่งในแถวเลื่อน: กว้าง = (กล่อง − ช่องไฟ) / จำนวนใบที่เห็น (--per ตั้งโดย loopCarousel) · ใบในแถวสูงเท่ากัน */
+/** ใบหนึ่งในแถวเลื่อน: กว้าง = (กล่อง − ช่องไฟ) / จำนวนใบที่เห็น (--per ตั้งโดย loopCarousel · auto-cols ของ #winList) · ใบในแถวสูงเท่ากัน
+    ใบละ 3 แถวของกริด winList (subgrid: หัว · สกอร์ · รายชื่อ) — หัวทุกใบสูงเท่าใบที่ประเภทยาวสุด แถบสกอร์/รายชื่อจึงตรงแนวกันทุกใบ
+    (ผู้ดูแลขอ ต.ค. 2569 — ประเภทยาวตัดเป็น 3 บรรทัดแล้วแถบสกอร์ใบนั้นต่ำกว่าใบอื่น)
+    หัวการ์ดตัวเล็กลง (ชื่อกีฬา 17 · ประเภท/ป้ายชนะ 12.5 · มาสคอต 40px) ให้ประเภทยาว ๆ เหลือสองบรรทัด หัวไม่สูงเกิน (ผู้ดูแลขอ ต.ค. 2569)
+    grid-cols-1 (= minmax(0,1fr)) ต้องมี: คอลัมน์ auto ขยายตามเนื้อหา แถบสกอร์/ป้ายชนะล้นขอบการ์ดแล้วโดนตัด */
 function winCard(r, i, n, k, data, allDays) {
   var names = athleteNames(r.athletes), rest = names.slice(WIN_NAMES);
   // ชื่อบรรทัดเดียวเสมอ (ผู้ดูแลขอ ต.ค. 2569): ตัวเล็กลงพอให้ชื่อยาวทั่วไปพอดีการ์ด · ยาวเกินจริง ๆ ตัดท้ายเป็น … (ชื่อเต็มอยู่ใน title)
   var LIST = 'm-0 flex list-none flex-col gap-1 p-0 fs-13 leading-[1.45] text-fg';
-  return '<li class="flex flex-none w-[calc((100%-(var(--per)-1)*12px)/var(--per))]" data-k="' + k + '" aria-roledescription="สไลด์" aria-label="' + (i + 1) + ' จาก ' + n + '">' +
-    '<article class="flex w-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-line bg-surface">' +
-    '<div class="flex items-start gap-3 bg-surface-soft px-4 py-3">' + sportArt(r.sportId, 'size-12') +
+  return '<li class="row-span-3 grid min-w-0 grid-cols-1 grid-rows-subgrid" data-k="' + k + '" aria-roledescription="สไลด์" aria-label="' + (i + 1) + ' จาก ' + n + '">' +
+    '<article class="row-span-3 grid min-w-0 grid-cols-1 grid-rows-subgrid overflow-hidden rounded-[16px] border border-line bg-surface">' +
+    '<div class="flex items-start gap-2.5 bg-surface-soft px-4 py-3">' + sportArt(r.sportId, 'size-10') +
       '<div class="min-w-0 flex-1">' +
-        '<p class="m-0 font-display fs-19 leading-[1.25] text-brand-strong">' + esc(r.sport) + '</p>' +
-        (r.kind ? '<p class="m-0 fs-13.5 leading-[1.4] text-fg-soft">' + wordsNoBreak(r.kind) + '</p>' : '') +
+        '<p class="m-0 font-display fs-17 leading-[1.25] text-brand-strong">' + esc(r.sport) + '</p>' +
+        (r.kind ? '<p class="m-0 fs-12.5 leading-[1.4] text-fg-soft">' + wordsNoBreak(r.kind) + '</p>' : '') +
         (allDays ? '<p class="m-0 fs-13 leading-[1.4] text-fg-mute">' + esc(dayLabel(r.day)) + '</p>' : '') +
       '</div>' +
-      '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-13.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span>' +
+      '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-12.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span>' +
     '</div>' +
     '<div class="px-4 py-3.5">' + scoreStrip(data, r.teams, r.score, r.isSelf) + '</div>' +
-    (names.length ? '<div class="mt-auto border-t border-line px-4 pt-3 pb-3.5">' +
+    (names.length ? '<div class="border-t border-line px-4 pt-3 pb-3.5">' +
       '<p class="m-0 mb-1.5 fs-13 text-fg-mute">นักกีฬา · ' + names.length + ' คน</p>' +
       '<ol class="' + LIST + '">' + names.slice(0, WIN_NAMES).map(winName).join('') + '</ol>' +
       (rest.length ? '<ol class="' + LIST + ' mt-1" hidden data-more>' + rest.map(function (n, i) { return winName(n, i + WIN_NAMES); }).join('') + '</ol>' +
@@ -381,7 +385,7 @@ var SUM_TILES = [
   { key: 'unofficial', num: 'text-upcoming' }
 ];
 function renderSummary(ctx) {
-  var n = { ended: 0, finished: 0, unofficial: 0 }, o = { win: 0, loss: 0, draw: 0 }, mine = 0;
+  var n = { ended: 0, finished: 0, unofficial: 0, pending: 0 }, o = { win: 0, loss: 0, draw: 0 }, mine = 0;
   ctx.dayRows.forEach(function (r) {
     var k = resultStatusOf(r); if (k) n[k]++;
     if (hasUs(r)) mine++;
@@ -622,7 +626,7 @@ mountFixtureTable({
     };
   },
   // ค้นหาด้วยชื่อนักกีฬา/สนามได้ด้วย
-  searchText: function (r) { return r.teams + ' ' + r.athletes + ' ' + r.venue + ' ' + r.score + ' ' + (RESULT_STATUS[resultStatusOf(r)] || { label: '' }).label; },
+  searchText: function (r) { return r.teams + ' ' + r.athletes + ' ' + r.venue + ' ' + r.score + ' ' + resultLabel(r); },
   emptyText: 'ยังไม่มีผลการแข่งขันในชีต',
   onRender: function (ctx) {
     // เลือกกีฬาอยู่: การ์ดทุกใบแสดงเฉพาะกีฬานั้น (ctx.rows ผ่านตัวกรองกีฬามาแล้ว · dayRows ยังไม่ผ่าน จึงกรองตรงนี้)

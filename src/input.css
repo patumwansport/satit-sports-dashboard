@@ -110,6 +110,9 @@
   --color-ended-bg: oklch(94.5% 0.03 25);
   --color-upcoming: oklch(52% 0.018 260);
   --color-upcoming-bg: oklch(95.5% 0.01 250);
+  /* ป้าย "รอยืนยันผลการแข่งขัน" = ส้มตัวหนา (ผู้ดูแลขอ ต.ค. 2569) */
+  --color-pending: oklch(55% 0.17 50);
+  --color-pending-bg: oklch(95% 0.04 60);
   /* ลบ/อันตราย — ใช้กับปุ่มหรือข้อความเตือนที่ย้อนกลับไม่ได้เท่านั้น (btn-destructive) */
   --color-danger: oklch(56% 0.21 27);
 
@@ -186,6 +189,8 @@
     --color-ended-bg: oklch(30% 0.07 25);
     --color-upcoming: oklch(75% 0.018 260);
     --color-upcoming-bg: oklch(29% 0.02 260);
+  --color-pending: oklch(78% 0.14 60);
+  --color-pending-bg: oklch(30% 0.06 50);
     --color-danger: oklch(70% 0.17 24);
     --shadow-panel: 0 1px 2px oklch(0% 0 0 / .35);
     --shadow-card: 0 1px 3px oklch(0% 0 0 / .45);
@@ -227,6 +232,8 @@
   --color-ended-bg: oklch(30% 0.07 25);
   --color-upcoming: oklch(75% 0.018 260);
   --color-upcoming-bg: oklch(29% 0.02 260);
+  --color-pending: oklch(78% 0.14 60);
+  --color-pending-bg: oklch(30% 0.06 50);
   --color-danger: oklch(70% 0.17 24);
   --shadow-panel: 0 1px 2px oklch(0% 0 0 / .35);
   --shadow-card: 0 1px 3px oklch(0% 0 0 / .45);

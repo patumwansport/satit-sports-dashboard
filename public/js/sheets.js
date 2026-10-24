@@ -293,7 +293,7 @@ function formatTimeValue(cell) {
 function normalizeStatus(raw, score) {
   const s = String(raw || '').trim();
   if (/สด|กำลัง|live/i.test(s)) return 'live';
-  if (/จบ|เสร็จ|done|เรียบร้อย/i.test(s)) return 'done';
+  if (/จบ|เสร็จ|done|เรียบร้อย|รอ\s*ยืนยัน/i.test(s)) return 'done';
   if (String(score || '').trim()) return 'done';
   return 'upcoming';
 }

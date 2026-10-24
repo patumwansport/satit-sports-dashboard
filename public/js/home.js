@@ -8,7 +8,7 @@
     ข่าวสารจึงดึงจากประกาศใน CMS · สนามเป็นการ์ดรูปสนาม + ชื่อ + จำนวนรายการ กดแล้วนำทางด้วย Google Maps (venues.js) · เมนูลัดชี้ไปหน้าในเว็บแทน)
    ========================================================= */
 import {
-  esc, setText, paintUiIcons, loadData, onFreshData, initChrome, sportName, resultStatusOf, RESULT_STATUS,
+  esc, setText, paintUiIcons, loadData, onFreshData, initChrome, sportName, resultStatusOf, resultLabel, RESULT_STATUS,
   isToday, teamSides, schoolByText, schoolCrest, scoreStrip, eventParts, EMPTY_TEXT, showLoadError, selfSideTester,
   matchOutcome, LIVE_DOT, sportMascot
 } from './common.js';
@@ -39,8 +39,19 @@ function selfRow(data) { return (data.medalTable || []).filter(function (m) { re
    แท็บผลใช้แค่เติมสถานะ/สกอร์ให้แถวที่ตรงกันพอดี (วันที่ กีฬา ประเภท เวลา คู่แข่งขัน เดียวกัน) ป้ายสถานะ/สรุปผลจึงยังบอกได้ว่าจบหรือยัง */
 /* คู่แข่งขันเทียบแบบไม่สนลำดับทีม: สองแท็บพิมพ์คู่เดียวกันสลับข้างได้ (บาสฯ หญิง 24 ต.ค. ผัง "มศว พบ ม.เกษตร" ผล "ม.เกษตร พบ มศว") */
 function teamKey(teams) { return teamSides(teams).sort().join('|'); }
-function sameMatch(a, b) {
-  return a.sportId === b.sportId && a.event === b.event && a.time === b.time && teamKey(a.teams) === teamKey(b.teams);
+function samePairing(a, b) {
+  return a.sportId === b.sportId && a.event === b.event && teamKey(a.teams) === teamKey(b.teams);
+}
+function sameMatch(a, b) { return samePairing(a, b) && a.time === b.time; }
+/* แถวในแท็บตารางที่ตรงกับแถวผล r: ตรงทุกช่องก่อน · ไม่เจอ = ยอมให้เวลาต่างกันได้ ถ้าคู่ (กีฬา ประเภท ทีม) นี้มีแถวเดียวในวันนั้น
+   สองแท็บกรอกเวลาไม่ตรงกันบ่อย (เทเบิลเทนนิส ม.ปลาย 24 ต.ค. ตาราง 10:30 ผล 12:00 · ฟุตบอลแท็บผลเว้นช่องเวลา)
+   ถ้ายึดเวลาอย่างเดียว ผลไม่ถูกเติม การ์ดผลที่ชนะ/สรุปผลจะขาดนัดนั้นไปเงียบ ๆ */
+function matchIndex(items, r) {
+  for (var k = 0; k < items.length; k++) if (sameMatch(items[k], r)) return k;
+  if (!teamKey(r.teams)) return -1;
+  var hits = [];
+  items.forEach(function (p, i) { if (samePairing(p, r)) hits.push(i); });
+  return hits.length === 1 ? hits[0] : -1;
 }
 function mergedDays(data) {
   var map = {};
@@ -51,17 +62,15 @@ function mergedDays(data) {
     var t = map[d.iso];
     if (!t) return;
     (d.items || []).forEach(function (r) {
-      for (var k = 0; k < t.items.length; k++) {
-        var p = t.items[k];
-        if (sameMatch(p, r)) {
-          // teams ใช้ของแท็บผล (r) เสมอ: สกอร์ "15 : 69" เรียงตามลำดับทีมของแท็บนั้น การ์ดสรุปผลจับคู่เลขกับฝั่งจากลำดับนี้
-          // แถวในแท็บผลที่ยังไม่กรอกสถานะ/ผล ไม่ลบสถานะที่กรอกไว้ในแท็บตาราง ("เสร็จสิ้น" ในแท็บตารางยังขึ้นว่าจบ)
-          var keep = !r.statusText && !r.score && (p.statusText || p.status === 'done')
-            ? { status: p.status, statusText: p.statusText, unofficial: p.unofficial } : {};
-          t.items[k] = Object.assign({}, p, r, keep, { liveUrl: p.liveUrl || r.liveUrl, venue: p.venue || r.venue });
-          return;
-        }
-      }
+      var k = matchIndex(t.items, r);
+      if (k < 0) return;
+      var p = t.items[k];
+      // teams ใช้ของแท็บผล (r) เสมอ: สกอร์ "15 : 69" เรียงตามลำดับทีมของแท็บนั้น การ์ดสรุปผลจับคู่เลขกับฝั่งจากลำดับนี้
+      // แถวในแท็บผลที่ยังไม่กรอกสถานะ/ผล ไม่ลบสถานะที่กรอกไว้ในแท็บตาราง ("เสร็จสิ้น" ในแท็บตารางยังขึ้นว่าจบ)
+      // เวลา: แท็บผลเว้นช่องเวลาไว้ = ใช้เวลาของแท็บตาราง
+      var keep = !r.statusText && !r.score && (p.statusText || p.status === 'done')
+        ? { status: p.status, statusText: p.statusText, unofficial: p.unofficial } : {};
+      t.items[k] = Object.assign({}, p, r, keep, { time: r.time || p.time, liveUrl: p.liveUrl || r.liveUrl, venue: p.venue || r.venue });
     });
   });
   return list.sort(function (a, b) { return a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0; });
@@ -196,11 +205,14 @@ function liveLink(url) {
   return '<a class="inline-flex h-6 items-center rounded-full px-2 fs-12 font-semibold text-brand-ink no-underline ring-1 ring-current ring-inset hover:bg-brand-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" href="' + esc(url) +
     '" target="_blank" rel="noopener noreferrer" title="ดูถ่ายทอดสด" aria-label="ดูถ่ายทอดสด">LIVE</a>';
 }
-/* โปรแกรมบอกแค่ว่าแข่งแล้วหรือยัง: จบแล้วทุกแบบ (จบการแข่งขัน / เสร็จสิ้น / ยังไม่เป็นทางการ) ขึ้น "เสร็จสิ้น" สีเขียว (ผู้ดูแลขอ ต.ค. 2569)
-   ผลเป็นทางการหรือยังเป็นรายละเอียดของหน้าผลการแข่งขัน (resultChip ใน matches.js ยังแยกสามแบบ) */
+/* โปรแกรมบอกแค่ว่าแข่งแล้วหรือยัง: จบแล้วทุกแบบ (จบการแข่งขัน / เสร็จสิ้น / ยังไม่เป็นทางการ) ขึ้น "เสร็จสิ้น" สีเขียว ตัวหนาเท่า "กำลังแข่งขัน" (ผู้ดูแลขอ ต.ค. 2569)
+   ผลเป็นทางการหรือยังเป็นรายละเอียดของหน้าผลการแข่งขัน (resultChip ใน matches.js ยังแยกสามแบบ)
+   ยกเว้น "รอยืนยัน…" ขึ้นข้อความตามที่กรอกในชีต สีส้มตัวหนา (ผู้ดูแลขอ ต.ค. 2569)
+   ตัดบรรทัดได้ (ไม่ nowrap) — ข้อความยาวกว่าช่องสถานะ 124px จะได้ไม่ดันลูกศรท้ายแถวหาย */
 function statusPill(i) {
   var out = i.status === 'live' ? statusText('font-semibold text-brand-ink', 'กำลังแข่งขัน', LIVE_DOT.replace('size-1.5', 'size-2'))
-    : resultStatusOf(i) ? statusText('text-done-ink', RESULT_STATUS.finished.label, DOT)
+    : resultStatusOf(i) === 'pending' ? '<span class="inline-flex items-center gap-1.5 fs-13.5 leading-[1.25] font-semibold text-pending">' + DOT + '<span>' + esc(resultLabel(i)) + '</span></span>'
+    : resultStatusOf(i) ? statusText('font-semibold text-done-ink', RESULT_STATUS.finished.label, DOT)
     : statusText('text-fg-mute', 'รอแข่งขัน', DOT_HOLLOW);
   return out + (i.liveUrl && i.status !== 'done' ? liveLink(i.liveUrl) : '');
 }
@@ -475,14 +487,15 @@ document.getElementById('venueAll').addEventListener('click', function () {
    การ์ด: ชื่อกีฬา/ประเภท (ไม่มีภาพมาสคอต) · ป้าย "ชนะ" · แถบสกอร์ scoreStrip() "PDS (ตรา) 69 - 15 (ตรา) KUS" (ฝั่งเราก่อน · ใช้ร่วมกับหน้าผลการแข่งขัน)
    กดการ์ด = หน้าผลการแข่งขันที่กรองกีฬานั้นไว้ (เปิดมาที่วันนี้เอง) ดูรายชื่อนักกีฬา/รายละเอียดต่อได้ (ผู้ดูแลขอ ต.ค. 2569)
    ท้ายการ์ดมีบรรทัด "ดูผลและรายชื่อนักกีฬา ›" เห็นตลอด — ขอบจางตอนชี้เมาส์อย่างเดียวคนไม่รู้ว่ากดได้ และจอสัมผัสไม่มีการชี้
-   ไม่มีปุ่มดาวน์โหลด CSV แล้ว (ผู้ดูแลขอเอาออก ต.ค. 2569) */
+   ไม่มีปุ่มดาวน์โหลด CSV แล้ว (ผู้ดูแลขอเอาออก ต.ค. 2569)
+   แถวเดียวเลื่อนเองแบบแถบข่าว (autoScrollRow) — เดิมเลื่อนได้แต่แถบเลื่อนถูกซ่อน ผู้ดูแลเห็นแค่ 2 ใบนึกว่าขึ้นไม่ครบ (ต.ค. 2569) */
 function winsOf(d, isSelf) {
   return d ? d.items.filter(function (i) { return matchOutcome(i, isSelf) === 'win'; }).sort(byTime) : [];
 }
 function winCard(i, isSelf) {
   var data = state.data, p = eventParts(sportName(data, i.sportId), i.event);
   var href = 'matches.html' + (i.sportId ? '?sport=' + encodeURIComponent(i.sportId) : '');
-  return '<a class="flex min-w-0 flex-col justify-between gap-3 rounded-[16px] bg-surface-soft p-4 text-fg no-underline ring-1 ring-line transition-shadow duration-150 hover:ring-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none group/win" href="' + href + '">' +
+  return '<a class="flex w-[min(380px,100%)] min-w-0 flex-none snap-start flex-col justify-between gap-3 rounded-[16px] bg-surface-soft p-4 text-fg no-underline ring-1 ring-line transition-shadow duration-150 hover:ring-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none group/win" href="' + href + '">' +
     '<div class="flex items-start gap-2">' +
       '<span class="min-w-0 flex-1"><span class="block truncate fs-15.5 font-semibold text-brand-strong">' + esc(p.sport || sportName(data, i.sportId) || '-') + '</span>' +
         '<span class="block truncate fs-13 text-fg-mute" title="' + esc(p.kind) + '">' + esc(p.kind || i.time || '') + '</span></span>' +
@@ -494,7 +507,7 @@ function winCard(i, isSelf) {
 }
 /** ยังไม่มีรายการที่ชนะ: ภาพเหรียญ (Flat UI) + ข้อความ กลางพื้นที่ ไม่มีกล่องเทา */
 function winsEmpty(title, sub) {
-  return '<div class="col-span-full flex flex-col items-center justify-center gap-2 py-4 text-center">' +
+  return '<div class="flex w-full flex-col items-center justify-center gap-2 py-4 text-center">' +
     '<img class="size-14 object-contain" src="assets/summary/medal.svg" alt="" width="56" height="56" decoding="async" />' +
     '<p class="m-0 fs-15.5 font-semibold text-brand-strong">' + title + '</p>' +
     '<p class="m-0 fs-13.5 text-fg-mute">' + sub + '</p></div>';
@@ -509,6 +522,7 @@ function renderWins() {
   document.getElementById('winsList').innerHTML = wins.length ? wins.map(function (i) { return winCard(i, isSelf); }).join('')
     : day && day.iso && day.iso > now ? winsEmpty('ยังไม่ถึงวันแข่งขัน', 'ผลที่โรงเรียนเราชนะจะขึ้นที่นี่เมื่อจบการแข่งขัน')
     : winsEmpty('ยังไม่มีรายการที่ชนะ', 'ผลที่โรงเรียนเราชนะจะขึ้นที่นี่เมื่อจบการแข่งขัน');
+  if (wins.length) autoScrollRow(document.getElementById('winsList'));
 }
 /* ===================== โปรแกรมรายวัน: เปลี่ยนวันตอน 12:01 น. เวลาไทย =====================
    ไม่เลือกวันจากชีต/โฟลเดอร์ที่อยู่ใกล้ที่สุด วันที่ ป้ายสถานะ และลิงก์ต้องเป็นวันเดียวกันเสมอ */
@@ -599,12 +613,14 @@ function skeletonCards(n) {
 function gridEmpty(id, text) {
   document.getElementById(id).innerHTML = '<div class="' + EMPTY_BOX + ' col-span-full flex min-h-[240px] w-full items-center justify-center">' + text + '</div>';
 }
-/** แถบข่าวเลื่อนเองทีละใบทุก NEWS_AUTO_MS เมื่อการ์ดล้นแถบ · ถึงใบสุดท้ายแล้ววนกลับใบแรก
-    หยุดชั่วคราวเมื่อเมาส์ชี้/โฟกัสอยู่ในแถบ หรือผู้ชมแตะ/ปัดเอง (กลับมาเลื่อนต่อหลังปล่อยมือสักพัก)
-    ไม่เลื่อนเมื่อแท็บถูกซ่อน · ผู้ชมตั้ง "ลดการเคลื่อนไหว" ในเครื่อง = ไม่เลื่อนเอง (ยังปัดดูเองได้) */
+/** แถวการ์ดเลื่อนเองทีละใบทุก NEWS_AUTO_MS เมื่อการ์ดล้นแถว · ถึงใบสุดท้ายแล้ววนกลับใบแรก (แถบข่าว + ผลที่ชนะ)
+    หยุดชั่วคราวเมื่อเมาส์ชี้/โฟกัสอยู่ในแถว หรือผู้ชมแตะ/ปัดเอง (กลับมาเลื่อนต่อหลังปล่อยมือสักพัก)
+    ไม่เลื่อนเมื่อแท็บถูกซ่อน · ผู้ชมตั้ง "ลดการเคลื่อนไหว" ในเครื่อง = ไม่เลื่อนเอง (ยังปัดดูเองได้)
+    เรียกซ้ำกับแถวเดิมได้ (ผลที่ชนะวาดใหม่ทุกรอบข้อมูล) — ผูกตัวจับเวลาครั้งเดียว อ่านการ์ดใหม่ทุกรอบเลื่อน */
 var NEWS_AUTO_MS = 4000;
-function autoScrollNews(grid) {
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+function autoScrollRow(grid) {
+  if (grid.dataset.auto || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  grid.dataset.auto = '1';
   var hover = false, focus = false, touchUntil = 0;
   grid.addEventListener('mouseenter', function () { hover = true; });
   grid.addEventListener('mouseleave', function () { hover = false; });
@@ -629,7 +645,7 @@ function renderNews() {
     if (!list.length) return gridEmpty('newsGrid', 'ยังไม่มีประกาศ');
     grid.innerHTML = list.map(newsCard).join('');
     paintUiIcons(grid);
-    autoScrollNews(grid);
+    autoScrollRow(grid);
   }).catch(function (err) {
     console.error('แถบข่าวสารและไฮไลต์:', err.message);
     gridEmpty('newsGrid', 'โหลดประกาศไม่สำเร็จ');
