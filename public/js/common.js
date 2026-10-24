@@ -547,11 +547,12 @@ export function schoolTag(m) {
  *   ให้ตัวย่อกับแต้มตัวโตอ่านออก (ผู้ดูแลว่าเล็กจนมองไม่เห็น ต.ค. 2569) — ธงสีเหนือตัวย่อยังบอกโรงเรียนได้
  * ตัวย่อยาวกว่า 3 ตัว (KKUDS, PSUDS) ย่อตามสัดส่วน (--k) และแต้มรวมเกิน 4 หลัก (บาส 100 - 108) ย่อด้วย --s ให้ไม่ล้นแถบ
  * ธงมีขอบเข้มบาง ๆ สีชิดขอบ (ช่องขาวยังเห็นบนพื้นขาว) · สีธงตายตัว ไม่เปลี่ยนตามธีม
- * โปรแกรมอ่านหน้าจออ่าน "ชื่อเต็ม แต้ม ต่อ แต้ม ชื่อเต็ม" ไม่สะกดตัวย่อ · แต้มไม่ใช่ตัวเลข (ผลแบบข้อความ) คืน ''
+ * โปรแกรมอ่านหน้าจออ่าน "ชื่อเต็ม แต้ม ต่อ แต้ม ชื่อเต็ม" ไม่สะกดตัวย่อ
+ * ผลเป็นคำ ชนะ/แพ้/เสมอ (หมากกระดาน — ผลของฝั่งเรา ดู textOutcome) = คำนั้นอยู่กลางแถบแทนแต้ม · ผลข้อความแบบอื่นคืน ''
  */
 export function scoreStrip(data, teams, score, isSelf) {
-  var sides = teamSides(teams), sc = splitScore(score);
-  if (!sc || sides.length < 2) return '';
+  var sides = teamSides(teams), sc = splitScore(score), word = sc ? '' : textOutcome(score) && String(score).trim();
+  if ((!sc && !word) || sides.length < 2) return '';
   var us = isSelf(sides[0]) ? 0 : 1, them = 1 - us;
   function side(k) {
     var m = schoolByText(data, sides[k]) || { school: sides[k] }, t = schoolTag(m);
@@ -567,11 +568,11 @@ export function scoreStrip(data, teams, score, isSelf) {
   }
   return '<div class="@container rounded-[12px] bg-surface px-[clamp(8px,3cqi,16px)] py-2.5 ring-1 ring-line">' +
     '<div class="flex items-center justify-between gap-[clamp(3px,1.6cqi,10px)]" role="img"' +
-    ' aria-label="' + esc(sides[us]) + ' ' + esc(sc[us]) + ' ต่อ ' + esc(sc[them]) + ' ' + esc(sides[them]) + '">' +
+    ' aria-label="' + esc(sides[us]) + ' ' + (word ? esc(word) : esc(sc[us]) + ' ต่อ ' + esc(sc[them])) + ' ' + esc(sides[them]) + '">' +
     side(us) +
     '<span class="flex-none font-bold leading-none whitespace-nowrap text-brand-strong tabular-nums text-[length:clamp(16px,calc(16cqi*var(--s)),48px)] @min-[17rem]:text-[length:clamp(16px,calc(11cqi*var(--s)),48px)]"' +
-      ' style="--s:' + Math.min(1, 4 / (sc[0].length + sc[1].length)).toFixed(2) + '">' +
-      esc(sc[us]) + '<span class="px-[0.12em]">-</span>' + esc(sc[them]) + '</span>' +
+      ' style="--s:' + (word ? '0.75' : Math.min(1, 4 / (sc[0].length + sc[1].length)).toFixed(2)) + '">' +
+      (word ? esc(word) : esc(sc[us]) + '<span class="px-[0.12em]">-</span>' + esc(sc[them])) + '</span>' +
     side(them) + '</div></div>';
 }
 /** พาธรูปโลโก้ ('' = ไม่รู้จักโรงเรียนนี้ ให้ผู้เรียกใช้ตัวอักษรย่อแทน) */
@@ -687,14 +688,24 @@ export function selfSideTester(data) {
   };
 }
 /**
+ * ช่องผลที่พิมพ์เป็นคำ "ชนะ" / "แพ้" / "เสมอ" ล้วน ๆ (หมากกระดานไม่มีแต้ม — ต.ค. 2569) → 'win' / 'loss' / 'draw' · อย่างอื่น ''
+ * ชีตเป็นของโรงเรียนเรา คำนี้จึงเป็นผลของฝั่งเราเสมอ ไม่ว่าเราพิมพ์ไว้ก่อนหรือหลัง "พบ" (ม.บูรพา พบ เรา → "แพ้" = เราแพ้)
+ */
+export function textOutcome(score) {
+  var t = String(score || '').trim();
+  return t === 'ชนะ' ? 'win' : t === 'แพ้' ? 'loss' : t === 'เสมอ' ? 'draw' : '';
+}
+/**
  * ผลของโรงเรียนเราในแมตช์ที่จบแล้ว: 'win' / 'loss' / 'draw'
- * '' = ไม่ใช่แมตช์ของเรา ยังไม่จบ หรือสกอร์ไม่ใช่รูป "ตัวเลข-ตัวเลข" (เช่น ประกาศเป็นอันดับ) — ไม่เดา
+ * สกอร์ "ตัวเลข-ตัวเลข" เทียบแต้มตามลำดับทีม · คำ ชนะ/แพ้/เสมอ ใช้ตามนั้น (textOutcome)
+ * '' = ไม่ใช่แมตช์ของเรา ยังไม่จบ หรือผลเป็นข้อความแบบอื่น (เช่น ประกาศเป็นอันดับ) — ไม่เดา
  */
 export function matchOutcome(item, isSelf) {
-  var sides = teamSides(item.teams), score = splitScore(item.score);
-  if (item.status !== 'done' || !score || sides.length < 2) return '';
+  var sides = teamSides(item.teams), score = splitScore(item.score), word = textOutcome(item.score);
+  if (item.status !== 'done' || (!score && !word) || sides.length < 2) return '';
   var a = isSelf(sides[0]), b = isSelf(sides[1]);
   if (a === b) return '';
+  if (!score) return word;
   var us = +score[a ? 0 : 1], them = +score[a ? 1 : 0];
   return us > them ? 'win' : us < them ? 'loss' : 'draw';
 }
