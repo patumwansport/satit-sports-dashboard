@@ -101,11 +101,90 @@ async function fetchFresh(sheetId, query) {
   return raw;
 }
 
+/* แท็บตารางแข่ง/ผลการแข่งขัน: เติมช่องที่ gviz ส่งมาว่างจาก CSV export ของแท็บเดียวกัน
+   gviz ถือว่าคอลัมน์หนึ่งมีชนิดเดียว ช่องที่ชนิดไม่ตรงกับส่วนใหญ่ได้ null (ต.ค. 2569: เวลา 8:30 ที่เก็บเป็น "ข้อความ"
+   ในคอลัมน์เวลาหายไป 123 ช่อง หน้าเว็บขึ้น "-") · CSV export ให้ข้อความตามที่เห็นทุกช่อง แต่รวมแถวที่ซ่อน/กรองไว้ด้วย
+   (ผู้ดูแลตั้งใจซ่อนแถวพวกนั้นจากเว็บ) จึงใช้แถวของ gviz เป็นหลัก แล้วจับคู่กับแถว CSV ตามลำดับเพื่อเติมเฉพาะช่องว่าง
+   จับคู่ไม่ครบ / CSV โหลดไม่ได้ = ส่ง gviz เดิม ไม่ทำให้แท็บพัง */
+const CSV_FILL_GIDS = ['2119468784', '1146003336'];
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (ch !== '\r') cell += ch;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+/** ลำดับคอลัมน์จาก id ของ gviz ("A" → 0, "AA" → 26) ตรงกับตำแหน่งใน CSV ที่เริ่มคอลัมน์ A เสมอ */
+function colIndex(id) {
+  let n = 0;
+  for (const ch of String(id)) n = n * 26 + ch.charCodeAt(0) - 64;
+  return n - 1;
+}
+
+/** แถว gviz ตรงกับแถว CSV: ทุกช่องข้อความที่ gviz มีค่าต้องเท่ากับ CSV (ช่องที่ gviz ว่างไม่นับ) */
+function sameRow(cells, cols, csvRow) {
+  let compared = 0;
+  for (let k = 0; k < cols.length; k++) {
+    const c = cells[k];
+    if (cols[k].type !== 'string' || !c || c.v == null || String(c.v).trim() === '') continue;
+    if (String(c.v).trim() !== String(csvRow[colIndex(cols[k].id)] || '').trim()) return false;
+    compared++;
+  }
+  return compared > 0;
+}
+
+function fillFromCsv(raw, csvText) {
+  const m = raw.match(/^([\s\S]*?setResponse\()([\s\S]*)(\);?\s*)$/);
+  const json = JSON.parse(m[2]);
+  const cols = json.table.cols, rows = json.table.rows || [];
+  const csv = parseCsv(csvText);
+  let j = 0, filled = 0;
+  for (const r of rows) {
+    const cells = r.c || [];
+    // แถวว่างทั้งแถว (แถวคั่น) ไม่มีอะไรให้จับคู่ ข้ามไป
+    if (!cols.some(function (col, k) { return col.type === 'string' && cells[k] && cells[k].v != null && String(cells[k].v).trim() !== ''; })) continue;
+    while (j < csv.length && !sameRow(cells, cols, csv[j])) j++;
+    if (j >= csv.length) return { raw: raw, filled: 0 };
+    for (let k = 0; k < cols.length; k++) {
+      const text = String(csv[j][colIndex(cols[k].id)] || '').trim();
+      if (text && (!cells[k] || cells[k].v == null)) { cells[k] = { v: text, f: text }; filled++; }
+    }
+    r.c = cells;
+    j++;
+  }
+  return { raw: filled ? m[1] + JSON.stringify(json) + m[3] : raw, filled: filled };
+}
+
+async function withCsvFill(sheetId, query, raw) {
+  const gid = /^gid=(\d+)$/.exec(query);
+  if (!gid || CSV_FILL_GIDS.indexOf(gid[1]) < 0) return raw;
+  try {
+    const res = await fetch('https://docs.google.com/spreadsheets/d/' + sheetId + '/export?format=csv&gid=' + gid[1], { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error('CSV ตอบกลับ ' + res.status);
+    return fillFromCsv(raw, await res.text()).raw;
+  } catch (err) {
+    console.warn(query + ': เติมช่องว่างจาก CSV ไม่สำเร็จ — ' + err.message);
+    return raw;
+  }
+}
+
 /** { raw, stale } — ดึงไม่สำเร็จแต่มีชุดล่าสุดที่ยังไม่เก่าเกิน = ใช้ชุดนั้น (stale: true) · ไม่มี = throw */
 async function fetchRaw(sheetId, query) {
   const key = sheetId + ' ' + query;
   try {
-    const raw = await fetchFresh(sheetId, query);
+    const raw = await withCsvFill(sheetId, query, await fetchFresh(sheetId, query));
     lastGood.set(key, { raw: raw, at: Date.now() });
     return { raw: raw, stale: false };
   } catch (err) {
@@ -179,4 +258,4 @@ module.exports = async function handler(req, res) {
   return sendCached(req, res, got.raw, 'text/plain; charset=utf-8', current.known && !got.stale ? CDN_CACHE : CDN_CACHE_SHORT);
 };
 
-module.exports.internals = { DEFAULT_SHEET_ID: DEFAULT_SHEET_ID, ALLOWED: ALLOWED, BUNDLE: BUNDLE };
+module.exports.internals = { DEFAULT_SHEET_ID: DEFAULT_SHEET_ID, ALLOWED: ALLOWED, BUNDLE: BUNDLE, fillFromCsv: fillFromCsv };

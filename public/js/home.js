@@ -13,7 +13,7 @@ import {
   matchOutcome, LIVE_DOT, sportMascot
 } from './common.js';
 import { total } from './charts.js';
-import { MONTHS_TH, WEEKDAYS_TH, isoDate } from './format.js';
+import { MONTHS_TH, WEEKDAYS_TH, isoDate, roundPoolLabel } from './format.js';
 import { dayFolder, driveFolderUrl } from './day-files.js';
 import { venueInfo } from './venues.js';
 import { loadNews, newsCard } from './news.js';
@@ -228,7 +228,7 @@ function teamsCell(i, isSelf) {
 function rowHtml(i, isSelf, extra) {
   var tone = TONE[toneOf(i)];
   var kind = eventParts(sportName(state.data, i.sportId), i.event).kind;
-  var sub = [i.round ? 'รอบ ' + i.round : '', i.pool ? 'สาย ' + i.pool : ''].filter(Boolean).join(' · ');
+  var sub = roundPoolLabel(i.round, i.pool);
   var sport = sportName(state.data, i.sportId) || eventParts('', i.event).sport || '-';
   var href = (i.status === 'live' || i.status === 'done' ? 'matches.html' : 'schedule.html') + (i.sportId ? '?sport=' + encodeURIComponent(i.sportId) : '');
   return '<div class="' + ROW + ' border-t border-line first:border-t-0 ' + tone.row + (extra || '') + '" role="row">' +

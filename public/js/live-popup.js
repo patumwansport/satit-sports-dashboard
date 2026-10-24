@@ -8,7 +8,7 @@
    ========================================================= */
 import { el, esc, sportIcon, sportMascotImg, paintUiIcons } from './common.js';
 import { loadLive } from './sheets.js';
-import { isoDate } from './format.js';
+import { isoDate, roundPoolLabel } from './format.js';
 
 var TAB = 'flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3.5 fs-14 whitespace-nowrap text-fg' +
   ' hover:border-brand hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand' +
@@ -90,7 +90,7 @@ function card(i, n) {
   var cut = i.event.indexOf(' — ');
   var sport = cut > -1 ? i.event.slice(0, cut) : i.event;
   var title = cut > -1 ? i.event.slice(cut + 3) : i.event;
-  var detail = i.teams || [i.round && 'รอบ ' + i.round, i.pool && 'สาย ' + i.pool].filter(Boolean).join(' · ');
+  var detail = i.teams || roundPoolLabel(i.round, i.pool);
   if (i.venue) detail = [detail, i.venue].filter(Boolean).join(' · ');
   // มาสคอตลอยขึ้นลงช้า ๆ แต่ละใบเริ่มไม่พร้อมกัน (animation-delay ตามลำดับ) จะได้ไม่ขยับเป็นจังหวะเดียวทั้งรายการ
   var mascot = sportMascotImg(i.sportId, 'motion-ok absolute top-1.5 left-1/2 w-[86%] max-w-none -translate-x-1/2 motion-safe:animate-mascot-float');
