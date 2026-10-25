@@ -12,7 +12,7 @@
 import {
   RESULT_STATUS, resultStatusOf, resultLabel, resultChip, statusChip, CHIP, LIVE_DOT, esc, teamSides, splitScore,
   dayLabel, isToday, schoolByText, schoolCrest, schoolNickname, scoreStrip, sportMascotImg, sportIcon, paintUiIcons,
-  matchOutcome, sportName
+  matchOutcome, sportName, medalOf, medalCoin, medalStrip, isWinOrMedal, winLabel, MEDAL_NAMES
 } from './common.js';
 import { mountFixtureTable, renderSportIntro, orDash, TD_TIME, TH_TEAMS, teamsHtml, isSelfFor, SCORE_LINE, venueHtml } from './fixture-table.js';
 import { imageUrlAt, imageFallbackAt } from './format.js';
@@ -35,6 +35,9 @@ function scoreHtml(r) {
   var sides = teamSides(r.teams), sc = splitScore(r.score);
   // ยังไม่มีผล: จอกว้างคงขีดไว้ให้คอลัมน์ไม่โหว่ · จอแคบไม่มีคอลัมน์ให้เรียง ขีดเดี่ยว ๆ เป็นแค่สิ่งรก
   if (!r.score) return '<span class="text-fg-mute @max-[800px]:hidden">-</span>';
+  // ผลเป็นเหรียญ (ว่ายน้ำ ฯลฯ): รูปเหรียญ + ชื่อเหรียญ แทนคำในชีต (ผู้ดูแลขอ ต.ค. 2569)
+  var medal = medalOf(r.score);
+  if (medal) return '<span class="inline-flex items-center gap-1.5 fs-15 font-semibold whitespace-nowrap text-brand-strong">' + medalCoin(medal, 'size-[26px]') + MEDAL_NAMES[medal] + '</span>';
   if (!sc || sides.length !== 2) return orDash(r.score);
   var live = r.status === 'live';
   var tone = function (k) { return r.isSelf(sides[k]) ? 'text-brand' : live ? 'text-live' : 'text-fg'; };
@@ -120,7 +123,8 @@ function dayWord(day) {
    หยิบจากแถวที่ผ่านตัวกรองแล้ว (วัน · กีฬา · คำค้น) เรียงเวลาแล้ว:
    กำลังแข่งของโรงเรียนเรา > ผลล่าสุดของโรงเรียนเรา > ผลล่าสุดของใครก็ได้ · ไม่มีผลเลย = ซ่อนการ์ด
    ป้ายคะแนน: ตรา + ชื่อสองฝั่ง แต้มตัวโต ฝั่งเราสีชมพู (ชีตไม่มีคะแนนรายเซต จึงไม่มีแถวเซต) */
-function hasUs(r) { return teamSides(r.teams).some(function (s) { return r.isSelf(s); }); }
+/** รายการของโรงเรียนเรา: ชื่อเราอยู่ในคู่แข่งขัน หรือผลเป็นเหรียญ (ว่ายน้ำ ฯลฯ ไม่มีคู่ — ชีตกรอกเฉพาะเหรียญของเรา) */
+function hasUs(r) { return Boolean(medalOf(r.score)) || teamSides(r.teams).some(function (s) { return r.isSelf(s); }); }
 function pickFeatured(rows) {
   var mine = rows.filter(hasUs);
   function last(list, test) { for (var i = list.length - 1; i >= 0; i--) if (test(list[i])) return list[i]; return null; }
@@ -154,6 +158,9 @@ function renderFeatured(ctx) {
           '<span class="rounded-full bg-surface-soft px-3 py-1 font-display fs-16 text-fg-soft max-[700px]:fs-14">' + (sc ? 'VS' : esc(r.score || 'VS')) + '</span>' +
           (sc ? pts(1) : '') +
         '</div>' + side(sides[1]) + '</div>'
+    : medalOf(r.score)
+    ? '<div class="flex items-center justify-center gap-4">' + medalCoin(medalOf(r.score), 'size-20 max-[700px]:size-14') +
+        '<span class="font-display fs-32 leading-none text-brand-strong max-[700px]:fs-24">เหรียญ' + MEDAL_NAMES[medalOf(r.score)] + '</span></div>'
     : '<p class="m-0 text-center font-display fs-24 text-brand-strong">' + esc(r.teams || r.sport) + (r.score ? ' · ' + esc(r.score) : '') + '</p>';
 
   box.innerHTML =
@@ -337,9 +344,12 @@ function winCard(r, i, n, k, data, allDays) {
         (r.kind ? '<p class="m-0 max-h-[4.2em] overflow-y-clip fs-12.5 leading-[1.4] text-fg-soft" title="' + esc(r.kind) + '">' + wordsNoBreak(r.kind) + '</p>' : '') +
         (allDays ? '<p class="m-0 fs-13 leading-[1.4] text-fg-mute">' + esc(dayLabel(r.day)) + '</p>' : '') +
       '</div>' +
-      '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-12.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span>' +
+      // การ์ดเหรียญ: ป้ายมุมเป็นรูปเหรียญเล็ก — ข้อความ "เหรียญทองแดง" กว้างจนช่องประเภท (ว่ายน้ำชื่อยาว) เหลือแคบ ชื่อเหรียญอยู่ในแถบกลางแล้ว
+      (medalOf(r.score)
+        ? '<span class="flex-none pt-0.5" title="' + winLabel(r) + '">' + medalCoin(medalOf(r.score), 'size-6') + '</span>'
+        : '<span class="inline-flex flex-none items-center gap-1 pt-0.5 fs-12.5 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>' + winLabel(r) + '</span>') +
     '</div>' +
-    '<div class="px-4 py-3.5">' + scoreStrip(data, r.teams, r.score, r.isSelf) + '</div>' +
+    '<div class="px-4 py-3.5">' + (medalOf(r.score) ? medalStrip(r.score) : scoreStrip(data, r.teams, r.score, r.isSelf)) + '</div>' +
     (names.length ? '<div class="border-t border-line px-4 pt-3 pb-3.5">' +
       '<p class="m-0 mb-1.5 fs-13 text-fg-mute">นักกีฬา · ' + names.length + ' คน</p>' +
       '<ol class="' + LIST + '">' + names.slice(0, WIN_NAMES).map(winName).join('') + '</ol>' +
@@ -361,7 +371,8 @@ function toggleNames(e) {
 }
 function renderWins(ctx) {
   // ชีตเรียงวัน/เวลาจากเก่าไปใหม่ — กลับด้านให้ล่าสุดก่อน
-  var wins = ctx.dayRows.filter(function (r) { return matchOutcome(r, r.isSelf) === 'win'; }).reverse();
+  // ชนะคู่แข่ง + ได้เหรียญ (ว่ายน้ำ ฯลฯ — ผู้ดูแลขอ ต.ค. 2569)
+  var wins = ctx.dayRows.filter(function (r) { return isWinOrMedal(r, r.isSelf); }).reverse();
   var chip = document.getElementById('winsDay');
   chip.hidden = !ctx.day;
   chip.textContent = ctx.day ? (isToday(ctx.day) ? 'วันนี้ · ' : '') + dayLabel(ctx.day) : '';
@@ -638,7 +649,7 @@ mountFixtureTable({
     // การ์ดแนะนำกีฬา (fixture-table.js): ตัวเลขตลอดการแข่งขันของกีฬานี้ + ลิงก์ไปตาราง/ภาพ
     renderSportIntro(ctx, function (rows) {
       var mine = rows.filter(hasUs).length;
-      var wins = rows.filter(function (r) { return matchOutcome(r, r.isSelf) === 'win'; }).length;
+      var wins = rows.filter(function (r) { return isWinOrMedal(r, r.isSelf); }).length;
       return [
         { n: rows.length, label: 'รายการทั้งหมด' },
         { n: mine, label: 'โรงเรียนเราลงแข่ง' },

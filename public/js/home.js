@@ -10,7 +10,7 @@
 import {
   esc, setText, paintUiIcons, loadData, onFreshData, initChrome, sportName, resultStatusOf, resultLabel, RESULT_STATUS,
   isToday, teamSides, schoolByText, schoolCrest, scoreStrip, eventParts, EMPTY_TEXT, showLoadError, selfSideTester,
-  matchOutcome, LIVE_DOT, sportMascot
+  matchOutcome, LIVE_DOT, sportMascot, medalOf, medalStrip, winLabel
 } from './common.js';
 import { total } from './charts.js';
 import { MONTHS_TH, WEEKDAYS_TH, isoDate, roundPoolLabel } from './format.js';
@@ -488,13 +488,19 @@ document.getElementById('venueAll').addEventListener('click', function () {
 
 /* ===================== สรุปผลที่ชนะของวันที่เลือก =====================
    นับเฉพาะแมตช์ที่จบแล้วและโรงเรียนเราแต้มมากกว่า หรือช่องผลเขียนว่า "ชนะ" (matchOutcome = 'win') — ผลข้อความแบบอื่น เช่น ประกาศอันดับ ไม่นับ ไม่เดา
+   รวมรายการที่ได้เหรียญ (ช่องผล ทอง/เงิน/ทองแดง) — การ์ดเป็นรูปเหรียญแทนแถบสกอร์ ป้ายมุมเป็น "เหรียญทอง" (ผู้ดูแลขอ ต.ค. 2569)
    การ์ด: ชื่อกีฬา/ประเภท (ไม่มีภาพมาสคอต) · ป้าย "ชนะ" · แถบสกอร์ scoreStrip() "PDS (ตรา) 69 - 15 (ตรา) KUS" (ฝั่งเราก่อน · ใช้ร่วมกับหน้าผลการแข่งขัน)
    กดการ์ด = หน้าผลการแข่งขันที่กรองกีฬานั้นไว้ (เปิดมาที่วันนี้เอง) ดูรายชื่อนักกีฬา/รายละเอียดต่อได้ (ผู้ดูแลขอ ต.ค. 2569)
    ท้ายการ์ดมีบรรทัด "ดูผลและรายชื่อนักกีฬา ›" เห็นตลอด — ขอบจางตอนชี้เมาส์อย่างเดียวคนไม่รู้ว่ากดได้ และจอสัมผัสไม่มีการชี้
    ไม่มีปุ่มดาวน์โหลด CSV แล้ว (ผู้ดูแลขอเอาออก ต.ค. 2569)
    แถวเดียวเลื่อนเองแบบแถบข่าว (autoScrollRow) — เดิมเลื่อนได้แต่แถบเลื่อนถูกซ่อน ผู้ดูแลเห็นแค่ 2 ใบนึกว่าขึ้นไม่ครบ (ต.ค. 2569) */
+/* แถวที่ได้เหรียญ (ว่ายน้ำ ฯลฯ) อ่านจากแท็บผลตรง ๆ ไม่ผ่าน mergedDays: ไม่มีคู่แข่งให้จับคู่กับแท็บตาราง
+   และรายการ/เวลาเดียวกันได้หลายเหรียญ (ฟรีสไตล์ 200 ม. 13 ปี ทอง + ทองแดง) จับคู่แล้วจะทับกันเหลือแถวเดียว */
 function winsOf(d, isSelf) {
-  return d ? d.items.filter(function (i) { return matchOutcome(i, isSelf) === 'win'; }).sort(byTime) : [];
+  if (!d) return [];
+  var res = (state.data.days || []).filter(function (x) { return x.iso === d.iso; })[0];
+  var medals = res ? res.items.filter(function (i) { return i.status === 'done' && medalOf(i.score); }) : [];
+  return d.items.filter(function (i) { return !medalOf(i.score) && matchOutcome(i, isSelf) === 'win'; }).concat(medals).sort(byTime);
 }
 function winCard(i, isSelf) {
   var data = state.data, p = eventParts(sportName(data, i.sportId), i.event);
@@ -503,8 +509,8 @@ function winCard(i, isSelf) {
     '<div class="flex items-start gap-2">' +
       '<span class="min-w-0 flex-1"><span class="block truncate fs-15.5 font-semibold text-brand-strong">' + esc(p.sport || sportName(data, i.sportId) || '-') + '</span>' +
         '<span class="block truncate fs-13 text-fg-mute" title="' + esc(p.kind) + '">' + esc(p.kind || i.time || '') + '</span></span>' +
-      '<span class="inline-flex flex-none items-center gap-1 fs-13 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>ชนะ</span></div>' +
-    scoreStrip(data, i.teams, i.score, isSelf) +
+      '<span class="inline-flex flex-none items-center gap-1 fs-13 font-semibold text-brand-ink"><span class="size-2 rounded-full bg-current" aria-hidden="true"></span>' + winLabel(i) + '</span></div>' +
+    (medalOf(i.score) ? medalStrip(i.score) : scoreStrip(data, i.teams, i.score, isSelf)) +
     '<span class="flex items-center justify-between gap-2 border-t border-line pt-2.5 fs-13.5 font-semibold text-brand-ink group-hover/win:underline">ดูผลและรายชื่อนักกีฬา' +
       '<svg class="flex-none transition-transform duration-150 group-hover/win:translate-x-0.5 motion-reduce:transition-none" viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
   '</a>';

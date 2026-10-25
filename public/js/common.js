@@ -709,6 +709,35 @@ export function matchOutcome(item, isSelf) {
   var us = +score[a ? 0 : 1], them = +score[a ? 1 : 0];
   return us > them ? 'win' : us < them ? 'loss' : 'draw';
 }
+/**
+ * ช่องผลที่เป็นเหรียญ ("ทอง" / "เงิน" / "ทองแดง" หรือมีคำว่า "เหรียญ" นำหน้า) → 1 / 2 / 3 · อย่างอื่น 0
+ * กีฬาที่แข่งแบบจับเวลา/ให้คะแนน (ว่ายน้ำ ฯลฯ) ไม่มีคู่แข่งในช่อง "ระหว่าง" ช่องผลเป็นเหรียญของโรงเรียนเรา (ต.ค. 2569)
+ */
+export var MEDAL_NAMES = ['', 'ทอง', 'เงิน', 'ทองแดง'];
+export function medalOf(score) {
+  var m = /^(?:เหรียญ\s*)?(ทองแดง|ทอง|เงิน)$/.exec(String(score || '').trim());
+  return m ? MEDAL_NAMES.indexOf(m[1]) : 0;
+}
+/** รูปวงเหรียญ (assets/medals/coin-N.webp ชุดเดียวกับหน้าอันดับเหรียญ) · size = คลาสขนาด */
+export function medalCoin(n, size) {
+  return '<img class="flex-none ' + size + '" src="assets/medals/coin-' + n + '.webp" alt="" width="64" height="64" decoding="async" />';
+}
+/** แถบเหรียญแทนแถบสกอร์ในการ์ดผลที่ชนะ: กรอบเดียวกับ scoreStrip · รูปเหรียญ + "เหรียญทอง" กลางแถบ */
+export function medalStrip(score) {
+  var n = medalOf(score);
+  return '<div class="flex items-center justify-center gap-3 rounded-[12px] bg-surface px-4 py-2.5 ring-1 ring-line" role="img" aria-label="เหรียญ' + MEDAL_NAMES[n] + '">' +
+    medalCoin(n, 'size-10') + '<span class="font-display fs-22 leading-none text-brand-strong">เหรียญ' + MEDAL_NAMES[n] + '</span></div>';
+}
+/** รายการที่ขึ้นใน "สรุปผลการแข่งขันที่ชนะ": ชนะคู่แข่ง (matchOutcome) หรือได้เหรียญ (medalOf) */
+export function isWinOrMedal(item, isSelf) {
+  if (item.status === 'done' && medalOf(item.score)) return true;
+  return matchOutcome(item, isSelf) === 'win';
+}
+/** ป้ายมุมการ์ดผลที่ชนะ: "ชนะ" หรือ "เหรียญทอง" */
+export function winLabel(item) {
+  var n = medalOf(item.score);
+  return n ? 'เหรียญ' + MEDAL_NAMES[n] : 'ชนะ';
+}
 export var OUTCOME = {
   win:  { label: 'ชนะ', tone: 'bg-brand text-white' },
   loss: { label: 'แพ้', tone: 'bg-surface-soft text-fg-soft border border-line' },
