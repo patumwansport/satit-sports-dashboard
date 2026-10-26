@@ -2,7 +2,7 @@
    medals.js — ตารางอันดับเหรียญรางวัล
    ซ้าย: ตารางเต็ม (renderMedalTable ใน common.js) สลับแท็บไปดูเหรียญแยกประเภทกีฬาได้
    ขวา: กราฟ 5 อันดับแรก · สัดส่วนเหรียญของโรงเรียนเรา
-   ล่าง: ภาพสรุปผลการแข่งขันจาก Google Drive (medal-posters.js) — โหลดแยก ไม่รอข้อมูลชีต
+   ล่าง: สรุปเหรียญการแข่งขัน (ภาพจาก Google Drive · medal-posters.js) — โหลดแยก ไม่รอข้อมูลชีต
    ========================================================= */
 import {
   loadData, onFreshData, initChrome, renderMedalTable, showLoadError, esc, paintUiIcons

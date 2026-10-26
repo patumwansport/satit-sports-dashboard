@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <!-- stamp:importmap -->
+  <!-- สร้างจาก scripts/stamp-assets.mjs — อย่าแก้เอง -->
+  <script type="importmap">{"imports":{"./js/admin.js":"./js/admin.js?v=67849faad5","./js/charts.js":"./js/charts.js?v=1e959340dd","./js/common.js":"./js/common.js?v=9688e12343","./js/config.js":"./js/config.js?v=fa7a30172d","./js/day-files.js":"./js/day-files.js?v=b571f8a687","./js/day-photos.js":"./js/day-photos.js?v=e722263b17","./js/drive-photos.js":"./js/drive-photos.js?v=6a57dfe05c","./js/fixture-table.js":"./js/fixture-table.js?v=87266be880","./js/format.js":"./js/format.js?v=65c18182cc","./js/gallery-config.js":"./js/gallery-config.js?v=77b168e699","./js/gallery-settings.js":"./js/gallery-settings.js?v=5d0918d592","./js/gallery.js":"./js/gallery.js?v=69c079d6ad","./js/hero-settings.js":"./js/hero-settings.js?v=f8a5e2e78b","./js/home.js":"./js/home.js?v=2061a3fe7f","./js/img-retry.js":"./js/img-retry.js?v=8ea75731e9","./js/live-popup.js":"./js/live-popup.js?v=ba3571abee","./js/matches.js":"./js/matches.js?v=486a7e2d7b","./js/medal-posters.js":"./js/medal-posters.js?v=6512a451e4","./js/medals.js":"./js/medals.js?v=b26cb09407","./js/news.js":"./js/news.js?v=6e93958068","./js/program-settings.js":"./js/program-settings.js?v=26c517f7f1","./js/proxy.js":"./js/proxy.js?v=5f648373e1","./js/schedule.js":"./js/schedule.js?v=9d8371bbe9","./js/school-popup.js":"./js/school-popup.js?v=1eb382604d","./js/school.js":"./js/school.js?v=2349477f3b","./js/sheets.js":"./js/sheets.js?v=e2805c809f","./js/sports.js":"./js/sports.js?v=0503e32ddd","./js/supabase-data.js":"./js/supabase-data.js?v=9376c876ac","./js/venues.js":"./js/venues.js?v=2f2d00b4e5","./admin/admin.js":"./admin/admin.js?v=fcc4c44f33","./admin/config.js":"./admin/config.js?v=ceabcc8960","./admin/sheets-sync.js":"./admin/sheets-sync.js?v=4a9295b277","./admin/site.js":"./admin/site.js?v=f7739f3355"}}</script>
+  <!-- /stamp:importmap -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ตัวอย่างแบนเนอร์โปรแกรมการแข่งขัน</title>
+  <link rel="stylesheet" href="css/app.css?v=ff5cc79bcd" />
+</head>
+<body class="bg-surface-soft font-body text-fg" style="padding:24px">
+  <main>
+    <h1 style="font-size:24px;margin-bottom:8px">ตัวอย่างแบนเนอร์โปรแกรมการแข่งขัน</h1>
+    <p style="margin-bottom:20px">จำลองเวลาไทยและสถานะเพื่อตรวจหน้าตาเท่านั้น ไม่บันทึกข้อมูลลง CMS</p>
+    <form id="previewControls" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:24px">
+      <label>วันและเวลาไทย <input id="previewTime" type="datetime-local" value="2026-10-24T11:59" required style="background:white;border:1px solid #cbd0df;border-radius:8px;padding:10px" /></label>
+      <label>สถานะของวันที่บนป้าย <select id="previewStatus" style="background:white;border:1px solid #cbd0df;border-radius:8px;padding:10px"><option value="pending">ยังไม่เป็นทางการ</option><option value="final">Final</option></select></label>
+      <button type="button" id="previewNoon" style="background:#25255d;color:white;border-radius:999px;padding:12px 20px">จำลองเวลา 12:01 น.</button>
+    </form>
+    <div id="previewBanner"></div>
+    <p id="previewMessage" role="status" style="margin-top:16px"></p>
+  </main>
+  <script type="module">
+    import { programDateAt, programDateLabel, programTitleAt } from './js/program-settings.js';
+    import { paintUiIcons } from './js/common.js';
+    import { dayFolder, driveFolderUrl } from './js/day-files.js';
+    const get = id => document.getElementById(id);
+    // ใช้ HTML/CSS ของแบนเนอร์จริง เพื่อให้ตัวอย่างตามหน้าแรกเสมอ
+    const response = await fetch('./index.html', { cache: 'no-store' });
+    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+    get('previewBanner').append(page.getElementById('nextBand'));
+    get('nextBand').hidden = false;
+    paintUiIcons(get('nextBand'));
+    let revision = 0, lastIso;
+    async function render() {
+      if (!get('previewTime').value || !get('previewTime').validity.valid) return;
+      const now = new Date(get('previewTime').value + ':00+07:00');
+      const iso = programDateAt(now);
+      get('nextTitle').textContent = programTitleAt(now);
+      if (lastIso && iso !== lastIso) get('previewStatus').value = 'pending';
+      lastIso = iso;
+      const token = ++revision;
+      get('nextDate').textContent = programDateLabel(iso);
+      get('nextDate').dateTime = iso;
+      const final = get('previewStatus').value === 'final';
+      get('nextStatus').dataset.status = final ? 'final' : 'pending';
+      get('nextStatus').textContent = final ? 'Final' : 'ยังไม่เป็นทางการ';
+      get('nextStatus').hidden = false;
+      get('nextDl').removeAttribute('href');
+      get('nextDl').setAttribute('aria-disabled', 'true');
+      get('nextLinkCaption').textContent = 'กำลังโหลดโปรแกรม…';
+      get('previewMessage').textContent = 'วันที่บนแบนเนอร์และลิงก์เป้าหมาย: ' + programDateLabel(iso);
+      try {
+        const folder = await dayFolder(iso, true);
+        if (token !== revision) return;
+        if (folder) {
+          get('nextDl').href = driveFolderUrl(folder.id);
+          get('nextDl').removeAttribute('aria-disabled');
+        }
+        get('nextLinkCaption').textContent = folder ? 'คลิกเพื่อดูรายละเอียด' : 'กำลังเตรียมโปรแกรม';
+      } catch {
+        if (token === revision) get('nextLinkCaption').textContent = 'โหลดไม่สำเร็จ กำลังลองใหม่';
+      }
+    }
+    get('previewControls').addEventListener('submit', e => e.preventDefault());
+    get('previewTime').addEventListener('change', render);
+    get('previewStatus').addEventListener('change', render);
+    get('previewNoon').addEventListener('click', () => {
+      get('previewTime').value = get('previewTime').value.slice(0, 10) + 'T12:01';
+      render();
+    });
+    render();
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /* =========================================================
-   medal-posters.js — ส่วน "ภาพสรุปผลการแข่งขัน" ในหน้าตารางอันดับ (ผู้ดูแลขอ ต.ค. 2569)
+   medal-posters.js — ส่วน "สรุปเหรียญการแข่งขัน" ในหน้าตารางอันดับ (ผู้ดูแลขอ ต.ค. 2569)
    โปสเตอร์ผลการแข่งขัน (รูป 16:9) จากโฟลเดอร์ Google Drive MEDAL_POSTERS_FOLDER ใน gallery-config.js
 
    โครงโฟลเดอร์:
@@ -73,7 +73,7 @@ function paintSlides() {
   slide.at = 0;
   document.getElementById('posterTrack').innerHTML = state.images.map(function (p, i) {
     var url = driveUrl(p.id);
-    return '<button class="block aspect-video w-full flex-none cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-roledescription="สไลด์" aria-label="ดูภาพสรุปผล ' + esc(p.label) + ' ภาพที่ ' + (i + 1) + ' จาก ' + state.images.length + '">' +
+    return '<button class="block aspect-video w-full flex-none cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-roledescription="สไลด์" aria-label="ดูภาพสรุปเหรียญ ' + esc(p.label) + ' ภาพที่ ' + (i + 1) + ' จาก ' + state.images.length + '">' +
       '<img class="block size-full object-cover" src="' + esc(imageUrlAt(url, 960)) + '" data-fb="' + esc(imageFallbackAt(url, 960)) + '" alt="" loading="' + (i < 2 ? 'eager' : 'lazy') + '" decoding="async" />' +
     '</button>';
   }).join('');
@@ -223,7 +223,7 @@ function show(i) {
   if (!n) return;
   state.viewing = (i + n) % n;
   var p = state.images[state.viewing], url = driveUrl(p.id), img = $v('img'), spin = $v('spin');
-  var caption = 'ภาพสรุปผลการแข่งขัน · ' + p.label;
+  var caption = 'สรุปเหรียญการแข่งขัน · ' + p.label;
   spin.hidden = false;
   img.style.opacity = '0';
   // lh3 ล้ม → ลองลิงก์สำรองของ Drive หนึ่งครั้ง · ล้มทั้งคู่ค่อยบอกผู้ชม · โหลดนานเกิน 15 วินาทีบอกในคำบรรยาย
@@ -255,7 +255,7 @@ function show(i) {
   });
 }
 
-/** วาดส่วนภาพสรุปผลครั้งเดียวตอนเปิดหน้า (ไม่ผูกกับรอบข้อมูลชีต) */
+/** วาดส่วนสรุปเหรียญครั้งเดียวตอนเปิดหน้า (ไม่ผูกกับรอบข้อมูลชีต) */
 export function renderMedalPosters() {
   var box = document.getElementById('posters');
   var root = driveFolderId(MEDAL_POSTERS_FOLDER);
@@ -268,7 +268,7 @@ export function renderMedalPosters() {
     box.hidden = false;
     paintSlides();
   }).catch(function (err) {
-    console.error('ภาพสรุปผลการแข่งขัน:', err.message);
+    console.error('สรุปเหรียญการแข่งขัน:', err.message);
   });
   bindSlider();
 }
