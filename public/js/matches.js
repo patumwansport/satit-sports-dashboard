@@ -122,6 +122,7 @@ function dayWord(day) {
 /* ---------- แมตช์เด่น ----------
    หยิบจากแถวที่ผ่านตัวกรองแล้ว (วัน · กีฬา · คำค้น) เรียงเวลาแล้ว:
    กำลังแข่งของโรงเรียนเรา > ผลล่าสุดของโรงเรียนเรา > ผลล่าสุดของใครก็ได้ · ไม่มีผลเลย = ซ่อนการ์ด
+   แสดงเฉพาะตอนเลือกกีฬา — ดู "ผลการแข่งขันทั้งหมด" อยู่ = ซ่อน (ผู้ดูแลขอ ต.ค. 2569)
    ป้ายคะแนน: ตรา + ชื่อสองฝั่ง แต้มตัวโต ฝั่งเราสีชมพู (ชีตไม่มีคะแนนรายเซต จึงไม่มีแถวเซต) */
 /** รายการของโรงเรียนเรา: ชื่อเราอยู่ในคู่แข่งขัน หรือผลเป็นเหรียญ (ว่ายน้ำ ฯลฯ ไม่มีคู่ — ชีตกรอกเฉพาะเหรียญของเรา) */
 function hasUs(r) { return Boolean(medalOf(r.score)) || teamSides(r.teams).some(function (s) { return r.isSelf(s); }); }
@@ -135,7 +136,7 @@ function pickFeatured(rows) {
 var CHIP_BIG = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 fs-14.5';
 function renderFeatured(ctx) {
   var box = document.getElementById('featured');
-  var r = pickFeatured(ctx.rows);
+  var r = ctx.sportId ? pickFeatured(ctx.rows) : null;
   box.hidden = !r;
   if (!r) return;
   var sides = teamSides(r.teams), sc = splitScore(r.score), gk = genderOf(r.kind);
