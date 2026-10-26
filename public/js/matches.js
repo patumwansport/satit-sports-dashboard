@@ -17,6 +17,7 @@ import {
 import { mountFixtureTable, renderSportIntro, orDash, TD_TIME, TH_TEAMS, teamsHtml, isSelfFor, SCORE_LINE, venueHtml } from './fixture-table.js';
 import { imageUrlAt, imageFallbackAt } from './format.js';
 import { loadStars, sportIdOf } from './sheets.js';
+import { loadMvps, mvpPhotoStyle } from './mvp.js';
 
 /** รายชื่อนักกีฬา: ชีตเก็บเป็น "ชื่อ1, ชื่อ2, …" (ช่องแบบเลือกหลายชื่อ) หรือขึ้นบรรทัดใหม่ในช่อง
     ช่องว่างซ้อนในชื่อ (ชื่อ␣␣สกุล) ยุบเหลือช่องเดียว */
@@ -516,7 +517,7 @@ function showPhotos(list, day, iso, ctx) {
 }
 
 /* ---------- นักกีฬา MVP ----------
-   แท็บ "MVP" ในชีต อ่านครั้งเดียวตอนเปิดหน้า แยกจากข้อมูลหลัก (ช้า/พังก็ไม่ถ่วงตาราง)
+   แท็บ "MVP" ในชีต + รายการที่ผู้ดูแลลงใน CMS (mvp.js · ขึ้นก่อนคนจากชีต) อ่านครั้งเดียวตอนเปิดหน้า แยกจากข้อมูลหลัก (ช้า/พังก็ไม่ถ่วงตาราง)
    วันที่เลือก = คนของวันนั้น (ไม่มีวันที่ = ขึ้นทุกวัน) · ดูทุกวัน = ล่าสุดก่อน ไม่เกิน STAR_MAX คน
    หน้าตา (ผู้ดูแลขอ ต.ค. 2569): การ์ดแนวนอน รูปวงกลม + ป้าย MVP (เคยลองการ์ดรูปใหญ่ ผู้ดูแลว่าเด่นเกินไป)
    การเลื่อน "แบบหน้าประมวลภาพ" (ผู้ดูแลขอ — ตัวต้นแบบคือ carousel ใน gallery.js):
@@ -524,7 +525,10 @@ function showPhotos(list, day, iso, ctx) {
    วนไม่รู้จบ / หยุดเมื่อไหร่: ดู loopCarousel (ใช้ร่วมกับผลที่ชนะ) */
 var STAR_MAX = 12;
 var STAR_MS = 5000;
-var starsReady = loadStars();
+// null = ไม่มีแหล่งไหนใช้ได้เลย (แท็บในชีตยังไม่มี/พัง และ CMS ไม่มีรายการ) → ซ่อนการ์ด
+var starsReady = Promise.all([loadStars(), loadMvps()]).then(function (r) {
+  return r[0] == null && !r[1].length ? null : r[1].concat(r[0] || []);
+});
 var starCar = null;
 
 /** ประเภทในชีตมักขึ้นต้นด้วยชื่อกีฬาซ้ำ ("กรีฑา : วิ่ง 100 เมตร …") ตัดออก ชื่อกีฬาอยู่บนป้ายของการ์ดแล้ว */
@@ -539,8 +543,9 @@ function starPhoto(s) {
     return '<span class="flex size-full items-center justify-center bg-navy-100 p-2">' +
       (sportMascotImg(s.sportId, 'size-full object-contain') || sportIcon(s.sportId, 'size-1/2 text-brand-strong')) + '</span>';
   }
-  var fb = imageFallbackAt(s.photo, 300);
-  return '<img class="block size-full object-cover object-[50%_25%]" data-sport="' + esc(s.sportId) + '" src="' + esc(imageUrlAt(s.photo, 300)) + '"' +
+  var fb = imageFallbackAt(s.photo, 600);
+  // จุดกึ่งกลาง/ซูมที่ผู้ดูแลตั้งในฟอร์ม CMS (คนจากชีตไม่มี = กลางภาพค่อนบน ไม่ซูม)
+  return '<img class="block size-full object-cover" style="' + mvpPhotoStyle(s.fx, s.fy, s.zoom) + '" data-sport="' + esc(s.sportId) + '" src="' + esc(imageUrlAt(s.photo, 600)) + '"' +
     (fb ? ' data-fb="' + esc(fb) + '"' : '') + ' alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />';
 }
 
@@ -558,6 +563,7 @@ var CROWN = '<span class="-my-1 -ml-0.5 flex size-7 flex-none items-center justi
 function starSlide(s, i, n, k, isSelf) {
   var self = s.school && isSelf(s.school);
   var kind = starKind(s);
+  // ชื่อโรงเรียน (ตัวแรก) ตัดบรรทัดได้ — ชื่อเต็มยาวเกินการ์ดบนมือถือ · ตำแหน่งไม่ตัดกลางคำ
   var meta = [s.school, s.role ? 'ตำแหน่ง ' + s.role : ''].filter(Boolean);
   return '<li class="motion-ok flex-none transition-opacity duration-500 data-[on=false]:opacity-45 motion-reduce:transition-none w-full" data-k="' + k + '" aria-roledescription="สไลด์" aria-label="' + (i + 1) + ' จาก ' + n + '">' +
     '<figure class="relative m-0 flex h-full items-center gap-6 overflow-hidden rounded-[22px] border border-navy-100 bg-surface py-5 pr-5 pl-7 max-[560px]:gap-4 max-[560px]:py-4 max-[560px]:pr-4 max-[560px]:pl-5">' +
@@ -579,7 +585,7 @@ function starSlide(s, i, n, k, isSelf) {
         (s.sportText ? '<span class="fs-16 text-fg-mute">' + esc(s.sportText) + '</span>' : '') +
         '<p class="m-0 font-display fs-28 leading-[1.2] max-[560px]:fs-23 ' + (self ? 'text-brand' : 'text-brand-strong') + '">' + wordsNoBreak(s.name) + '</p>' +
         (kind ? '<p class="m-0 line-clamp-2 fs-16.5 leading-[1.45] text-fg-soft max-[560px]:fs-15">' + esc(kind) + '</p>' : '') +
-        (meta.length ? '<p class="m-0 fs-14.5 leading-[1.45] text-fg-mute">' + meta.map(function (t) { return '<span class="whitespace-nowrap">' + esc(t) + '</span>'; }).join(' · ') + '</p>' : '') +
+        (meta.length ? '<p class="m-0 fs-14.5 leading-[1.45] text-fg-mute">' + meta.map(function (t, i) { return '<span class="' + (i || !s.school ? 'whitespace-nowrap' : '') + '">' + esc(t) + '</span>'; }).join(' · ') + '</p>' : '') +
         (s.feat ? '<span class="mt-1 self-start rounded-full bg-brand-100 px-2.5 py-0.5 fs-13.5 text-brand-ink">' + esc(s.feat) + '</span>' : '') +
       '</figcaption>' +
     '</figure>' +
@@ -592,7 +598,9 @@ function renderStars(ctx) {
     box.hidden = !stars;
     if (!stars) return;
     var day = ctx.day;
-    var pool = ctx.sportId ? stars.filter(function (s) { return sportIdOf(s.sportText || '') === ctx.sportId; }) : stars;
+    // คนจาก CMS เก็บแค่ id กีฬา — เติมชื่อกีฬาจากข้อมูลของหน้า
+    stars.forEach(function (s) { if (!s.sportText && s.sportId) s.sportText = sportName(ctx.data, s.sportId); });
+    var pool = ctx.sportId ? stars.filter(function (s) { return s.sportId === ctx.sportId; }) : stars;
     // ไม่มีวันที่ในชีต = ขึ้นทุกวัน (แท็บ MVP กรอกแค่ ชื่อ / ชนิดกีฬา / ประเภท / รูป ก็ได้)
     var list = day
       ? pool.filter(function (s) { return !s.iso || s.iso === day.iso; })

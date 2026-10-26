@@ -3,6 +3,7 @@
      1) นับผู้เข้าชม: บอก Supabase ว่ามีคนเปิดหน้านี้ (ผ่าน rpc track_visit)
      2) แบนเนอร์ประกาศ: ดึงแบนเนอร์ที่เปิดอยู่มาแสดงบนสุดของ <main>
      3) ภาพแบนเนอร์บนสุดของหน้า: สลับเป็นรูปที่ผู้ดูแลตั้งใน CMS (ไม่ได้ตั้ง = รูปเดิมใน assets/hero/)
+     5) บล็อกที่ปิดและหัวข้อที่แก้ใน CMS (js/page-blocks.js)
 
    ทุกหน้าโหลดไฟล์นี้แยกจากสคริปต์หลักของหน้า และไม่มีใคร import มัน
    พังหรือช้าแค่ไหนก็ไม่ลากแดชบอร์ดพังตาม — ทุกขั้นกลืน error ทิ้งเงียบ ๆ
@@ -15,6 +16,7 @@
 import { SUPABASE_URL, SUPABASE_KEY, hasSupabase } from './config.js';
 import { directImageUrl, imageUrlAt, imageFallbackAt } from '../js/format.js';
 import { HERO_SLOTS } from '../js/hero-settings.js';
+import { PAGE_BLOCKS, PAGE_BLOCKS_KEY, pageTitleKey, parsePageBlocks } from '../js/page-blocks.js';
 
 var DISMISS_KEY = 'banner-dismissed';
 
@@ -272,7 +274,97 @@ function showCookieNotice() {
   document.body.appendChild(box);
 }
 
+/* ---------- 5) บล็อกที่ปิดและหัวข้อที่แก้ใน CMS ----------
+   ค่าล่าสุดจำไว้ในเบราว์เซอร์ — เปิดหน้าถัดไปซ่อน/เปลี่ยนข้อความได้ทันทีตอนสคริปต์เริ่ม แล้วค่อยเทียบกับค่าจริงจาก Supabase
+   ซ่อนด้วย data-cms-off (ไม่ใช่ hidden ที่สคริปต์หน้าเว็บสลับเองตามข้อมูล) · กล่องที่ลูกถูกปิดหมดก็ปิดตาม
+   แถวกริดสองคอลัมน์ที่ลูกถูกปิดหนึ่งข้าง (has-[>[data-cms-off]]:grid-cols-1 ใน HTML) ยุบเหลือคอลัมน์เดียวเอง
+   หัวข้อ: สคริปต์หน้าเว็บเขียนหัวข้อใหม่ทุกรอบ (ต่อท้าย "วันนี้" ชื่อกีฬา) — เฝ้าด้วย MutationObserver
+   แล้วเปลี่ยนเฉพาะส่วนต้นที่ตรงกับข้อความเดิม ส่วนต่อท้ายยังมาตามเดิม */
+
+var BLOCKS_CACHE = 'page-blocks';
+var pageBlocks = PAGE_BLOCKS.filter(function (p) { return p.page === pageName(); })[0];
+var applied = new WeakMap();   // ข้อความที่เราเขียนลงหัวข้อล่าสุด — กัน observer วนเขียนซ้ำตัวเอง
+var watched = [];
+
+function blockNode(b) {
+  var n = document.getElementById(b.el);
+  if (!n) return null;
+  return /^(SECTION|ASIDE|NAV)$/.test(n.tagName) ? n : n.closest('section, aside');
+}
+function setOff(node, off) {
+  if (off) node.setAttribute('data-cms-off', '');
+  else node.removeAttribute('data-cms-off');
+}
+/** ปิดกล่องที่ลูกทุกตัวถูกปิด (ไล่ขึ้นไปจนถึง <main>) · เปิดคืนเมื่อมีลูกกลับมา */
+function syncParents(node) {
+  for (var p = node.parentElement; p && p.id !== 'main' && p !== document.body; p = p.parentElement) {
+    if (p.hasAttribute('data-cms-off') && !p.hasAttribute('data-cms-auto')) return;
+    var kids = Array.prototype.slice.call(p.children).filter(function (c) { return !/^(SCRIPT|TEMPLATE)$/.test(c.tagName); });
+    var allOff = kids.length > 0 && kids.every(function (c) { return c.hasAttribute('data-cms-off'); });
+    if (allOff) { p.setAttribute('data-cms-off', ''); p.setAttribute('data-cms-auto', ''); }
+    else if (p.hasAttribute('data-cms-auto')) { p.removeAttribute('data-cms-off'); p.removeAttribute('data-cms-auto'); }
+  }
+}
+function retitle(node, from, to) {
+  var t = node.textContent;
+  if (applied.get(node) === t) return;
+  var lead = t.match(/^\s*/)[0], body = t.slice(lead.length);
+  if (body.indexOf(from) !== 0) return;
+  var next = to + body.slice(from.length);
+  applied.set(node, next);
+  node.textContent = next;
+}
+function watchTitle(id, from, to) {
+  var node = document.getElementById(id);
+  if (!node) return;
+  retitle(node, from, to);
+  var obs = new MutationObserver(function () { retitle(node, from, to); });
+  obs.observe(node, { childList: true, characterData: true, subtree: true });
+  watched.push({ obs: obs, node: node, from: from, to: to });
+}
+function applyPageBlocks(cfg) {
+  if (!pageBlocks) return;
+  // ค่าเปลี่ยนจากที่จำไว้: ถอดตัวเฝ้าเดิม คืนข้อความเดิม แล้วตั้งใหม่ทั้งหมด
+  watched.forEach(function (w) {
+    w.obs.disconnect();
+    var t = w.node.textContent, lead = t.match(/^\s*/)[0];
+    if (t.slice(lead.length).indexOf(w.to) === 0) w.node.textContent = w.from + t.slice(lead.length + w.to.length);
+  });
+  watched = [];
+  pageBlocks.blocks.forEach(function (b) {
+    var node = blockNode(b);
+    if (!node) return;
+    setOff(node, cfg.off.indexOf(b.key) > -1);
+    syncParents(node);
+    if (b.text && cfg.text[b.key] && cfg.text[b.key] !== b.text) watchTitle(b.title || b.el, b.text, cfg.text[b.key]);
+  });
+  if (!pageBlocks.title) return;
+  var title = cfg.text[pageTitleKey(pageBlocks.page)];
+  if (title) watchTitle('pageTitle', pageBlocks.title, title);
+  // ป้ายเส้นทาง (บ้าน › ชื่อหน้า) ตามชื่อหน้า
+  var crumb = document.querySelector('[data-hero] nav span.truncate');
+  if (crumb) {
+    if (crumb.dataset.cmsDef == null) crumb.dataset.cmsDef = crumb.textContent;
+    crumb.textContent = title || crumb.dataset.cmsDef;
+  }
+}
+function readBlocksCache() {
+  try { return parsePageBlocks(localStorage.getItem(BLOCKS_CACHE)); } catch (e) { return parsePageBlocks(''); }
+}
+async function showPageBlocks() {
+  if (!pageBlocks) return;
+  var res = await api('site_settings?select=value&key=eq.' + PAGE_BLOCKS_KEY);
+  if (!res.ok) return;
+  var list = await res.json();
+  var raw = list.length ? list[0].value : '';
+  var cfg = parsePageBlocks(raw);
+  if (JSON.stringify(cfg) !== JSON.stringify(readBlocksCache())) applyPageBlocks(cfg);
+  try { localStorage.setItem(BLOCKS_CACHE, JSON.stringify(cfg)); } catch (e) {}
+}
+
 if (hasSupabase()) {
+  applyPageBlocks(readBlocksCache());
+  showPageBlocks().catch(function () {});
   applyCachedHeroes();
   showHeroes().catch(function () {});
   trackVisit();

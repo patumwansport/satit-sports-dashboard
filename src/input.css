@@ -421,6 +421,8 @@ body:has(#cookieNotice) #toTop { display: none; }
   /* JS ซ่อน/แสดงองค์ประกอบด้วย property `hidden` ของ DOM ไม่ใช่การสลับคลาส
      กฎนี้ทำให้ [hidden] ชนะ utility ที่ตั้ง display (flex/grid/block) ได้เสมอ */
   [hidden] { display: none !important; }
+  /* บล็อกที่ผู้ดูแลปิดใน CMS (admin/site.js · page-blocks.js) — แยกจาก hidden เพราะสคริปต์หน้าเว็บสลับ hidden เองตามข้อมูล */
+  [data-cms-off] { display: none !important; }
 
   /* ซ่อนแถบเลื่อนของทั้งหน้า (ผู้ดูแลขอ ต.ค. 2569 — แถบเทาของเบราว์เซอร์ตั้งอยู่ข้างภาพหัวหน้า ดูขัดตา)
      ยังเลื่อนหน้าได้ตามปกติด้วยล้อเมาส์ ทัชแพด นิ้ว และคีย์บอร์ด · กล่องเลื่อนอื่นในหน้า (ตาราง เมนูกีฬา) ไม่โดนกฎนี้ */

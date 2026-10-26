@@ -23,6 +23,8 @@ import { sheetRows, isMissingPhotoColumns, withoutPhotoDays } from './sheets-syn
 import { checkDriveFolder, driveFolderId } from '../js/drive-photos.js';
 import { newsCard, NEWS_TONE, safeUrl } from '../js/news.js';
 import { HERO_SLOTS } from '../js/hero-settings.js';
+import { PAGE_BLOCKS, PAGE_BLOCKS_KEY, pageTitleKey, parsePageBlocks } from '../js/page-blocks.js';
+import { mvpPhotoStyle } from '../js/mvp.js';
 import { programStatusKey, programStatus, programDateLabel, programDateAt } from '../js/program-settings.js';
 import { GALLERY_KEYS, parseHiddenFolders } from '../js/gallery-settings.js';
 import { DRIVE_FOLDER, HIDDEN_FOLDERS } from '../js/gallery-config.js';
@@ -223,6 +225,37 @@ var VIEWS = [
     ]
   },
   {
+    // ตาราง mvps (migration 20261026000001) · หน้าผลการแข่งขันรวมกับแท็บ MVP ในชีต (js/mvp.js)
+    id: 'mvps', kind: 'table', table: 'mvps', pk: 'id', icon: 'medal',
+    title: 'นักกีฬา MVP',
+    hint: 'การ์ด "นักกีฬา MVP" ในหน้าผลการแข่งขัน — อัปโหลดรูปแล้วซูม/ลากให้เห็นหน้าชัด · บันทึกแล้วผู้ชมรีเฟรชหน้าก็เห็น (รายการจากแท็บ MVP ในชีตยังขึ้นด้วย ต่อท้ายรายการที่นี่)',
+    order: 'sort_order.asc,created_at.desc',
+    columns: [
+      { key: 'name', label: 'นักกีฬา', type: 'mvp' },
+      { key: 'sport_id', label: 'กีฬา', type: 'sport' },
+      { key: 'kind', label: 'ประเภท' },
+      { key: 'award_date', label: 'วันที่แสดง', type: 'awardDate' },
+      { key: 'active', label: 'สถานะ', type: 'shown' }
+    ],
+    fields: [
+      { key: 'name', label: 'ชื่อนักกีฬา', type: 'text', required: true, hint: 'คู่/ทีม ใส่ชื่อในช่องเดียว คั่นด้วย & เช่น อภิวิชญ์ สัจจะมานะชัย & ฌฤธัท กฤตยารัตน์ (ไม่ต้องมีคำนำหน้า การ์ดจะได้ไม่ยาวเกิน)' },
+      { key: 'sport_id', label: 'ชนิดกีฬา', type: 'select', options: 'sports', size: 'half' },
+      { key: 'kind', label: 'ประเภท / รุ่น', type: 'text', size: 'half', hint: 'เช่น Standard ระดับมัธยมศึกษาตอนปลาย' },
+      { key: 'school', label: 'โรงเรียน', type: 'text', size: 'half', default: 'สาธิต มศว ปทุมวัน', hint: 'โรงเรียนเรา = ชื่อขึ้นสีชมพู · ชื่อสั้นอ่านง่ายกว่าบนการ์ด' },
+      { key: 'role', label: 'ตำแหน่ง', type: 'text', size: 'half', hint: 'ไม่บังคับ เช่น หัวเสา' },
+      { key: 'feat', label: 'ผลงาน / รางวัล', type: 'text', hint: 'ไม่บังคับ — ป้ายเล็กใต้ชื่อ เช่น นักกีฬาดีเด่น' },
+      { key: 'photo_url', label: 'รูป', type: 'text', upload: { bucket: 'mvp', maxSide: 1600 },
+        hint: 'กด "อัปโหลดรูป" เลือกไฟล์จากเครื่อง หรือวางลิงก์รูป (ไฟล์ใน Drive ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้") · ไม่มีรูป = มาสคอตของกีฬา' },
+      { key: 'photo_frame', label: 'จัดรูปในกรอบ', type: 'frame', src: 'photo_url' },
+      { key: 'photo_x', type: 'hiddenNum', default: 50 },
+      { key: 'photo_y', type: 'hiddenNum', default: 30 },
+      { key: 'photo_zoom', type: 'hiddenNum', default: 1 },
+      { key: 'award_date', label: 'วันที่แสดง', type: 'date', size: 'half', hint: 'เว้นว่าง = ขึ้นทุกวัน · ใส่วันที่ = ขึ้นเมื่อผู้ชมเลือกดูวันนั้น' },
+      { key: 'sort_order', label: 'ลำดับ', type: 'number', size: 'half', hint: 'เลขน้อยขึ้นก่อน' },
+      { key: 'active', label: 'แสดงบนเว็บ', type: 'checkbox', default: true, hint: 'ไม่ติ๊ก = เก็บไว้ก่อน ยังไม่ขึ้นบนเว็บ' }
+    ]
+  },
+  {
     id: 'banners', kind: 'table', table: 'banners', pk: 'id', icon: 'banner',
     title: 'ข่าวสารและไฮไลต์',
     hint: 'ขึ้นเป็นการ์ดในแถบ "ข่าวสารและไฮไลต์" ของหน้าหลัก (เลือกให้ขึ้นเป็นแถบประกาศบนสุดของหน้าอื่นด้วยได้) — ตั้งเวลาเริ่ม/หมดได้ ถึงเวลาแล้วขึ้นและหายเอง',
@@ -257,6 +290,11 @@ var VIEWS = [
     id: 'heroes', kind: 'heroes', icon: 'photo',
     title: 'ภาพแบนเนอร์',
     hint: 'ภาพใหญ่บนสุดของหน้าเว็บ — วางลิงก์รูปแล้วบันทึก ผู้ชมรีเฟรชหน้าก็เห็น ไม่ต้อง deploy เว็บใหม่ · เว้นว่าง = ใช้ภาพเดิม'
+  },
+  {
+    id: 'blocks', kind: 'blocks', icon: 'dashboard',
+    title: 'จัดการหน้าเว็บ',
+    hint: 'เลือกว่าบล็อกไหนแสดงบนหน้าเว็บ และแก้หัวข้อของแต่ละบล็อก — บันทึกแล้วผู้ชมรีเฟรชหน้าก็เห็นผล ไม่ต้อง deploy เว็บใหม่'
   },
   {
     id: 'gallery', kind: 'gallery', icon: 'folder',
@@ -305,7 +343,8 @@ var BACKUP_TABLES = [
   { table: 'schools', pk: 'id', label: 'โรงเรียน' },
   { table: 'matches', pk: 'id', label: 'รายการแข่งขัน' },
   { table: 'photos', pk: 'id', label: 'ภาพ' },
-  { table: 'banners', pk: 'id', label: 'ข่าวสารและประกาศ' }
+  { table: 'banners', pk: 'id', label: 'ข่าวสารและประกาศ' },
+  { table: 'mvps', pk: 'id', label: 'นักกีฬา MVP' }
 ];
 
 var PAGE_NAMES = {
@@ -460,6 +499,14 @@ function cellHtml(col, row) {
         : '<span class="mt-[7px] size-2.5 flex-none rounded-full ' + (TONE_DOT[row.tone] || TONE_DOT.info) + '" aria-hidden="true"></span>') +
       '<span class="line-clamp-2">' + esc(text) + '</span></span>';
   }
+  if (col.type === 'mvp') {
+    return '<span class="flex items-center gap-3">' +
+      '<span class="block size-11 flex-none overflow-hidden rounded-[12px] border border-line bg-surface-soft">' +
+        (row.photo_url ? '<img class="block size-full object-cover" style="' + mvpPhotoStyle(row.photo_x, row.photo_y, row.photo_zoom) + '" src="' + esc(directImageUrl(row.photo_url)) + '" alt="" loading="lazy" referrerpolicy="no-referrer" />' : '') +
+      '</span><span class="min-w-0">' + esc(row.name) + '</span></span>';
+  }
+  if (col.type === 'awardDate') return row.award_date ? esc(thaiDate(row.award_date)) : '<span class="text-fg-mute">ทุกวัน</span>';
+  if (col.type === 'shown') return row.active ? badge('แสดงอยู่', TONE_BADGE.ok) : badge('ซ่อนอยู่', TONE_BADGE.mute);
   if (col.type === 'newsTone') {
     var nt = NEWS_TONE[row.tone] || NEWS_TONE.info;
     return '<span class="inline-flex rounded-full px-2.5 py-0.5 fs-13 font-semibold whitespace-nowrap ' + nt.cls + '">' + esc(nt.label) + '</span>';
@@ -517,7 +564,7 @@ function renderTableView() {
 }
 
 /** คอลัมน์สั้นที่ห้ามตัดบรรทัด ("13 ต.ค." / "2 - 1" ขึ้นสองบรรทัดอ่านยาก) — ตารางกว้างเกินจอก็เลื่อนแนวนอนเอา */
-var NOWRAP = { date: 1, time: 1, score: 1, num: 1, medal: 1, status: 1, photoDate: 1, placement: 1, bannerState: 1, flag: 1, role: 1 };
+var NOWRAP = { awardDate: 1, shown: 1, date: 1, time: 1, score: 1, num: 1, medal: 1, status: 1, photoDate: 1, placement: 1, bannerState: 1, flag: 1, role: 1 };
 
 /** แถวว่าง/กำลังโหลด — กินทุกคอลัมน์ ไอคอนตรงกลาง */
 function emptyRow(text, ic) {
@@ -686,6 +733,23 @@ var FIELD_SPAN = {
 
 function fieldHtml(f, value) {
   var id = 'f_' + f.key;
+  if (f.type === 'hiddenNum') return '<input type="hidden" id="' + id + '" value="' + esc(value == null ? '' : value) + '" />';
+  if (f.type === 'frame') {
+    // กรอบสี่เหลี่ยมสัดส่วนเดียวกับรูปบนการ์ด MVP · ผูกการลาก/ซูมใน mountMvpFrame()
+    return '<div class="col-span-6"><p class="label mb-2 fs-14 text-fg-soft">' + esc(f.label) + '</p>' +
+      '<div class="flex flex-wrap items-center gap-5">' +
+        '<div class="relative size-[200px] flex-none touch-none overflow-hidden rounded-[26px] border border-line bg-surface-soft select-none" id="' + id + '">' +
+          '<img class="pointer-events-none block size-full object-cover" id="' + id + 'Img" alt="" referrerpolicy="no-referrer" draggable="false" hidden />' +
+          '<p class="m-0 flex size-full items-center justify-center p-4 text-center fs-13 text-fg-mute" id="' + id + 'Empty">ใส่รูปก่อน แล้วจัดตำแหน่งตรงนี้</p>' +
+        '</div>' +
+        '<div class="flex min-w-[200px] flex-1 flex-col gap-3">' +
+          '<label class="flex flex-col gap-1.5 fs-14 text-fg-soft">ซูม <span class="fs-13 text-fg-mute" id="' + id + 'ZoomText"></span>' +
+            '<input class="w-full accent-brand" type="range" min="1" max="4" step="0.05" id="' + id + 'Zoom" /></label>' +
+          '<p class="m-0 fs-12.5 leading-snug text-fg-mute">ลากรูปในกรอบเพื่อเลื่อนให้หน้าอยู่กลาง · เลื่อนแถบซูมให้เห็นหน้าชัด · กรอบนี้คือสิ่งที่ขึ้นบนการ์ดจริง</p>' +
+          '<button class="btn btn-outline btn-sm self-start" type="button" id="' + id + 'Reset">คืนค่าเริ่มต้น</button>' +
+        '</div>' +
+      '</div></div>';
+  }
   var wrap = '<div class="' + FIELD_SPAN[f.size || 'full'] + '">';
   var label = '<label class="label mb-2 fs-14 text-fg-soft" for="' + id + '">' + esc(f.label) +
     (f.required ? ' <span class="-ml-1 text-destructive">*</span>' : '') + '</label>';
@@ -751,6 +815,7 @@ function openEditor(row) {
 
   $('editorFields').oninput = $('editorFields').onchange = null;   // ตัวอย่างสดของหมวดข่าวสาร ไม่ติดไปฟอร์มหมวดอื่น
   if (current.id === 'banners') mountNewsPreview();
+  if (current.id === 'mvps') mountMvpFrame();
   // บัญชีของตัวเอง: ลบ/ลดสิทธิ์ไม่ได้ (Edge Function ก็ปฏิเสธ) — กันผู้ดูแลสูงสุดคนสุดท้ายล็อกตัวเองออก
   if (current.id === 'admins' && row && me && row.user_id === me.user_id) {
     $('deleteBtn').hidden = true;
@@ -783,12 +848,59 @@ function mountNewsPreview() {
     var host = $('newsPreview');
     host.innerHTML = (v.title || v.message || v.image_url) ? newsCard(v)
       : '<div class="flex aspect-[3/4] items-center justify-center rounded-[16px] border border-dashed border-line-strong fs-14 text-fg-mute">กรอกหัวข้อหรือรายละเอียดเพื่อดูตัวอย่าง</div>';
+    // การ์ดหน้าหลักกว้าง 1/5 ของแถบข่าว (CARD_CLASS) — ในกล่องตัวอย่าง 260px จะหดเหลือนิดเดียว จึงให้เต็มกล่องแทน
+    if (host.firstElementChild) host.firstElementChild.style.width = '100%';
     host.querySelectorAll('img[data-fb]').forEach(function (img) {
       img.addEventListener('error', function () { var fb = img.dataset.fb; if (fb) { delete img.dataset.fb; img.src = fb; } });
     });
   };
   $('editorFields').oninput = paint;
   $('editorFields').onchange = paint;
+  paint();
+}
+
+/* ตัวจัดรูป MVP: ลากในกรอบ = เลื่อนจุดกึ่งกลาง (photo_x/photo_y) · แถบ = ซูม (photo_zoom)
+   จัดด้วย mvpPhotoStyle() ตัวเดียวกับการ์ดบนหน้าเว็บ — เห็นในกรอบอย่างไร ขึ้นบนเว็บอย่างนั้น */
+function mountMvpFrame() {
+  var box = $('f_photo_frame'), img = $('f_photo_frameImg'), empty = $('f_photo_frameEmpty');
+  var zoom = $('f_photo_frameZoom'), zoomText = $('f_photo_frameZoomText');
+  var fx = $('f_photo_x'), fy = $('f_photo_y'), fz = $('f_photo_zoom'), src = $('f_photo_url');
+  if (!box || !src) return;
+  function val(n, def) { var v = Number(n.value); return Number.isFinite(v) && n.value !== '' ? v : def; }
+  function paint() {
+    var z = val(fz, 1);
+    img.setAttribute('style', mvpPhotoStyle(val(fx, 50), val(fy, 30), z));
+    zoom.value = z;
+    zoomText.textContent = z.toFixed(2).replace(/\.?0+$/, '') + ' เท่า';
+  }
+  function loadSrc() {
+    var url = src.value.trim();
+    img.hidden = !url; empty.hidden = Boolean(url);
+    if (!url) return;
+    var main = imageUrlAt(url, 600), fb = imageFallbackAt(url, 600);
+    img.onerror = function () { if (fb && img.src !== fb) img.src = fb; };
+    if (img.src !== main) img.src = main;
+  }
+  zoom.addEventListener('input', function () { fz.value = zoom.value; paint(); });
+  $('f_photo_frameReset').addEventListener('click', function () { fx.value = 50; fy.value = 30; fz.value = 1; paint(); });
+  src.addEventListener('input', loadSrc);
+  var drag = null;
+  box.addEventListener('pointerdown', function (e) {
+    if (img.hidden) return;
+    drag = { x: e.clientX, y: e.clientY, fx: val(fx, 50), fy: val(fy, 30) };
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    // ลากขวา = รูปเลื่อนตามนิ้วไปทางขวา = จุดกึ่งกลางขยับไปทางซ้ายของภาพ · ซูมมากยิ่งเลื่อนละเอียด
+    var k = 100 / box.clientWidth / Math.max(1, val(fz, 1) * 0.8);
+    fx.value = Math.round(Math.min(100, Math.max(0, drag.fx - (e.clientX - drag.x) * k)));
+    fy.value = Math.round(Math.min(100, Math.max(0, drag.fy - (e.clientY - drag.y) * k)));
+    paint();
+  });
+  ['pointerup', 'pointercancel'].forEach(function (t) { box.addEventListener(t, function () { drag = null; }); });
+  box.style.cursor = 'grab';
+  loadSrc();
   paint();
 }
 
@@ -799,13 +911,15 @@ function collectValues(isNew) {
     if (f.editOnly && isNew) return;
     var node = $('f_' + f.key);
     if (!node) return;
+    if (f.type === 'frame') return;
     if (f.type === 'checkbox') { out[f.key] = node.checked; return; }
+    if (f.type === 'hiddenNum') { out[f.key] = node.value === '' ? f.default : Number(node.value); return; }
     if (f.type === 'password') { out[f.key] = node.value; return; }   // ไม่ตัดช่องว่าง — ช่องล็อกอินก็ไม่ตัด
 
     var v = node.value.trim();
     if (f.type === 'number') { out[f.key] = v === '' ? 0 : Number(v); return; }
     // ช่องเวลา/วันเวลา/select เว้นว่างต้องส่ง null ไม่ใช่ '' — Postgres ปฏิเสธสตริงว่างของชนิดเหล่านี้
-    if ((f.type === 'time' || f.type === 'select' || f.type === 'datetime') && v === '') { out[f.key] = null; return; }
+    if ((f.type === 'time' || f.type === 'date' || f.type === 'select' || f.type === 'datetime') && v === '') { out[f.key] = null; return; }
     // datetime-local ไม่มีโซนเวลา — new Date() อ่านเป็นเวลาเครื่อง แล้วส่งเป็น UTC ให้ timestamptz
     if (f.type === 'datetime') { out[f.key] = new Date(v).toISOString(); return; }
     out[f.key] = v;
@@ -1590,6 +1704,81 @@ async function saveHeroSettings(event) {
 }
 
 /* =========================================================
+   มุมมอง "จัดการหน้าเว็บ" — เปิด/ปิดบล็อก + แก้หัวข้อ (PAGE_BLOCKS ใน page-blocks.js)
+   เก็บเป็น JSON ใน site_settings key เดียว · admin/site.js บนหน้าเว็บสาธารณะอ่านแล้วซ่อน/เปลี่ยนข้อความ
+   ช่องหัวข้อว่าง = ใช้ข้อความเดิม (ไม่บันทึกข้อความที่ตรงกับของเดิม จะได้ตามโค้ดถ้าวันหลังเปลี่ยนคำเดิม)
+   ========================================================= */
+
+async function renderBlocksView() {
+  $('viewBody').innerHTML = '<div class="' + CARD + ' text-[14.5px] text-fg-mute">กำลังโหลด…</div>';
+  var res = await db.from('site_settings').select('value').eq('key', PAGE_BLOCKS_KEY).maybeSingle();
+  if (current.id !== 'blocks') return;
+  if (res.error) { setPanelError('โหลดค่าไม่สำเร็จ: ' + missingSchemaHint(res.error)); $('viewBody').innerHTML = ''; return; }
+  var cfg = parsePageBlocks(res.data && res.data.value);
+
+  function textInput(key, def, suffix) {
+    return '<div class="min-w-0">' +
+      '<input class="input h-10" type="text" maxlength="120" data-text="' + esc(key) + '" placeholder="' + esc(def) + '" value="' + esc(cfg.text[key] || '') + '" aria-label="หัวข้อ — เดิม: ' + esc(def) + '" />' +
+      (suffix ? '<p class="mt-1 mb-0 fs-12.5 leading-snug text-fg-mute">หน้าเว็บต่อท้ายให้เอง: ' + esc(suffix) + '</p>' : '') +
+    '</div>';
+  }
+  $('viewBody').innerHTML =
+    '<form class="flex flex-col gap-5" id="blocksForm">' +
+      PAGE_BLOCKS.map(function (p) {
+        return '<section class="' + CARD + ' flex flex-col gap-4">' +
+          '<div class="flex flex-wrap items-center gap-3">' +
+            '<h2 class="m-0 font-display fs-20 font-normal text-brand-strong">' + esc(p.label) + '</h2>' +
+            '<a class="btn btn-ghost btn-sm ml-auto text-fg-soft" href="../' + p.page + '" target="_blank" rel="noopener">' + icon('external') + 'เปิดหน้านี้</a>' +
+          '</div>' +
+          (p.title ? '<div class="grid grid-cols-[minmax(0,260px)_minmax(0,1fr)] items-start gap-x-5 gap-y-2 max-[720px]:grid-cols-1">' +
+            '<p class="m-0 pt-2 fs-14.5 text-fg">ชื่อหน้า <span class="fs-13 text-fg-mute">(ตัวใหญ่บนแบนเนอร์)</span></p>' +
+            textInput(pageTitleKey(p.page), p.title) + '</div>' : '') +
+          (p.blocks.length ? '<ul class="m-0 flex list-none flex-col p-0">' + p.blocks.map(function (b) {
+            var on = cfg.off.indexOf(b.key) < 0;
+            return '<li class="grid grid-cols-[minmax(0,260px)_minmax(0,1fr)] items-start gap-x-5 gap-y-2 border-t border-line py-3 max-[720px]:grid-cols-1">' +
+              '<label class="flex cursor-pointer items-start gap-3 pt-2">' +
+                '<input class="mt-1 size-[17px] flex-none accent-brand" type="checkbox" data-block="' + esc(b.key) + '"' + (on ? ' checked' : '') + ' />' +
+                '<span class="min-w-0 fs-14.5 leading-snug text-fg">' + esc(b.label) +
+                  '<span class="block fs-12.5 text-fg-mute" data-state>' + (on ? 'แสดงอยู่' : 'ซ่อนอยู่') + '</span></span>' +
+              '</label>' +
+              (b.text ? textInput(b.key, b.text, b.suffix) : '<p class="m-0 pt-2 fs-13 text-fg-mute">บล็อกนี้ไม่มีหัวข้อให้แก้</p>') +
+            '</li>';
+          }).join('') + '</ul>' : '') +
+        '</section>';
+      }).join('') +
+      '<div class="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center gap-2.5 border-t border-line bg-paper/95 px-1 py-3">' +
+        '<button class="btn" type="submit" id="blocksSave">บันทึก</button>' +
+        '<p class="m-0 fs-13.5 text-fg-mute">ไม่ติ๊ก = ซ่อนบล็อกนั้น · ช่องหัวข้อว่าง = ใช้ข้อความเดิม (ตัวจาง ๆ ในช่อง)</p>' +
+      '</div>' +
+    '</form>';
+
+  var form = $('blocksForm');
+  form.querySelectorAll('[data-block]').forEach(function (c) {
+    c.addEventListener('change', function () {
+      c.closest('label').querySelector('[data-state]').textContent = c.checked ? 'แสดงอยู่' : 'ซ่อนอยู่';
+    });
+  });
+  form.addEventListener('submit', saveBlocks);
+  paintIcons($('viewBody'));
+}
+
+async function saveBlocks(event) {
+  event.preventDefault();
+  var form = $('blocksForm'), off = [], text = {};
+  form.querySelectorAll('[data-block]').forEach(function (c) { if (!c.checked) off.push(c.dataset.block); });
+  form.querySelectorAll('[data-text]').forEach(function (i) {
+    var v = i.value.trim();
+    if (v && v !== i.placeholder) text[i.dataset.text] = v;
+  });
+  $('blocksSave').disabled = true;
+  var res = await db.from('site_settings').upsert({ key: PAGE_BLOCKS_KEY, value: JSON.stringify({ off: off, text: text }) }, { onConflict: 'key' });
+  $('blocksSave').disabled = false;
+  if (res.error) { setPanelError('บันทึกไม่สำเร็จ: ' + friendlyError(res.error)); return; }
+  setPanelError('');
+  setSaveState('บันทึกแล้ว — ผู้ชมรีเฟรชหน้าก็เห็นผล');
+}
+
+/* =========================================================
    แหล่งข้อมูล — ลิงก์ชีต + ตัวเชื่อม Apps Script (เก็บใน site_settings, key ใน SHEET_KEYS ของ sheets.js)
    ========================================================= */
 
@@ -2187,6 +2376,8 @@ function selectView(id) {
     renderProgramView();
   } else if (current.kind === 'heroes') {
     renderHeroView();
+  } else if (current.kind === 'blocks') {
+    renderBlocksView();
   } else if (current.kind === 'sheet') {
     renderSheetView();
   } else if (current.kind === 'source') {
