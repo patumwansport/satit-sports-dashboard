@@ -34,5 +34,11 @@ export var HIDDEN_FOLDERS = ['การประชุมคณะกรรม�
     ไฟล์ที่วางไว้นอกโฟลเดอร์วัน และชื่อที่ขึ้นต้นด้วย _ ไม่ขึ้นเว็บ · ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้" เหมือนโฟลเดอร์ภาพ */
 export var DAY_FILES_FOLDER = 'https://drive.google.com/drive/folders/1NA19U4btn25-GEucSH2jyXomKYw2VdGV?usp=sharing';
 
+/** โฟลเดอร์ "ภาพสรุปผลการแข่งขัน" — โปสเตอร์ผลการแข่งขันในหน้าตารางอันดับ (medal-posters.js)
+    ข้างในเป็นโฟลเดอร์ย่อยละแท็บ: ชื่อเป็นวันที่ ("25ตุลาคม2569", "25 ต.ค. 2569") = แท็บวัน · ชื่ออื่น (เช่น "ว่ายน้ำ") = แท็บตามชื่อโฟลเดอร์
+    (ตอนนี้แยกตามวัน อนาคตจะแยกตามชนิดกีฬา — เปลี่ยนโครงโฟลเดอร์ได้เลยไม่ต้องแก้โค้ด) · ชื่อขึ้นต้นด้วย _ หรือ # = ไม่ขึ้นเว็บ
+    ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้" และอยู่ใน ALLOWED_ROOTS ของ api/drive.js */
+export var MEDAL_POSTERS_FOLDER = 'https://drive.google.com/drive/folders/1RwWZOo-h52ghy-iNQC6Rwe_mVSD8bxsW?usp=sharing';
+
 /** API key จาก Google Cloud Console (ขึ้นต้นด้วย AIza…) */
 export var GOOGLE_API_KEY = 'AIzaSyC0PsQnP8AasWwvVA668cD7roOuWDHTGuA';

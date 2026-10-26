@@ -2,12 +2,14 @@
    medals.js — ตารางอันดับเหรียญรางวัล
    ซ้าย: ตารางเต็ม (renderMedalTable ใน common.js) สลับแท็บไปดูเหรียญแยกประเภทกีฬาได้
    ขวา: กราฟ 5 อันดับแรก · สัดส่วนเหรียญของโรงเรียนเรา
+   ล่าง: ภาพสรุปผลการแข่งขันจาก Google Drive (medal-posters.js) — โหลดแยก ไม่รอข้อมูลชีต
    ========================================================= */
 import {
   loadData, onFreshData, initChrome, renderMedalTable, showLoadError, esc, paintUiIcons
 } from './common.js';
 import { MEDALS, total, emptyBox, stackedMedalChart, medalShareChart } from './charts.js';
 import { openSchoolPopup, refreshSchoolPopup } from './school-popup.js';
+import { renderMedalPosters } from './medal-posters.js';
 
 var chrome = initChrome('medals');
 var current = null; // ข้อมูลชุดล่าสุด ให้ป๊อปอัปโรงเรียนอ่านตอนแตะ
@@ -74,6 +76,7 @@ function renderAll(data) {
 }
 
 bindTabs();
+renderMedalPosters();
 loadData().then(function (data) {
   renderAll(data);
   onFreshData(renderAll);

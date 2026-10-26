@@ -9,7 +9,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync } from 'node:fs';
 import { DEFAULT_SHEET_ID, SHEET_TABS, BUNDLE_QUERIES } from '../public/js/sheets.js';
-import { DRIVE_FOLDER, DAY_FILES_FOLDER, GOOGLE_API_KEY } from '../public/js/gallery-config.js';
+import { DRIVE_FOLDER, DAY_FILES_FOLDER, MEDAL_POSTERS_FOLDER, GOOGLE_API_KEY } from '../public/js/gallery-config.js';
 
 const require = createRequire(import.meta.url);
 const gviz = require('../api/gviz.js').internals;
@@ -44,7 +44,7 @@ same('HIDE_HEADER คอลัมน์ "ซ่อนจากเว็บ" (she
 // ---- Google Drive: public/js/gallery-config.js ↔ api/drive.js ----
 same('คีย์ Drive ของเบราว์เซอร์ (gallery-config.js ↔ BROWSER_KEY ใน api/drive.js)', GOOGLE_API_KEY, drive.BROWSER_KEY, 'แก้ให้ตรงกัน');
 same('โฟลเดอร์ Drive ที่ตัวกลางตอบให้ (gallery-config.js ↔ ALLOWED_ROOTS ใน api/drive.js)',
-  sorted([folderId(DRIVE_FOLDER), folderId(DAY_FILES_FOLDER)].filter(Boolean)), sorted(drive.ALLOWED_ROOTS),
+  sorted([folderId(DRIVE_FOLDER), folderId(DAY_FILES_FOLDER), folderId(MEDAL_POSTERS_FOLDER)].filter(Boolean)), sorted(drive.ALLOWED_ROOTS),
   'โฟลเดอร์ที่ไม่อยู่ในรายการ ตัวกลางตอบ 403 แล้วเบราว์เซอร์ถาม Drive ตรงทุกครั้ง');
 
 // ---- ชื่องาน: sheets.js ↔ supabase-data.js ----

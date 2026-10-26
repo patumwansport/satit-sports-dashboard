@@ -61,9 +61,9 @@ const TREE_CDN_CACHE = 'max-age=60, stale-while-revalidate=60';
 const TREE_FRESH_MS = 60 * 1000;
 const treeMemo = new Map();   // root id → { at, body, pending, ids }
 
-/* โฟลเดอร์แม่ที่ตอบให้ — ตรงกับ DRIVE_FOLDER และ DAY_FILES_FOLDER ใน public/js/gallery-config.js
+/* โฟลเดอร์แม่ที่ตอบให้ — ตรงกับ DRIVE_FOLDER, DAY_FILES_FOLDER และ MEDAL_POSTERS_FOLDER ใน public/js/gallery-config.js
    บวกโฟลเดอร์ภาพที่ผู้ดูแลตั้งใน CMS (site_settings key gallery_drive_folder) จำไว้ 1 นาทีเหมือน api/gviz.js */
-const ALLOWED_ROOTS = ['16HYOVkIChgupBn3Z-LMXj5P1gkOmOugW', '1NA19U4btn25-GEucSH2jyXomKYw2VdGV'];
+const ALLOWED_ROOTS = ['16HYOVkIChgupBn3Z-LMXj5P1gkOmOugW', '1NA19U4btn25-GEucSH2jyXomKYw2VdGV', '1RwWZOo-h52ghy-iNQC6Rwe_mVSD8bxsW'];
 const ROOTS_MEMO_MS = 60 * 1000;
 let rootsMemo = { ids: ALLOWED_ROOTS, at: 0 };
 
@@ -199,7 +199,7 @@ function sendJson(req, res, body, cdnCache) {
 }
 
 function notOurs(res) {
-  return res.status(403).json({ error: { message: 'ตัวกลางตอบเฉพาะโฟลเดอร์ภาพ/DayByDay ของเว็บนี้ (ALLOWED_ROOTS ใน api/drive.js หรือโฟลเดอร์ที่ตั้งใน CMS)' } });
+  return res.status(403).json({ error: { message: 'ตัวกลางตอบเฉพาะโฟลเดอร์ภาพ/DayByDay/ภาพสรุปผล ของเว็บนี้ (ALLOWED_ROOTS ใน api/drive.js หรือโฟลเดอร์ที่ตั้งใน CMS)' } });
 }
 
 module.exports = async function handler(req, res) {
