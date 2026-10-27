@@ -690,3 +690,12 @@ body:has(#cookieNotice) #toTop { display: none; }
   .next-program-status { animation: none !important; }
   .next-program-arrow { transform: none !important; transition: none !important; }
 }
+
+/* =========================================================
+   คอลัมน์การ์ดที่ต้องสูงเท่าคอลัมน์ข้าง ๆ (หน้าตารางอันดับ — ผู้ดูแลขอให้ขอบล่างสองคอลัมน์ตรงกัน ต.ค. 2569)
+   ใส่ .stack-fill ที่กล่อง flex-col: การ์ดที่ "มองเห็นใบสุดท้าย" ยืดเต็มที่เหลือ
+   ข้ามการ์ดที่ยังซ่อนอยู่ (hidden — สไลด์ที่ยังโหลดไม่เสร็จ) และที่ปิดใน CMS (data-cms-off)
+   ========================================================= */
+@layer components {
+  .stack-fill > :not([hidden], [data-cms-off]):not(:has(~ :not([hidden], [data-cms-off]))) { flex: 1 1 auto; }
+}

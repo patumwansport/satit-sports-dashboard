@@ -606,7 +606,6 @@ function renderStars(ctx) {
       ? pool.filter(function (s) { return !s.iso || s.iso === day.iso; })
       : pool.slice().sort(function (a, b) { return (b.iso || '').localeCompare(a.iso || ''); });
     list = list.slice(0, STAR_MAX);
-    document.getElementById('starDay').textContent = day ? dayLabel(day) + (isToday(day) ? ' (วันนี้)' : '') : 'ทุกวัน' + (list.length > 1 ? ' · ล่าสุดก่อน' : '');
     var n = list.length, isSelf = isSelfFor(ctx.data);
     var track = document.getElementById('starList');
     document.getElementById('mvpViewport').hidden = !n;
