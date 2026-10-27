@@ -40,5 +40,9 @@ export var DAY_FILES_FOLDER = 'https://drive.google.com/drive/folders/1NA19U4btn
     ต้องแชร์แบบ "ทุกคนที่มีลิงก์ดูได้" และอยู่ใน ALLOWED_ROOTS ของ api/drive.js */
 export var MEDAL_POSTERS_FOLDER = 'https://drive.google.com/drive/folders/1RwWZOo-h52ghy-iNQC6Rwe_mVSD8bxsW?usp=sharing';
 
+/** โฟลเดอร์ "นักกีฬาดีเด่นและถ้วยรางวัลคะแนนรวม" — โปสเตอร์ 16:9 ใต้สรุปเหรียญในหน้าตารางอันดับ (medal-posters.js · ผู้ดูแลขอ ต.ค. 2569)
+    โครงเดียวกับ MEDAL_POSTERS_FOLDER (วางรูปตรง ๆ ได้ เรียงตามชื่อไฟล์ 1, 2, … 10) · แชร์ "ทุกคนที่มีลิงก์ดูได้" และอยู่ใน ALLOWED_ROOTS ของ api/drive.js */
+export var AWARD_POSTERS_FOLDER = 'https://drive.google.com/drive/folders/1xre-DGSZxZSfR9ZZZEpJov6zoPGKjbYF?usp=sharing';
+
 /** API key จาก Google Cloud Console (ขึ้นต้นด้วย AIza…) */
 export var GOOGLE_API_KEY = 'AIzaSyC0PsQnP8AasWwvVA668cD7roOuWDHTGuA';

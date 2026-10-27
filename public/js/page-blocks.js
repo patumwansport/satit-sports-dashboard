@@ -57,7 +57,8 @@ export var PAGE_BLOCKS = [
       { key: 'medals.table', el: 'medalTitle', label: 'ตารางอันดับเหรียญรางวัล', text: 'ตารางอันดับเหรียญรางวัล' },
       { key: 'medals.top', el: 'topTitle', label: 'กราฟ 5 อันดับแรก', text: 'กราฟอันดับเหรียญรางวัล (Top 5)' },
       { key: 'medals.share', el: 'shareTitle', label: 'สัดส่วนเหรียญรางวัลรวม', text: 'สัดส่วนเหรียญรางวัลรวม' },
-      { key: 'medals.posters', el: 'postersTitle', label: 'สรุปเหรียญการแข่งขัน (ภาพจาก Drive)', text: 'สรุปเหรียญการแข่งขัน' }
+      { key: 'medals.posters', el: 'postersTitle', label: 'สรุปเหรียญการแข่งขัน (ภาพจาก Drive)', text: 'สรุปเหรียญการแข่งขัน' },
+      { key: 'medals.awards', el: 'awardsTitle', label: 'นักกีฬาดีเด่นและถ้วยรางวัลคะแนนรวม (ภาพจาก Drive)', text: 'นักกีฬาดีเด่นและถ้วยรางวัลคะแนนรวม' }
     ]
   },
   {

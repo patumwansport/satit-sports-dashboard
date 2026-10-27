@@ -1,6 +1,7 @@
 /* =========================================================
-   medal-posters.js — ส่วน "สรุปเหรียญการแข่งขัน" ในหน้าตารางอันดับ (ผู้ดูแลขอ ต.ค. 2569)
-   โปสเตอร์ผลการแข่งขัน (รูป 16:9) จากโฟลเดอร์ Google Drive MEDAL_POSTERS_FOLDER ใน gallery-config.js
+   medal-posters.js — สไลด์โปสเตอร์ (รูป 16:9) จาก Google Drive ในหน้าตารางอันดับ (ผู้ดูแลขอ ต.ค. 2569) สองส่วน ใช้โค้ดชุดเดียวกัน (SLIDERS):
+     "สรุปเหรียญการแข่งขัน"                 ← MEDAL_POSTERS_FOLDER ใน gallery-config.js
+     "นักกีฬาดีเด่นและถ้วยรางวัลคะแนนรวม"   ← AWARD_POSTERS_FOLDER (อยู่ใต้สรุปเหรียญ)
 
    โครงโฟลเดอร์:
      โฟลเดอร์แม่
@@ -8,7 +9,8 @@
        │     └── รูป…
        └── ว่ายน้ำ           ← ชื่ออื่น = ชุดตามชื่อโฟลเดอร์ (อนาคตจะแยกตามชนิดกีฬา) ตามลำดับใน Drive
              └── 25 ต.ค. 2569 / รูป…   ← โฟลเดอร์ย่อยอีกชั้นนับรวมในชุดเดียวกัน
-   รูปวางตรง ๆ ในโฟลเดอร์แม่ = ชุด "ภาพอื่น ๆ" · ชื่อขึ้นต้นด้วย _ หรือ # = ซ่อน
+   รูปวางตรง ๆ ในโฟลเดอร์แม่ = ชุด "ภาพอื่น ๆ" (ส่วนที่ตั้ง loose: '' ไม่มีชื่อชุด) · ชื่อขึ้นต้นด้วย _ หรือ # = ซ่อน
+   รูปในชุดเรียงตามชื่อไฟล์แบบตัวเลข (1, 2, … 10 ไม่ใช่ 1, 10, 2)
    ทุกชุดรวมในสไลด์เดียว ไม่มีแท็บ (ผู้ดูแลเลือก ต.ค. 2569): ชุดวันล่าสุดก่อน → วันเก่า → ชุดชื่ออื่น → ภาพอื่น ๆ
    บรรทัดใต้หัวข้อ = ชุดของรูปที่กำลังแสดง (เปลี่ยนตามสไลด์) · ไม่มีรูปเลย / อ่าน Drive ไม่ได้ = ซ่อนทั้งส่วน (ตารางอันดับไม่สะดุด)
    อยู่ใต้ "สัดส่วนเหรียญรางวัลรวม" ในคอลัมน์ขวา: สไลด์ทีละรูป เลื่อนเองทุก AUTO_MS วนกลับรูปแรก (ผู้ดูแลขอ ต.ค. 2569)
@@ -16,17 +18,26 @@
    แตะรูป = ดูภาพเต็มจอแบบเดียวกับหน้าประมวลภาพ (ดาวน์โหลด / เปิดไฟล์ต้นฉบับ / เลื่อนซ้าย-ขวา)
    ถามผ่านตัวกลางแคช api/drive (listFolder) — โฟลเดอร์ต้องอยู่ใน ALLOWED_ROOTS ไม่งั้นทุกคนยิง Drive ตรง
    ========================================================= */
-import { MEDAL_POSTERS_FOLDER, GOOGLE_API_KEY } from './gallery-config.js';
+import { MEDAL_POSTERS_FOLDER, AWARD_POSTERS_FOLDER, GOOGLE_API_KEY } from './gallery-config.js';
 import { driveFolderId, listFolder } from './drive-photos.js';
 import { parseThaiDate, MONTHS_TH, imageUrlAt, imageFallbackAt, originalImageUrl, downloadImageUrl } from './format.js';
 import { el, esc } from './common.js';
 
 var FOLDER = 'application/vnd.google-apps.folder';
 var AUTO_MS = 4000;
-/** images = [{ id: รหัสรูป, label: ชื่อชุด ("25 ต.ค. 2569" / ชื่อโฟลเดอร์) }] เรียงตามลำดับสไลด์ */
-var state = { images: [], viewing: -1 };
-var slide = { at: 0, timer: null, hover: false, keyboard: false, startX: null, swiped: false };
+/* แต่ละส่วน: id ขององค์ประกอบในหน้า (medals.html) + ชื่อที่ใช้ในคำบรรยายภาพเต็มจอ
+   images = [{ id: รหัสรูป, label: ชื่อชุด ("25 ต.ค. 2569" / ชื่อโฟลเดอร์ / '') }] เรียงตามลำดับสไลด์ */
+var SLIDERS = [
+  { folder: MEDAL_POSTERS_FOLDER, box: 'posters', viewport: 'posterViewport', track: 'posterTrack', sub: 'posterSub',
+    name: 'สรุปเหรียญการแข่งขัน', word: 'ภาพสรุปเหรียญ', loose: 'ภาพอื่น ๆ' },
+  { folder: AWARD_POSTERS_FOLDER, box: 'awards', viewport: 'awardViewport', track: 'awardTrack', sub: 'awardSub',
+    name: 'นักกีฬาดีเด่นและถ้วยรางวัลคะแนนรวม', word: 'ภาพนักกีฬาดีเด่น', loose: '' }
+].map(function (cfg) {
+  return Object.assign(cfg, { images: [], viewing: -1, at: 0, timer: null, hover: false, keyboard: false, startX: null, swiped: false });
+});
 var modal = null;
+var active = null;   // ส่วนที่เปิดภาพเต็มจออยู่ (ภาพเต็มจอใช้ร่วมกันทั้งหน้า)
+var byName = function (a, b) { return String(a.name).localeCompare(String(b.name), 'th', { numeric: true }); };
 
 function hiddenName(name) { return /^[_#]/.test(String(name || '').trim()); }
 function isImage(f) { return /^image\//.test(f.mimeType || ''); }
@@ -45,12 +56,12 @@ async function groupImages(id) {
   var nested = await Promise.all(subs.map(function (f) {
     return listFolder(f.id).then(function (list) { return list.filter(isImage); }).catch(function () { return []; });
   }));
-  return nested.reduce(function (all, list) { return all.concat(list); }, files.filter(isImage))
+  return nested.reduce(function (all, list) { return all.concat(list.slice().sort(byName)); }, files.filter(isImage).sort(byName))
     .map(function (f) { return f.id; });
 }
 
 /** ชุด = โฟลเดอร์ย่อยของโฟลเดอร์แม่ → [{ id, label, iso, list: [รหัสรูป] }] · ชุดวันล่าสุดก่อน · ชุดที่ไม่มีรูปตัดทิ้ง */
-async function loadGroups(root) {
+async function loadGroups(root, looseLabel) {
   var files = await listFolder(root);
   var folders = files.filter(function (f) { return f.mimeType === FOLDER && !hiddenName(f.name); }).map(function (f) {
     var iso = parseThaiDate(f.name);
@@ -58,9 +69,9 @@ async function loadGroups(root) {
   });
   var dated = folders.filter(function (g) { return g.iso; }).sort(function (a, b) { return a.iso > b.iso ? -1 : a.iso < b.iso ? 1 : 0; });
   var named = folders.filter(function (g) { return !g.iso; });
-  var loose = files.filter(isImage).map(function (f) { return f.id; });
+  var loose = files.filter(isImage).sort(byName).map(function (f) { return f.id; });
   var groups = dated.concat(named);
-  if (loose.length) groups.push({ id: root, label: 'ภาพอื่น ๆ', iso: '', images: Promise.resolve(loose) });
+  if (loose.length) groups.push({ id: root, label: looseLabel, iso: '', images: Promise.resolve(loose) });
   // ถามรูปของทุกชุดพร้อมกัน
   groups.forEach(function (g) { if (!g.images) g.images = groupImages(g.id).catch(function () { return []; }); });
   var counts = await Promise.all(groups.map(function (g) { return g.images; }));
@@ -69,82 +80,84 @@ async function loadGroups(root) {
 
 function reducedMotion() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
 
-function paintSlides() {
-  slide.at = 0;
-  document.getElementById('posterTrack').innerHTML = state.images.map(function (p, i) {
+function paintSlides(s) {
+  s.at = 0;
+  document.getElementById(s.track).innerHTML = s.images.map(function (p, i) {
     var url = driveUrl(p.id);
-    return '<button class="block aspect-video w-full flex-none cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-roledescription="สไลด์" aria-label="ดูภาพสรุปเหรียญ ' + esc(p.label) + ' ภาพที่ ' + (i + 1) + ' จาก ' + state.images.length + '">' +
+    return '<button class="block aspect-video w-full flex-none cursor-pointer border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand" type="button" data-i="' + i + '" aria-roledescription="สไลด์" aria-label="ดู' + s.word + ' ' + esc(p.label ? p.label + ' ' : '') + 'ภาพที่ ' + (i + 1) + ' จาก ' + s.images.length + '">' +
       '<img class="block size-full object-cover" src="' + esc(imageUrlAt(url, 960)) + '" data-fb="' + esc(imageFallbackAt(url, 960)) + '" alt="" loading="' + (i < 2 ? 'eager' : 'lazy') + '" decoding="async" />' +
     '</button>';
   }).join('');
-  var many = state.images.length > 1;
-  Array.prototype.forEach.call(document.querySelectorAll('#posterViewport [data-nav]'), function (b) { b.hidden = !many; });
-  go(0, false);
+  var many = s.images.length > 1;
+  Array.prototype.forEach.call(document.querySelectorAll('#' + s.viewport + ' [data-nav]'), function (b) { b.hidden = !many; });
+  go(s, 0, false);
 }
 /** ไปรูปที่ i (วนรอบ) · animate=false = กระโดดทันที (วาดใหม่ / ปิดภาพเต็มจอ) */
-function go(i, animate) {
-  var n = state.images.length, track = document.getElementById('posterTrack');
+function go(s, i, animate) {
+  var n = s.images.length, track = document.getElementById(s.track);
   if (!n) return;
-  slide.at = (i + n) % n;
+  s.at = (i + n) % n;
   if (animate === false || reducedMotion()) {
     track.style.transition = 'none';
-    track.style.transform = 'translateX(' + (-100 * slide.at) + '%)';
+    track.style.transform = 'translateX(' + (-100 * s.at) + '%)';
     void track.offsetHeight;   // บังคับใช้ตำแหน่งนี้ก่อนเปิดแอนิเมชันกลับ
     track.style.transition = '';
   } else {
-    track.style.transform = 'translateX(' + (-100 * slide.at) + '%)';
+    track.style.transform = 'translateX(' + (-100 * s.at) + '%)';
   }
   // รูปนอกกรอบเป็น inert: Tab ไม่หลุดไปโดน โปรแกรมอ่านหน้าจอข้าม
-  Array.prototype.forEach.call(track.children, function (b, k) { b.inert = k !== slide.at; });
-  document.querySelector('#posterViewport [data-pos]').textContent = (slide.at + 1) + ' / ' + n;
-  document.getElementById('posterSub').textContent = state.images[slide.at].label + ' · ทั้งหมด ' + n + ' ภาพ';
-  autoplay();
+  Array.prototype.forEach.call(track.children, function (b, k) { b.inert = k !== s.at; });
+  document.querySelector('#' + s.viewport + ' [data-pos]').textContent = (s.at + 1) + ' / ' + n;
+  var label = s.images[s.at].label;
+  document.getElementById(s.sub).textContent = (label ? label + ' · ' : '') + 'ทั้งหมด ' + n + ' ภาพ';
+  autoplay(s);
 }
 /** นับเวลาใหม่ทุกครั้งที่เลื่อน (ปัด/กดเองแล้วไม่เด้งต่อทันที) · ช่วงที่หยุดอยู่ รอรอบถัดไปแทน */
-function autoplay() {
-  clearTimeout(slide.timer);
-  if (state.images.length < 2 || reducedMotion()) return;
-  slide.timer = setTimeout(function () {
-    if (slide.hover || slide.keyboard || document.hidden || (modal && modal.open)) autoplay();
-    else go(slide.at + 1);
+function autoplay(s) {
+  clearTimeout(s.timer);
+  if (s.images.length < 2 || reducedMotion()) return;
+  s.timer = setTimeout(function () {
+    if (s.hover || s.keyboard || document.hidden || (modal && modal.open)) autoplay(s);
+    else go(s, s.at + 1);
   }, AUTO_MS);
 }
 var NAV_BTN = 'absolute top-1/2 flex size-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-surface/85 text-fg shadow-panel hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand';
 /** ปุ่มเลื่อน + ตัวนับ "1 / 9" ซ้อนบนกรอบสไลด์ · ปัดซ้าย/ขวา · ผูกครั้งเดียว */
-function bindSlider() {
-  var vp = document.getElementById('posterViewport');
+function bindSlider(s) {
+  var vp = document.getElementById(s.viewport);
   vp.insertAdjacentHTML('beforeend',
     '<button class="' + NAV_BTN + ' left-2" type="button" data-nav="-1" aria-label="ภาพก่อนหน้า">' + arrow('M15 6l-6 6 6 6') + '</button>' +
     '<button class="' + NAV_BTN + ' right-2" type="button" data-nav="1" aria-label="ภาพถัดไป">' + arrow('M9 6l6 6-6 6') + '</button>' +
     '<span class="pointer-events-none absolute right-2 bottom-2 rounded-full bg-[oklch(20%_0.03_260/.6)] px-2.5 py-0.5 fs-12.5 text-white tabular-nums" data-pos></span>');
-  vp.addEventListener('mouseenter', function () { slide.hover = true; });
-  vp.addEventListener('mouseleave', function () { slide.hover = false; });
-  vp.addEventListener('focusin', function (e) { slide.keyboard = e.target.matches(':focus-visible'); });
-  vp.addEventListener('focusout', function () { slide.keyboard = false; });
+  vp.addEventListener('mouseenter', function () { s.hover = true; });
+  vp.addEventListener('mouseleave', function () { s.hover = false; });
+  vp.addEventListener('focusin', function (e) { s.keyboard = e.target.matches(':focus-visible'); });
+  vp.addEventListener('focusout', function () { s.keyboard = false; });
   vp.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft') { e.preventDefault(); go(slide.at - 1); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); go(slide.at + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(s, s.at - 1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(s, s.at + 1); }
   });
   // ลากไม่ถึง 40px = แตะ (เปิดภาพใหญ่) · ปัดเกินนั้น = เลื่อน และไม่นับเป็นการแตะ
-  vp.addEventListener('pointerdown', function (e) { slide.startX = e.clientX; slide.swiped = false; });
+  vp.addEventListener('pointerdown', function (e) { s.startX = e.clientX; s.swiped = false; });
   vp.addEventListener('pointerup', function (e) {
-    if (slide.startX == null) return;
-    var dx = e.clientX - slide.startX;
-    slide.startX = null;
-    if (Math.abs(dx) > 40 && state.images.length > 1) { slide.swiped = true; go(slide.at + (dx < 0 ? 1 : -1)); }
+    if (s.startX == null) return;
+    var dx = e.clientX - s.startX;
+    s.startX = null;
+    if (Math.abs(dx) > 40 && s.images.length > 1) { s.swiped = true; go(s, s.at + (dx < 0 ? 1 : -1)); }
   });
   vp.addEventListener('click', function (e) {
     var nav = e.target.closest('[data-nav]');
-    if (nav) return go(slide.at + +nav.dataset.nav);
+    if (nav) return go(s, s.at + +nav.dataset.nav);
     var b = e.target.closest('[data-i]');
-    if (!b || slide.swiped) return;
-    openViewer(+b.dataset.i);
+    if (!b || s.swiped) return;
+    openViewer(s, +b.dataset.i);
   });
 }
 
 /* ---------- ดูภาพเต็มจอ — หน้าตาและการทำงานเดียวกับหน้าประมวลภาพ (gallery.html #viewer · ผู้ดูแลขอ ต.ค. 2569) ----------
    พื้นเข้มเต็มจอ · ตัวนับ · ดาวน์โหลดไฟล์ต้นฉบับ · เปิดใน Drive · ปิด · วงหมุนระหว่างโหลด · ลูกศร/ปัด/คีย์บอร์ด
-   แตะพื้นที่ว่างรอบภาพ = ปิด · คำบรรยายใต้ภาพ = ชุดภาพ (วัน/กีฬา) · โหลดภาพข้าง ๆ ไว้ก่อน */
+   แตะพื้นที่ว่างรอบภาพ = ปิด · คำบรรยายใต้ภาพ = ชื่อส่วน · ชุดภาพ (วัน/กีฬา) · โหลดภาพข้าง ๆ ไว้ก่อน
+   ใช้ dialog เดียวทั้งหน้า — active = ส่วนที่กำลังดู */
 function arrow(d) {
   return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true"><path d="' + d + '" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
@@ -180,11 +193,11 @@ function ensureModal() {
   document.body.appendChild(modal);
   var stage = $v('stage');
   $v('close').addEventListener('click', function () { modal.close(); });
-  $v('prev').addEventListener('click', function () { show(state.viewing - 1); });
-  $v('next').addEventListener('click', function () { show(state.viewing + 1); });
+  $v('prev').addEventListener('click', function () { show(active.viewing - 1); });
+  $v('next').addEventListener('click', function () { show(active.viewing + 1); });
   modal.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft') { e.preventDefault(); show(state.viewing - 1); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); show(state.viewing + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); show(active.viewing - 1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); show(active.viewing + 1); }
   });
   // แตะพื้นที่ว่างรอบภาพ = ปิด (เหมือนแอปดูรูปทั่วไป)
   stage.addEventListener('click', function (e) { if (e.target === stage) modal.close(); });
@@ -195,21 +208,24 @@ function ensureModal() {
     if (startX == null) return;
     var dx = e.clientX - startX, dy = e.clientY - startY;
     startX = null;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) show(state.viewing + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) show(active.viewing + (dx < 0 ? 1 : -1));
   });
   modal.addEventListener('close', function () {
     document.documentElement.style.overflow = '';
     clearTimeout(slowTimer);
     $v('img').removeAttribute('src');
     // ปิดภาพเต็มจอแล้วสไลด์อยู่ที่รูปที่ดูค้างไว้ · คืนโฟกัสให้รูปนั้น
-    if (state.viewing > -1) go(state.viewing, false);
-    var tile = document.querySelector('#posterTrack [data-i="' + state.viewing + '"]');
+    var s = active;
+    if (!s) return;
+    if (s.viewing > -1) go(s, s.viewing, false);
+    var tile = document.querySelector('#' + s.track + ' [data-i="' + s.viewing + '"]');
     if (tile) tile.focus();
-    state.viewing = -1;
+    s.viewing = -1;
   });
   return modal;
 }
-function openViewer(i) {
+function openViewer(s, i) {
+  active = s;
   ensureModal();
   if (!modal.open) {
     modal.showModal();
@@ -219,11 +235,11 @@ function openViewer(i) {
 }
 /** ภาพที่ i (วนรอบได้) */
 function show(i) {
-  var n = state.images.length;
+  var s = active, n = s.images.length;
   if (!n) return;
-  state.viewing = (i + n) % n;
-  var p = state.images[state.viewing], url = driveUrl(p.id), img = $v('img'), spin = $v('spin');
-  var caption = 'สรุปเหรียญการแข่งขัน · ' + p.label;
+  s.viewing = (i + n) % n;
+  var p = s.images[s.viewing], url = driveUrl(p.id), img = $v('img'), spin = $v('spin');
+  var caption = s.name + (p.label ? ' · ' + p.label : '');
   spin.hidden = false;
   img.style.opacity = '0';
   // lh3 ล้ม → ลองลิงก์สำรองของ Drive หนึ่งครั้ง · ล้มทั้งคู่ค่อยบอกผู้ชม · โหลดนานเกิน 15 วินาทีบอกในคำบรรยาย
@@ -239,36 +255,38 @@ function show(i) {
     spin.hidden = true; $v('caption').textContent = 'โหลดภาพนี้ไม่ได้ — ไฟล์อาจยังไม่ได้แชร์แบบ "ทุกคนที่มีลิงก์"';
   };
   img.src = imageUrlAt(url, 2000);
-  img.alt = caption + ' ภาพที่ ' + (state.viewing + 1);
-  $v('count').textContent = (state.viewing + 1) + ' / ' + n;
+  img.alt = caption + ' ภาพที่ ' + (s.viewing + 1);
+  $v('count').textContent = (s.viewing + 1) + ' / ' + n;
   $v('caption').textContent = caption;
   $v('original').href = originalImageUrl(url);
   $v('download').href = downloadImageUrl(url);
-  $v('download').setAttribute('aria-label', 'ดาวน์โหลด' + caption + ' ภาพที่ ' + (state.viewing + 1));
+  $v('download').setAttribute('aria-label', 'ดาวน์โหลด' + caption + ' ภาพที่ ' + (s.viewing + 1));
   $v('prev').hidden = $v('next').hidden = n < 2;
   // โหลดภาพข้าง ๆ ไว้ก่อน กดถัดไปแล้วขึ้นทันที
-  [state.viewing + 1, state.viewing - 1].forEach(function (k) {
+  [s.viewing + 1, s.viewing - 1].forEach(function (k) {
     if (n < 2) return;
     var pre = new Image();
     pre.referrerPolicy = 'no-referrer';
-    pre.src = imageUrlAt(driveUrl(state.images[(k + n) % n].id), 2000);
+    pre.src = imageUrlAt(driveUrl(s.images[(k + n) % n].id), 2000);
   });
 }
 
-/** วาดส่วนสรุปเหรียญครั้งเดียวตอนเปิดหน้า (ไม่ผูกกับรอบข้อมูลชีต) */
+/** วาดทุกส่วนครั้งเดียวตอนเปิดหน้า (ไม่ผูกกับรอบข้อมูลชีต) · แต่ละส่วนโหลดแยกกัน ส่วนหนึ่งพังอีกส่วนยังขึ้น */
 export function renderMedalPosters() {
-  var box = document.getElementById('posters');
-  var root = driveFolderId(MEDAL_POSTERS_FOLDER);
-  if (!box || !root || !GOOGLE_API_KEY) return;
-  loadGroups(root).then(function (groups) {
-    state.images = groups.reduce(function (all, g) {
-      return all.concat(g.list.map(function (id) { return { id: id, label: g.label }; }));
-    }, []);
-    if (!state.images.length) return;
-    box.hidden = false;
-    paintSlides();
-  }).catch(function (err) {
-    console.error('สรุปเหรียญการแข่งขัน:', err.message);
+  SLIDERS.forEach(function (s) {
+    var box = document.getElementById(s.box);
+    var root = driveFolderId(s.folder);
+    if (!box || !root || !GOOGLE_API_KEY) return;
+    loadGroups(root, s.loose).then(function (groups) {
+      s.images = groups.reduce(function (all, g) {
+        return all.concat(g.list.map(function (id) { return { id: id, label: g.label }; }));
+      }, []);
+      if (!s.images.length) return;
+      box.hidden = false;
+      paintSlides(s);
+    }).catch(function (err) {
+      console.error(s.name + ':', err.message);
+    });
+    bindSlider(s);
   });
-  bindSlider();
 }
